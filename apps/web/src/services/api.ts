@@ -1,6 +1,6 @@
 import type { BetSession, Card, CreateSessionInput } from "@playbit/shared";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787";
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:8787" : "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
@@ -41,4 +41,3 @@ export const api = {
     });
   }
 };
-

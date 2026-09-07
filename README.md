@@ -28,6 +28,4 @@ Copy `.env.example` to `.env` for local API/database configuration.
 
 ## Deployment
 
-- Vercel: deploy the repository root. `vercel.json` builds `apps/web`.
-- Railway: deploy `apps/api`, provision PostgreSQL, set `DATABASE_URL`, `WEB_ORIGIN`, and `PORT`.
-- Run `pnpm --filter @playbit/api db:migrate` after the Railway PostgreSQL URL is available.
+See `docs/deployment.md`.

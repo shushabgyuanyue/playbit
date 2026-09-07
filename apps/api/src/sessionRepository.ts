@@ -114,7 +114,7 @@ export function createSessionRepository(): SessionRepository {
     return new MemorySessionRepository();
   }
 
-  const sql = postgres(process.env.DATABASE_URL, { ssl: "require" });
+  const ssl = process.env.DATABASE_SSL === "false" ? false : "require";
+  const sql = postgres(process.env.DATABASE_URL, { ssl });
   return new PostgresSessionRepository(drizzle(sql));
 }
-
