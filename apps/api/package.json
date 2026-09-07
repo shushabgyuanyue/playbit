@@ -1,0 +1,30 @@
+{
+  "name": "@playbit/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.2",
+    "@playbit/cards": "workspace:*",
+    "@playbit/game-core": "workspace:*",
+    "@playbit/shared": "workspace:*",
+    "drizzle-orm": "^0.44.5",
+    "hono": "^4.13.7",
+    "postgres": "^3.4.9",
+    "tsx": "^4.20.5",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "drizzle-kit": "^0.31.4",
+    "typescript": "^5.9.2"
+  }
+}

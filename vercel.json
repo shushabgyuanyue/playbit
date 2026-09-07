@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm --filter @playbit/web build",
+  "outputDirectory": "apps/web/dist",
+  "installCommand": "pnpm install"
+}
+
