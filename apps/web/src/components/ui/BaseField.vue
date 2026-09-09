@@ -6,6 +6,7 @@ defineProps<{
   modelValue: string;
   placeholder?: string;
   multiline?: boolean;
+  type?: "text" | "email" | "password";
 }>();
 
 const emit = defineEmits<{
@@ -29,6 +30,7 @@ const emit = defineEmits<{
     />
     <input
       v-else
+      :type="type ?? 'text'"
       :value="modelValue"
       :placeholder="placeholder"
       class="min-h-11 w-full rounded-md border border-input bg-white px-3 text-base outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
@@ -36,4 +38,3 @@ const emit = defineEmits<{
     />
   </label>
 </template>
-

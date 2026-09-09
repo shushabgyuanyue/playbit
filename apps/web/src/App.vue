@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { drawCard as drawLocalCard } from "@playbit/cards";
 import { createBetSession, settleBetSession } from "@playbit/game-core";
-import type { BetSession, Card, CreateSessionInput } from "@playbit/shared";
+import type { BetSession, Card, CreateSessionInput, LoginInput, RegisterInput, User } from "@playbit/shared";
 import { computed, onMounted, ref } from "vue";
+import AccountScreen from "./components/AccountScreen.vue";
 import ContractScreen from "./components/ContractScreen.vue";
 import CreateBetScreen from "./components/CreateBetScreen.vue";
 import DrawCardScreen from "./components/DrawCardScreen.vue";
@@ -13,15 +14,26 @@ import SignScreen from "./components/SignScreen.vue";
 import SettlementScreen from "./components/SettlementScreen.vue";
 import { api } from "./services/api";
 
-type Screen = "home" | "create" | "contract" | "draw" | "session" | "settlement" | "history" | "sign";
+type Screen =
+  | "home"
+  | "create"
+  | "contract"
+  | "draw"
+  | "session"
+  | "settlement"
+  | "history"
+  | "sign"
+  | "account";
 
 const screen = ref<Screen>("home");
+const currentUser = ref<User | null>(null);
 const sessions = ref<BetSession[]>([]);
 const activeSessionId = ref<string | null>(null);
 const activeCard = ref<Card | null>(null);
 const drawnCardIds = ref<string[]>([]);
 const cardLoading = ref(false);
 const signLoading = ref(false);
+const authLoading = ref(false);
 const activeShareCode = ref<string | null>(null);
 
 const activeSession = computed(() =>
@@ -37,7 +49,53 @@ function loadLocalSessions() {
   sessions.value = stored ? (JSON.parse(stored) as BetSession[]) : [];
 }
 
+function localGuest(): User {
+  const stored = localStorage.getItem("playbit.localUser");
+  if (stored) {
+    return JSON.parse(stored) as User;
+  }
+
+  const user: User = {
+    id: `local_${Math.random().toString(36).slice(2, 10)}`,
+    nickname: "我",
+    email: null,
+    authLevel: "guest",
+    createdAt: new Date().toISOString()
+  };
+  localStorage.setItem("playbit.localUser", JSON.stringify(user));
+  return user;
+}
+
+async function ensureIdentity() {
+  if (currentUser.value) {
+    return currentUser.value;
+  }
+
+  if (api.getAuthToken()) {
+    try {
+      const response = await api.me();
+      if (response.user) {
+        currentUser.value = response.user;
+        return response.user;
+      }
+    } catch {
+      currentUser.value = localGuest();
+      return currentUser.value;
+    }
+  }
+
+  try {
+    const response = await api.createGuest("我");
+    currentUser.value = response.user;
+    return response.user;
+  } catch {
+    currentUser.value = localGuest();
+    return currentUser.value;
+  }
+}
+
 async function refreshSessions() {
+  await ensureIdentity();
   try {
     const response = await api.listSessions();
     if (response.sessions.length > 0) {
@@ -67,12 +125,18 @@ async function loadShareSession(shareCode: string) {
 }
 
 async function createSession(payload: CreateSessionInput) {
+  const user = await ensureIdentity();
+  const sessionInput = {
+    ...payload,
+    creatorNickname: user.nickname
+  };
+
   try {
-    const response = await api.createSession(payload);
+    const response = await api.createSession(sessionInput);
     sessions.value = [response.session, ...sessions.value.filter((item) => item.id !== response.session.id)];
     activeSessionId.value = response.session.id;
   } catch {
-    const session = createBetSession(payload);
+    const session = createBetSession(sessionInput, user.id);
     sessions.value = [session, ...sessions.value];
     activeSessionId.value = session.id;
   }
@@ -132,7 +196,7 @@ async function copyShareText() {
   const winner = session.participants.find((participant) => participant.id === session.winnerId)?.nickname;
   const shareLink = `${window.location.origin}${window.location.pathname}?share=${session.shareCode}`;
   const text = winner
-    ? `《本局已结案》\n赌局：${session.title}\n胜方：${winner}\n赌注：${session.stake.label}`
+    ? `《本局已结案》\n赌局：${session.title}\n胜方：${winner}\n赌注：${session.stake.label} × ${session.stake.quantity}`
     : `《${session.title}》待签约\n赌约：${session.challenge}\n判定：${session.judgmentRule}\n赌注：${session.stake.label} × ${session.stake.quantity}\n签约链接：${shareLink}`;
 
   await navigator.clipboard?.writeText(text);
@@ -143,6 +207,7 @@ async function signSession(nickname: string) {
     return;
   }
 
+  await ensureIdentity();
   signLoading.value = true;
   try {
     const response = await api.signShare(activeShareCode.value, nickname);
@@ -154,13 +219,39 @@ async function signSession(nickname: string) {
   }
 }
 
+async function registerAccount(payload: RegisterInput) {
+  authLoading.value = true;
+  try {
+    const response = await api.register(payload);
+    currentUser.value = response.user;
+    await refreshSessions();
+    screen.value = "home";
+  } finally {
+    authLoading.value = false;
+  }
+}
+
+async function loginAccount(payload: LoginInput) {
+  authLoading.value = true;
+  try {
+    const response = await api.login(payload);
+    currentUser.value = response.user;
+    await refreshSessions();
+    screen.value = "home";
+  } finally {
+    authLoading.value = false;
+  }
+}
+
 onMounted(() => {
   loadLocalSessions();
   const shareCode = new URLSearchParams(window.location.search).get("share");
   if (shareCode) {
+    void ensureIdentity();
     void loadShareSession(shareCode);
     return;
   }
+  void ensureIdentity();
   void refreshSessions();
 });
 </script>
@@ -170,12 +261,22 @@ onMounted(() => {
     <div class="mobile-frame">
       <HomeScreen
         v-if="screen === 'home'"
+        :user="currentUser"
         @create="screen = 'create'"
         @draw="
           screen = 'draw';
           if (!activeCard) drawCard();
         "
         @history="screen = 'history'"
+        @account="screen = 'account'"
+      />
+      <AccountScreen
+        v-else-if="screen === 'account'"
+        :user="currentUser"
+        :loading="authLoading"
+        @back="screen = 'home'"
+        @register="registerAccount"
+        @login="loginAccount"
       />
       <CreateBetScreen v-else-if="screen === 'create'" @back="screen = 'home'" @submit="createSession" />
       <ContractScreen

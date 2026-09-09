@@ -11,6 +11,17 @@ export const copy = {
     couponsAction: "我的卡券",
     liveHint: "认真处理小事，生活就会多一点戏。"
   },
+  auth: {
+    guest: "临时身份",
+    registered: "已保存账号",
+    account: "账号与凭证",
+    saveAccount: "保存账号",
+    login: "登录已有账号",
+    email: "邮箱",
+    password: "密码",
+    nickname: "称呼",
+    saveHint: "保存后可跨设备找回协议、卡券和结案记录。"
+  },
   create: {
     title: "发起一份生活约定",
     agreement: "赌约",

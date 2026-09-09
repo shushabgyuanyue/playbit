@@ -1,14 +1,14 @@
 import { betSessions } from "./db/schema.js";
 import type { BetSession } from "@playbit/shared";
 import { desc, eq } from "drizzle-orm";
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 type SessionRow = typeof betSessions.$inferSelect;
 
 function toRow(session: BetSession): typeof betSessions.$inferInsert {
   return {
     id: session.id,
+    ownerUserId: session.ownerUserId,
     title: session.title,
     source: session.source,
     participants: session.participants,
@@ -28,6 +28,7 @@ function toRow(session: BetSession): typeof betSessions.$inferInsert {
 function fromRow(row: SessionRow): BetSession {
   return {
     id: row.id,
+    ownerUserId: row.ownerUserId,
     title: row.title,
     source: row.source,
     participants: row.participants,
@@ -52,8 +53,10 @@ class MemorySessionRepository {
     return session;
   }
 
-  async list(): Promise<BetSession[]> {
-    return Array.from(this.sessions.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  async list(userId: string | null = null): Promise<BetSession[]> {
+    return Array.from(this.sessions.values())
+      .filter((session) => !userId || session.participants.some((participant) => participant.userId === userId))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async findById(id: string): Promise<BetSession | null> {
@@ -78,9 +81,11 @@ class PostgresSessionRepository {
     return fromRow(row);
   }
 
-  async list(): Promise<BetSession[]> {
+  async list(userId: string | null = null): Promise<BetSession[]> {
     const rows = await this.db.select().from(betSessions).orderBy(desc(betSessions.createdAt));
-    return rows.map(fromRow);
+    return rows
+      .map(fromRow)
+      .filter((session) => !userId || session.participants.some((participant) => participant.userId === userId));
   }
 
   async findById(id: string): Promise<BetSession | null> {
@@ -109,12 +114,6 @@ class PostgresSessionRepository {
 
 export type SessionRepository = MemorySessionRepository | PostgresSessionRepository;
 
-export function createSessionRepository(): SessionRepository {
-  if (!process.env.DATABASE_URL) {
-    return new MemorySessionRepository();
-  }
-
-  const ssl = process.env.DATABASE_SSL === "false" ? false : "require";
-  const sql = postgres(process.env.DATABASE_URL, { ssl });
-  return new PostgresSessionRepository(drizzle(sql));
+export function createSessionRepository(db: PostgresJsDatabase | null): SessionRepository {
+  return db ? new PostgresSessionRepository(db) : new MemorySessionRepository();
 }

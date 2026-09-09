@@ -15,6 +15,8 @@ Playbit turns tiny real-life bets, challenges, and rewards into lightweight sess
 
 Playbit follows the product-level design constitution in `docs/design-constitution.md`: a serious notary with a quiet sense of humor, using formal agreement metaphors for tiny real-life moments.
 
+Identity is progressive: users get a temporary identity by default, then upgrade to an email account only when they need durable coupon, agreement, or history management.
+
 ## Commands
 
 ```bash

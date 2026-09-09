@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
+import type { User } from "@playbit/shared";
 import { Dices, FilePenLine, History, Ticket } from "lucide-vue-next";
 import BaseButton from "./ui/BaseButton.vue";
+
+defineProps<{
+  user: User | null;
+}>();
 
 const emit = defineEmits<{
   create: [];
   draw: [];
   history: [];
+  account: [];
 }>();
 </script>
 
@@ -14,7 +20,9 @@ const emit = defineEmits<{
   <section class="screen">
     <div class="topbar">
       <div class="brand-mark">局</div>
-      <span class="muted">play a bit</span>
+      <button class="account-chip" @click="emit('account')">
+        {{ user?.authLevel === "registered" ? copy.auth.registered : copy.auth.guest }}
+      </button>
     </div>
 
     <h1 class="hero-title">{{ copy.app.tagline }}</h1>
@@ -38,7 +46,7 @@ const emit = defineEmits<{
         <History :size="17" />
         {{ copy.home.historyAction }}
       </BaseButton>
-      <BaseButton variant="outline" disabled>
+      <BaseButton variant="outline" @click="emit('account')">
         <Ticket :size="17" />
         {{ copy.home.couponsAction }}
       </BaseButton>

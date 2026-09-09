@@ -28,6 +28,8 @@ DATABASE_SSL=true
 
 Railway reads `railway.json` from the repository root.
 
+Authentication sessions are stored in PostgreSQL. No extra auth provider is required for the current email/password upgrade flow.
+
 The start command runs migrations before starting the API:
 
 ```bash
@@ -70,4 +72,3 @@ pnpm dev
 pnpm check
 pnpm build
 ```
-

@@ -4,13 +4,20 @@ function makeId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function createBetSession(input: CreateSessionInput): BetSession {
+export function createBetSession(input: CreateSessionInput, creatorUserId: string | null = null): BetSession {
   const participants: Participant[] = [
-    { id: makeId("p"), nickname: input.creatorNickname, role: "initiator", confirmed: true }
+    {
+      id: makeId("p"),
+      nickname: input.creatorNickname ?? "发起方",
+      role: "initiator",
+      userId: creatorUserId,
+      confirmed: true
+    }
   ];
 
   return {
     id: makeId("bet"),
+    ownerUserId: creatorUserId,
     title: input.title,
     source: input.source,
     participants,
@@ -40,7 +47,11 @@ export function confirmParticipant(session: BetSession, participantId: string): 
   };
 }
 
-export function signCounterparty(session: BetSession, nickname: string): BetSession {
+export function signCounterparty(
+  session: BetSession,
+  nickname: string,
+  counterpartyUserId: string | null = null
+): BetSession {
   const initiator = session.participants.find((participant) => participant.role === "initiator");
   const counterparty = session.participants.find((participant) => participant.role === "counterparty");
   const participants: Participant[] = counterparty
@@ -49,7 +60,7 @@ export function signCounterparty(session: BetSession, nickname: string): BetSess
       )
     : [
         ...(initiator ? [initiator] : session.participants),
-        { id: makeId("p"), nickname, role: "counterparty", confirmed: true }
+        { id: makeId("p"), nickname, role: "counterparty", userId: counterpartyUserId, confirmed: true }
       ];
 
   return {
