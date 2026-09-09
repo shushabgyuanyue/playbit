@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { Card, CreateSessionInput } from "@playbit/shared";
+import type { Card, CreateSessionInput, Stake } from "@playbit/shared";
 import { ArrowLeft, Check, RefreshCcw } from "lucide-vue-next";
 import { reactive } from "vue";
 import BaseBadge from "./ui/BaseBadge.vue";
 import BaseButton from "./ui/BaseButton.vue";
-import BaseField from "./ui/BaseField.vue";
+import StakePicker from "./StakePicker.vue";
 
 const props = defineProps<{
   card: Card | null;
@@ -18,9 +18,12 @@ const emit = defineEmits<{
 }>();
 
 const form = reactive({
-  partyA: "我",
-  partyB: "",
-  stakeLabel: "奶茶券"
+  stake: {
+    type: "coupon",
+    label: "奶茶券",
+    quantity: 1,
+    fulfilled: false
+  } as Stake
 });
 
 function accept() {
@@ -30,17 +33,11 @@ function accept() {
 
   emit("accept", {
     source: "card",
-    partyA: form.partyA,
-    partyB: form.partyB || "对方",
+    creatorNickname: "发起方",
     title: props.card.name,
     challenge: props.card.content,
     judgmentRule: props.card.winCondition,
-    stake: {
-      type: "coupon",
-      label: form.stakeLabel,
-      quantity: 1,
-      fulfilled: false
-    },
+    stake: form.stake,
     cardId: props.card.id
   });
 }
@@ -69,12 +66,7 @@ function accept() {
       <p class="card-content">卡片会给当前生活加一条临时规则。</p>
     </div>
 
-    <h3 class="section-title">本局赌注</h3>
-    <div class="field-group">
-      <BaseField v-model="form.partyA" label="我方" />
-      <BaseField v-model="form.partyB" label="对方" placeholder="例如：Gloria" />
-      <BaseField v-model="form.stakeLabel" label="赌注" placeholder="例如：奶茶券 ×1" />
-    </div>
+    <StakePicker @change="form.stake = $event" />
 
     <div class="bottom-actions">
       <div class="inline-actions">

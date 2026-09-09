@@ -3,6 +3,7 @@ import { z } from "zod";
 export const participantSchema = z.object({
   id: z.string(),
   nickname: z.string().min(1).max(24),
+  role: z.enum(["initiator", "counterparty"]),
   confirmed: z.boolean().default(false)
 });
 
@@ -57,13 +58,16 @@ export const betSessionSchema = z.object({
 
 export const createSessionSchema = z.object({
   source: z.enum(["custom", "card"]),
-  partyA: z.string().min(1).max(24),
-  partyB: z.string().min(1).max(24),
+  creatorNickname: z.string().min(1).max(24).default("发起方"),
   title: z.string().min(1).max(48),
-  challenge: z.string().min(1).max(180),
+  challenge: z.string().min(1).max(180).optional(),
   judgmentRule: z.string().min(1).max(180),
   stake: stakeSchema,
   cardId: z.string().nullable().optional()
+});
+
+export const signSessionSchema = z.object({
+  nickname: z.string().min(1).max(24)
 });
 
 export const settleSessionSchema = z.object({
@@ -78,5 +82,5 @@ export type Card = z.infer<typeof cardSchema>;
 export type SessionStatus = z.infer<typeof sessionStatusSchema>;
 export type BetSession = z.infer<typeof betSessionSchema>;
 export type CreateSessionInput = z.infer<typeof createSessionSchema>;
+export type SignSessionInput = z.infer<typeof signSessionSchema>;
 export type SettleSessionInput = z.infer<typeof settleSessionSchema>;
-

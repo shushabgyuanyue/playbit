@@ -4,9 +4,9 @@ This is the product-level design constitution for Playbit. It is not a component
 
 ## Brand Persona
 
-Playbit is a serious notary with a quiet sense of humor.
+Playbit is a professional life-agreement service with a quiet sense of humor.
 
-It treats tiny life moments with formal care: a late arrival, a silly bet, a small promise, a coupon for doing dishes. The surface feels credible and composed. The delight comes from the mismatch between the official tone and the ordinary matter being recorded.
+It treats tiny life moments with commercial-grade care: a late arrival, a small promise, a coupon for doing dishes, a settlement between two people. The surface should feel like WeChat Pay, Alipay, Apple Wallet, and a formal e-signature flow: credible, useful, restrained. The delight comes later, from serious systems handling ordinary life.
 
 ## Design Keywords
 
@@ -17,6 +17,8 @@ It treats tiny life moments with formal care: a late arrival, a silly bet, a sma
 - A little surprising
 - Mobile-native
 - Easy to share
+- Commercial-grade
+- Life-service-like
 
 ## What Playbit Is Not
 
@@ -25,6 +27,7 @@ It treats tiny life moments with formal care: a late arrival, a silly bet, a sma
 - Not glassmorphism-heavy
 - Not a casino
 - Not a game lobby
+- Not an entertainment skin
 - Not a social platform
 - Not a wellness journal
 - Not a dashboard
@@ -32,13 +35,15 @@ It treats tiny life moments with formal care: a late arrival, a silly bet, a sma
 
 ## Visual Metaphor
 
-Playbit feels like a formal agreement folder for ordinary life.
+Playbit feels like a formal agreement and credential folder for ordinary life.
 
 - Pages can feel like contracts, certificates, receipts, or settlement letters.
 - Session IDs can feel like agreement numbers.
 - Confirmation can feel like signing.
 - Completion can feel like stamping.
 - Share pages can feel like a case-closing notice.
+- Coupons can feel like commercial vouchers.
+- Challenge cards can feel like temporary rule tickets.
 
 The metaphor should stay light. It should make the experience clearer and more memorable, not slow it down.
 
@@ -47,6 +52,8 @@ The metaphor should stay light. It should make the experience clearer and more m
 - The first screen is the product, not a pitch.
 - Every step should have one obvious next action.
 - Any core action should be understandable in 3 seconds.
+- Bet creation should ask only for essential input: agreement, judging rule, stake.
+- The counterparty should be added by signing a shared link, not by being typed during creation.
 - Ritual comes from flow and language first, animation second.
 - The phone issues rules, records results, and produces artifacts; the real play happens offline.
 - In-session moments may be dramatic; out-of-session surfaces must stay light.
@@ -58,6 +65,7 @@ The metaphor should stay light. It should make the experience clearer and more m
 - `Origin UI`: page-level block structure and practical interaction patterns.
 - `21st.dev`: component-search workflow before custom design.
 - `Apple Wallet`: credential-like clarity and shareable artifact feeling.
+- `WeChat Pay / Alipay`: life-service navigation, coupon list structure, practical trust.
 - `Notion`: paper-like rhythm, readable spacing, quiet hierarchy.
 - `Linear`: typographic restraint and low-noise interface density.
 
@@ -73,4 +81,3 @@ Review polish most carefully at these moments:
 - Final settlement/share page.
 
 Other screens may stay simpler if the core moments feel right.
-

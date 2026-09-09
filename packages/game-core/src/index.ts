@@ -6,8 +6,7 @@ function makeId(prefix: string): string {
 
 export function createBetSession(input: CreateSessionInput): BetSession {
   const participants: Participant[] = [
-    { id: makeId("p"), nickname: input.partyA, confirmed: true },
-    { id: makeId("p"), nickname: input.partyB, confirmed: false }
+    { id: makeId("p"), nickname: input.creatorNickname, role: "initiator", confirmed: true }
   ];
 
   return {
@@ -15,7 +14,7 @@ export function createBetSession(input: CreateSessionInput): BetSession {
     title: input.title,
     source: input.source,
     participants,
-    challenge: input.challenge,
+    challenge: input.challenge ?? input.title,
     judgmentRule: input.judgmentRule,
     stake: input.stake,
     cardId: input.cardId ?? null,
@@ -38,6 +37,25 @@ export function confirmParticipant(session: BetSession, participantId: string): 
     ...session,
     participants,
     status: allConfirmed ? "active" : session.status
+  };
+}
+
+export function signCounterparty(session: BetSession, nickname: string): BetSession {
+  const initiator = session.participants.find((participant) => participant.role === "initiator");
+  const counterparty = session.participants.find((participant) => participant.role === "counterparty");
+  const participants: Participant[] = counterparty
+    ? session.participants.map((participant) =>
+        participant.role === "counterparty" ? { ...participant, nickname, confirmed: true } : participant
+      )
+    : [
+        ...(initiator ? [initiator] : session.participants),
+        { id: makeId("p"), nickname, role: "counterparty", confirmed: true }
+      ];
+
+  return {
+    ...session,
+    participants,
+    status: "active"
   };
 }
 
@@ -68,4 +86,3 @@ export function generateContractTitle(session: BetSession): string {
 export function generateSettlementTitle(session: BetSession): string {
   return session.stake.fulfilled ? "本案正式结案" : "本局已结案";
 }
-

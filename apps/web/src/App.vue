@@ -9,10 +9,11 @@ import DrawCardScreen from "./components/DrawCardScreen.vue";
 import HistoryScreen from "./components/HistoryScreen.vue";
 import HomeScreen from "./components/HomeScreen.vue";
 import SessionScreen from "./components/SessionScreen.vue";
+import SignScreen from "./components/SignScreen.vue";
 import SettlementScreen from "./components/SettlementScreen.vue";
 import { api } from "./services/api";
 
-type Screen = "home" | "create" | "contract" | "draw" | "session" | "settlement" | "history";
+type Screen = "home" | "create" | "contract" | "draw" | "session" | "settlement" | "history" | "sign";
 
 const screen = ref<Screen>("home");
 const sessions = ref<BetSession[]>([]);
@@ -20,6 +21,8 @@ const activeSessionId = ref<string | null>(null);
 const activeCard = ref<Card | null>(null);
 const drawnCardIds = ref<string[]>([]);
 const cardLoading = ref(false);
+const signLoading = ref(false);
+const activeShareCode = ref<string | null>(null);
 
 const activeSession = computed(() =>
   sessions.value.find((session) => session.id === activeSessionId.value)
@@ -43,6 +46,23 @@ async function refreshSessions() {
     }
   } catch {
     loadLocalSessions();
+  }
+}
+
+async function loadShareSession(shareCode: string) {
+  activeShareCode.value = shareCode;
+  const localSession = sessions.value.find((session) => session.shareCode === shareCode);
+  if (localSession) {
+    activeSessionId.value = localSession.id;
+    screen.value = "sign";
+  }
+
+  try {
+    const response = await api.getShare(shareCode);
+    upsertSession(response.session);
+    screen.value = "sign";
+  } catch {
+    screen.value = "sign";
   }
 }
 
@@ -100,7 +120,7 @@ function upsertSession(session: BetSession) {
 
 function openSession(session: BetSession) {
   activeSessionId.value = session.id;
-  screen.value = session.winnerId ? "settlement" : "session";
+  screen.value = session.winnerId ? "settlement" : session.status === "active" ? "session" : "contract";
 }
 
 async function copyShareText() {
@@ -110,15 +130,37 @@ async function copyShareText() {
 
   const session = activeSession.value;
   const winner = session.participants.find((participant) => participant.id === session.winnerId)?.nickname;
+  const shareLink = `${window.location.origin}${window.location.pathname}?share=${session.shareCode}`;
   const text = winner
     ? `《本局已结案》\n赌局：${session.title}\n胜方：${winner}\n赌注：${session.stake.label}`
-    : `《${session.title}》赌约已生成：${session.challenge}；赌注：${session.stake.label}`;
+    : `《${session.title}》待签约\n赌约：${session.challenge}\n判定：${session.judgmentRule}\n赌注：${session.stake.label} × ${session.stake.quantity}\n签约链接：${shareLink}`;
 
   await navigator.clipboard?.writeText(text);
 }
 
+async function signSession(nickname: string) {
+  if (!activeShareCode.value) {
+    return;
+  }
+
+  signLoading.value = true;
+  try {
+    const response = await api.signShare(activeShareCode.value, nickname);
+    upsertSession(response.session);
+    persistSessions();
+    screen.value = "contract";
+  } finally {
+    signLoading.value = false;
+  }
+}
+
 onMounted(() => {
   loadLocalSessions();
+  const shareCode = new URLSearchParams(window.location.search).get("share");
+  if (shareCode) {
+    void loadShareSession(shareCode);
+    return;
+  }
   void refreshSessions();
 });
 </script>
@@ -170,7 +212,12 @@ onMounted(() => {
         @back="screen = 'home'"
         @open="openSession"
       />
+      <SignScreen
+        v-else-if="screen === 'sign'"
+        :session="activeSession ?? null"
+        :loading="signLoading"
+        @sign="signSession"
+      />
     </div>
   </main>
 </template>
-

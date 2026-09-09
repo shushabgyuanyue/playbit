@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { CreateSessionInput } from "@playbit/shared";
+import type { CreateSessionInput, Stake } from "@playbit/shared";
 import { ArrowLeft, FileCheck2 } from "lucide-vue-next";
 import { reactive } from "vue";
+import StakePicker from "./StakePicker.vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseField from "./ui/BaseField.vue";
 
@@ -12,29 +13,24 @@ const emit = defineEmits<{
 }>();
 
 const form = reactive({
-  partyA: "我",
-  partyB: "",
   title: "",
-  challenge: "",
   judgmentRule: "",
-  stakeLabel: "洗碗券",
-  stakeType: "coupon" as const
+  stake: {
+    type: "coupon",
+    label: "洗碗券",
+    quantity: 1,
+    fulfilled: false
+  } as Stake
 });
 
 function submit() {
   emit("submit", {
     source: "custom",
-    partyA: form.partyA,
-    partyB: form.partyB,
+    creatorNickname: "发起方",
     title: form.title,
-    challenge: form.challenge,
+    challenge: form.title,
     judgmentRule: form.judgmentRule,
-    stake: {
-      type: form.stakeType,
-      label: form.stakeLabel,
-      quantity: 1,
-      fulfilled: false
-    },
+    stake: form.stake,
     cardId: null
   });
 }
@@ -50,30 +46,22 @@ function submit() {
       <span class="muted">立约</span>
     </div>
 
-    <h2 class="section-title">把这件小事立下来</h2>
+    <h2 class="section-title">{{ copy.create.title }}</h2>
     <div class="field-group">
-      <BaseField v-model="form.partyA" label="我方" placeholder="例如：小王" />
-      <BaseField v-model="form.partyB" label="对方" placeholder="例如：小李" />
-      <BaseField v-model="form.title" label="赌局" placeholder="例如：谁会先迟到" />
-      <BaseField
-        v-model="form.challenge"
-        label="约定"
-        multiline
-        placeholder="例如：明天下午三点前到达咖啡店"
-      />
+      <BaseField v-model="form.title" :label="copy.create.agreement" :placeholder="copy.create.agreementPlaceholder" />
       <BaseField
         v-model="form.judgmentRule"
-        label="判定"
+        :label="copy.create.judgment"
         multiline
-        placeholder="例如：最后到的人输"
+        :placeholder="copy.create.judgmentPlaceholder"
       />
-      <BaseField v-model="form.stakeLabel" label="赌注" placeholder="例如：洗碗券 ×1" />
     </div>
+    <StakePicker @change="form.stake = $event" />
 
     <div class="bottom-actions">
-      <BaseButton size="lg" @click="submit">
+      <BaseButton size="lg" :disabled="!form.title.trim() || !form.judgmentRule.trim()" @click="submit">
         <FileCheck2 :size="18" />
-        生成正式赌约
+        {{ copy.create.generate }}
       </BaseButton>
     </div>
   </section>

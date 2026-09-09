@@ -28,7 +28,7 @@ const emit = defineEmits<{
       <h2 class="card-name">{{ props.session.title }}</h2>
       <p class="card-content">{{ props.session.challenge }}</p>
       <p class="hero-copy">判定：{{ props.session.judgmentRule }}</p>
-      <p class="hero-copy">赌注：{{ props.session.stake.label }}</p>
+      <p class="hero-copy">赌注：{{ props.session.stake.label }} × {{ props.session.stake.quantity }}</p>
     </div>
 
     <h3 class="section-title">局内增强</h3>

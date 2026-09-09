@@ -32,7 +32,7 @@ const emit = defineEmits<{
     <div v-for="session in sessions" :key="session.id" class="challenge-card" @click="emit('open', session)">
       <span class="card-label">{{ session.status }}</span>
       <h3 class="card-name">{{ session.title }}</h3>
-      <p class="hero-copy">赌注：{{ session.stake.label }}</p>
+      <p class="hero-copy">赌注：{{ session.stake.label }} × {{ session.stake.quantity }}</p>
     </div>
   </section>
 </template>

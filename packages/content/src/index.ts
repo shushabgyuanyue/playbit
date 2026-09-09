@@ -11,6 +11,35 @@ export const copy = {
     couponsAction: "我的卡券",
     liveHint: "认真处理小事，生活就会多一点戏。"
   },
+  create: {
+    title: "发起一份生活约定",
+    agreement: "赌约",
+    agreementPlaceholder: "例如：谁先说“随便”谁输",
+    judgment: "怎么算赢",
+    judgmentPlaceholder: "例如：第一个说出口的人判负",
+    stake: "赌注",
+    generate: "生成签约链接"
+  },
+  sign: {
+    title: "待你签约",
+    nameLabel: "签署姓名",
+    namePlaceholder: "填写你的称呼",
+    action: "确认签约",
+    signed: "双方已签约"
+  },
+  stakes: {
+    title: "选择赌注",
+    custom: "自定义",
+    quantity: "数量",
+    presets: [
+      { type: "coupon", label: "洗碗券", description: "一次洗碗义务" },
+      { type: "coupon", label: "奶茶券", description: "请对方喝一杯奶茶" },
+      { type: "coupon", label: "做饭券", description: "负责一顿饭" },
+      { type: "coupon", label: "周末决定权", description: "一次周末安排权" },
+      { type: "point", label: "积分", description: "只记录关系内部战绩" },
+      { type: "custom", label: "自定义赌注", description: "写下一个生活约定" }
+    ]
+  },
   contract: {
     titlePrefix: "关于",
     titleSuffix: "之友好约定",
@@ -35,7 +64,7 @@ export const copy = {
     fulfilled: "本案正式结案"
   },
   share: {
-    contractCta: "发给对方确认",
+    contractCta: "复制签约链接",
     settlementTitle: "本局已结案",
     copyLink: "复制分享文案",
     screenshotHint: "这张页面适合直接截图分享。"
@@ -43,4 +72,3 @@ export const copy = {
 } as const;
 
 export type CopyKey = typeof copy;
-

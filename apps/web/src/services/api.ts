@@ -34,6 +34,15 @@ export const api = {
   listSessions() {
     return request<{ sessions: BetSession[] }>("/sessions");
   },
+  getShare(shareCode: string) {
+    return request<{ session: BetSession }>(`/share/${shareCode}`);
+  },
+  signShare(shareCode: string, nickname: string) {
+    return request<{ session: BetSession }>(`/share/${shareCode}/sign`, {
+      method: "POST",
+      body: JSON.stringify({ nickname })
+    });
+  },
   settleSession(id: string, winnerId: string, fulfilled: boolean) {
     return request<{ session: BetSession }>(`/sessions/${id}/settle`, {
       method: "PATCH",

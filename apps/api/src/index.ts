@@ -1,9 +1,10 @@
 import { serve } from "@hono/node-server";
 import { dailyCards, drawCard } from "@playbit/cards";
-import { createBetSession, settleBetSession } from "@playbit/game-core";
+import { createBetSession, settleBetSession, signCounterparty } from "@playbit/game-core";
 import {
   betSessionSchema,
   createSessionSchema,
+  signSessionSchema,
   settleSessionSchema
 } from "@playbit/shared";
 import { Hono } from "hono";
@@ -65,6 +66,18 @@ app.get("/share/:shareCode", async (context) => {
     return context.json({ message: "Share page not found" }, 404);
   }
   return context.json({ session });
+});
+
+app.post("/share/:shareCode/sign", async (context) => {
+  const session = await sessions.findByShareCode(context.req.param("shareCode"));
+  if (!session) {
+    return context.json({ message: "Share page not found" }, 404);
+  }
+
+  const payload = signSessionSchema.parse(await context.req.json());
+  const signed = signCounterparty(session, payload.nickname);
+  await sessions.update(signed);
+  return context.json({ session: signed });
 });
 
 app.patch("/sessions/:id/settle", async (context) => {

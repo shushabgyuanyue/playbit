@@ -32,7 +32,7 @@ const loser = computed(
         <li><span>赌局</span><strong>{{ props.session.title }}</strong></li>
         <li><span>胜方</span><strong>{{ winner }}</strong></li>
         <li><span>败方</span><strong>{{ loser }}</strong></li>
-        <li><span>赌注</span><strong>{{ props.session.stake.label }}</strong></li>
+        <li><span>赌注</span><strong>{{ props.session.stake.label }} × {{ props.session.stake.quantity }}</strong></li>
         <li><span>状态</span><strong>{{ props.session.stake.fulfilled ? "已履约" : "待履约" }}</strong></li>
       </ul>
     </article>
