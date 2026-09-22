@@ -5,7 +5,7 @@ import type { VoucherItem } from "../types/voucher";
 import BaseBadge from "./ui/BaseBadge.vue";
 import BaseButton from "./ui/BaseButton.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
-import LifeAppBar from "./ui/LifeAppBar.vue";
+import LifeServiceHero from "./ui/LifeServiceHero.vue";
 
 const props = defineProps<{
   voucher: VoucherItem;
@@ -29,15 +29,17 @@ function statusTone(status: VoucherItem["status"]) {
 </script>
 
 <template>
-  <section class="life-page">
-    <LifeAppBar
+  <section class="life-page service-flow-page">
+    <LifeServiceHero
+      class="service-flow-hero"
+      :eyebrow="copy.vouchers.ticketCaption"
       :title="copy.vouchers.detailTitle"
       :show-back="true"
       :back-label="copy.common.back"
       @back="emit('back')"
     />
 
-    <div class="life-page-content">
+    <div class="life-page-content service-flow-content">
       <section class="life-panel">
         <BaseBadge :tone="statusTone(props.voucher.status)">
           {{ copy.vouchers.statusTabs[props.voucher.status] }}

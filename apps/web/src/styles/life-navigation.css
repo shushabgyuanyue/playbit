@@ -1,0 +1,164 @@
+.life-appbar {
+  display: grid;
+  grid-template-columns: var(--pb-touch) minmax(0, 1fr) var(--pb-touch);
+  align-items: center;
+  gap: 4px;
+  padding: 20px 8px 8px;
+  background: rgba(251, 248, 241, 0.96);
+}
+
+.life-appbar-service {
+  grid-template-columns: 76px minmax(0, 1fr) 86px;
+  background: var(--pb-blue);
+}
+
+.life-appbar-service .life-appbar-title,
+.life-appbar-service .life-back-button,
+.life-appbar-service .life-icon-button {
+  color: #ffffff;
+}
+
+.life-appbar-service .life-back-button,
+.life-appbar-service .life-icon-button {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
+.life-appbar-service .life-appbar-spacer {
+  min-width: 0;
+}
+
+.life-appbar-service .life-appbar-action {
+  min-width: 86px;
+}
+
+.life-appbar-spacer,
+.life-appbar-action {
+  min-width: var(--pb-touch);
+}
+
+.life-appbar-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.life-back-button,
+.life-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--pb-touch);
+  height: var(--pb-touch);
+  border: 1px solid rgba(31, 35, 41, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--pb-text-1);
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(31, 35, 41, 0.04);
+}
+
+.life-appbar-title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-xl);
+  font-weight: var(--pb-weight-semibold);
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.life-status-tabs {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  overflow-x: auto;
+  padding: 8px var(--pb-page-x) 12px;
+  scrollbar-width: none;
+}
+
+.life-status-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.life-status-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pb-text-2);
+  padding: 0 12px;
+  font-size: var(--pb-font-md);
+  font-weight: var(--pb-weight-regular);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.life-status-tabs button span {
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-xs);
+  font-weight: var(--pb-weight-regular);
+}
+
+.life-status-tabs button.active {
+  background: var(--pb-fill-control);
+  color: var(--pb-text-1);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.life-status-tabs button.active span {
+  color: var(--pb-text-2);
+}
+
+.life-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px var(--pb-page-x) calc(12px + env(safe-area-inset-bottom));
+  background: rgba(251, 248, 241, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.life-inline-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.spinning {
+  animation: life-spin 0.9s linear infinite;
+}
+
+@keyframes life-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 374px) {
+  .life-appbar {
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  .life-status-tabs {
+    gap: 12px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .life-status-tabs button {
+    font-size: var(--pb-font-sm);
+  }
+}

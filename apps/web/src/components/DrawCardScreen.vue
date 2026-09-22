@@ -6,8 +6,9 @@ import { reactive } from "vue";
 import BaseBadge from "./ui/BaseBadge.vue";
 import BaseButton from "./ui/BaseButton.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
-import LifeAppBar from "./ui/LifeAppBar.vue";
+import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import StakePicker from "./StakePicker.vue";
+import SignaturePad from "./ui/SignaturePad.vue";
 
 const props = defineProps<{
   card: Card | null;
@@ -23,9 +24,10 @@ const emit = defineEmits<{
 const form = reactive({
   stake: {
     type: "coupon",
-    label: "请奶茶一杯",
+    label: copy.stakes.presets[1]?.label ?? copy.stakes.presets[0].label,
     fulfilled: false
-  } as Stake
+  } as Stake,
+  creatorSignatureDataUrl: ""
 });
 
 function accept() {
@@ -35,7 +37,8 @@ function accept() {
 
   emit("accept", {
     source: "card",
-    creatorNickname: "发起方",
+    creatorNickname: copy.common.initiator,
+    creatorSignatureDataUrl: form.creatorSignatureDataUrl,
     title: props.card.name,
     challenge: props.card.content,
     judgmentRule: props.card.winCondition,
@@ -46,10 +49,17 @@ function accept() {
 </script>
 
 <template>
-  <section class="life-page">
-    <LifeAppBar :title="copy.draw.navTitle" :show-back="true" :back-label="copy.common.back" @back="emit('back')" />
+  <section class="life-page service-flow-page">
+    <LifeServiceHero
+      class="service-flow-hero"
+      :eyebrow="copy.draw.eyebrow"
+      :title="copy.draw.title"
+      :show-back="true"
+      :back-label="copy.common.back"
+      @back="emit('back')"
+    />
 
-    <div class="life-page-content">
+    <div class="life-page-content service-flow-content">
       <section class="challenge-document">
         <template v-if="props.card">
           <BaseBadge tone="contract">{{ props.card.mechanism }}</BaseBadge>
@@ -70,6 +80,11 @@ function accept() {
       </section>
 
       <StakePicker @change="form.stake = $event" />
+      <SignaturePad
+        :label="copy.create.signature"
+        :model-value="form.creatorSignatureDataUrl"
+        @change="form.creatorSignatureDataUrl = $event"
+      />
     </div>
 
     <LifeActionBar>
@@ -78,9 +93,9 @@ function accept() {
           <RefreshCcw :size="18" />
           {{ copy.draw.reroll }}
         </BaseButton>
-        <BaseButton size="lg" :disabled="!props.card" @click="accept">
+        <BaseButton size="lg" :disabled="!props.card || !form.creatorSignatureDataUrl" @click="accept">
           <Check :size="18" />
-          {{ copy.draw.accept }}
+          {{ copy.draw.createSession }}
         </BaseButton>
       </div>
     </LifeActionBar>

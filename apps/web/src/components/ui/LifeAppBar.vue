@@ -5,6 +5,7 @@ defineProps<{
   title: string;
   backLabel?: string;
   showBack?: boolean;
+  tone?: "default" | "service";
 }>();
 
 const emit = defineEmits<{
@@ -13,7 +14,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <header class="life-appbar">
+  <header class="life-appbar" :class="{ 'life-appbar-service': tone === 'service' }">
     <button
       v-if="showBack"
       type="button"

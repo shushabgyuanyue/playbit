@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { User } from "@playbit/shared";
-import { Dices, FilePenLine, FileSignature, History, Ticket } from "lucide-vue-next";
-import BaseButton from "./ui/BaseButton.vue";
-import LifeAppBar from "./ui/LifeAppBar.vue";
+import type { BetSession, Coupon, User } from "@playbit/shared";
+import { computed } from "vue";
+import { Dices, FilePenLine, History, Ticket, UserRound } from "lucide-vue-next";
+import LifeServiceHero from "./ui/LifeServiceHero.vue";
+import { buildVoucherItems } from "../composables/useVoucherAssets";
 
-defineProps<{
+const props = defineProps<{
   user: User | null;
+  sessions: BetSession[];
+  coupons: Coupon[];
 }>();
 
 const emit = defineEmits<{
@@ -16,51 +19,79 @@ const emit = defineEmits<{
   account: [];
   vouchers: [];
 }>();
+
+const pendingCount = computed(
+  () => props.sessions.filter((session) => session.status === "pending_confirmation").length
+);
+const activeCount = computed(
+  () => props.sessions.filter((session) => session.status === "active" || session.status === "settling").length
+);
+const fulfilledCount = computed(
+  () => props.sessions.filter((session) => session.status === "fulfilled" || session.status === "finished").length
+);
+const voucherAssetCount = computed(() => buildVoucherItems(props.sessions, props.coupons).length);
 </script>
 
 <template>
   <section class="life-page home-page">
-    <LifeAppBar :title="copy.app.name">
+    <LifeServiceHero
+      class="home-service-hero"
+      :eyebrow="copy.home.heroSubtitle"
+      :title="copy.app.tagline"
+    >
       <template #action>
-        <button type="button" class="home-account-button" @click="emit('account')">
-          {{ user?.authLevel === "registered" ? copy.auth.registered : copy.auth.guest }}
+        <button type="button" class="life-service-action" :aria-label="copy.home.accountAction" @click="emit('account')">
+          <UserRound :size="18" />
         </button>
       </template>
-    </LifeAppBar>
+    </LifeServiceHero>
 
-    <div class="life-page-content">
-      <section class="home-hero">
-        <div class="home-hero-mark">
-          <FileSignature :size="16" />
-          {{ copy.home.docketLabel }}
+    <div class="life-page-content home-product-content">
+      <section class="life-summary-card">
+        <header>
+          <strong>{{ copy.home.overviewTitle }}</strong>
+        </header>
+        <div class="life-metric-row">
+          <span>
+            <strong>{{ pendingCount }}</strong>
+            {{ copy.home.stats.pending }}
+          </span>
+          <span>
+            <strong>{{ activeCount }}</strong>
+            {{ copy.home.stats.active }}
+          </span>
+          <span>
+            <strong>{{ fulfilledCount }}</strong>
+            {{ copy.home.stats.fulfilled }}
+          </span>
         </div>
-        <h1 class="home-hero-title">{{ copy.app.tagline }}</h1>
-        <p class="home-hero-copy">{{ copy.home.docketTitle }}</p>
       </section>
 
-      <div class="home-action-stack">
-        <BaseButton size="lg" @click="emit('create')">
-          <FilePenLine :size="18" />
-          {{ copy.home.primaryAction }}
-        </BaseButton>
-        <BaseButton variant="secondary" size="lg" @click="emit('draw')">
-          <Dices :size="18" />
-          {{ copy.home.secondaryAction }}
-        </BaseButton>
-      </div>
-
-      <p class="life-section-caption">{{ copy.home.liveHint }}</p>
-
-      <div class="home-secondary-row">
-        <BaseButton variant="outline" @click="emit('history')">
-          <History :size="17" />
-          {{ copy.home.historyAction }}
-        </BaseButton>
-        <BaseButton variant="outline" @click="emit('vouchers')">
-          <Ticket :size="17" />
-          {{ copy.home.couponsAction }}
-        </BaseButton>
-      </div>
+      <section>
+        <h2 class="life-group-title">{{ copy.home.quickTitle }}</h2>
+        <div class="life-product-grid">
+          <button type="button" class="life-product-tile primary" @click="emit('create')">
+            <FilePenLine :size="22" />
+            <strong>{{ copy.home.shortcuts.create }}</strong>
+            <span>{{ copy.home.primaryAction }}</span>
+          </button>
+          <button type="button" class="life-product-tile secondary" @click="emit('draw')">
+            <Dices :size="22" />
+            <strong>{{ copy.home.shortcuts.draw }}</strong>
+            <span>{{ copy.home.secondaryAction }}</span>
+          </button>
+          <button type="button" class="life-product-tile" @click="emit('history')">
+            <History :size="22" />
+            <strong>{{ copy.home.shortcuts.history }}</strong>
+            <span>{{ sessions.length }}</span>
+          </button>
+          <button type="button" class="life-product-tile" @click="emit('vouchers')">
+            <Ticket :size="22" />
+            <strong>{{ copy.home.shortcuts.vouchers }}</strong>
+            <span>{{ voucherAssetCount }}</span>
+          </button>
+        </div>
+      </section>
     </div>
   </section>
 </template>

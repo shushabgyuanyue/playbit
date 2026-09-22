@@ -1,4 +1,4 @@
-import { boolean, index, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import type { Participant, Stake } from "@playbit/shared";
 
 export const sessionSource = pgEnum("session_source", ["custom", "card"]);
@@ -56,18 +56,24 @@ export const betSessions = pgTable("bet_sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });
 
-export const coupons = pgTable("coupons", {
-  id: text("id").primaryKey(),
-  sessionId: text("session_id")
-    .notNull()
-    .references(() => betSessions.id, { onDelete: "cascade" }),
-  issuerUserId: text("issuer_user_id").references(() => users.id, { onDelete: "set null" }),
-  holderUserId: text("holder_user_id").references(() => users.id, { onDelete: "set null" }),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  issuerNickname: text("issuer_nickname").notNull(),
-  holderNickname: text("holder_nickname").notNull(),
-  used: boolean("used").default(false).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  usedAt: timestamp("used_at", { withTimezone: true })
-});
+export const coupons = pgTable(
+  "coupons",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => betSessions.id, { onDelete: "cascade" }),
+    issuerUserId: text("issuer_user_id").references(() => users.id, { onDelete: "set null" }),
+    holderUserId: text("holder_user_id").references(() => users.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    issuerNickname: text("issuer_nickname").notNull(),
+    holderNickname: text("holder_nickname").notNull(),
+    used: boolean("used").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true })
+  },
+  (table) => ({
+    sessionIdUnique: uniqueIndex("coupons_session_id_unique").on(table.sessionId)
+  })
+);

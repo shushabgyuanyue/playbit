@@ -11,7 +11,8 @@ export function createBetSession(input: CreateSessionInput, creatorUserId: strin
       nickname: input.creatorNickname ?? "发起方",
       role: "initiator",
       userId: creatorUserId,
-      confirmed: true
+      confirmed: true,
+      signatureDataUrl: input.creatorSignatureDataUrl
     }
   ];
 
@@ -50,19 +51,20 @@ export function confirmParticipant(session: BetSession, participantId: string): 
 export function signCounterparty(
   session: BetSession,
   nickname: string,
-  counterpartyUserId: string | null = null
+  counterpartyUserId: string | null = null,
+  signatureDataUrl: string | null = null
 ): BetSession {
   const initiator = session.participants.find((participant) => participant.role === "initiator");
   const counterparty = session.participants.find((participant) => participant.role === "counterparty");
   const participants: Participant[] = counterparty
     ? session.participants.map((participant) =>
         participant.role === "counterparty"
-          ? { ...participant, nickname, userId: counterpartyUserId, confirmed: true }
+          ? { ...participant, nickname, userId: counterpartyUserId, confirmed: true, signatureDataUrl }
           : participant
       )
     : [
         ...(initiator ? [initiator] : session.participants),
-        { id: makeId("p"), nickname, role: "counterparty", userId: counterpartyUserId, confirmed: true }
+        { id: makeId("p"), nickname, role: "counterparty", userId: counterpartyUserId, confirmed: true, signatureDataUrl }
       ];
 
   return {
@@ -102,5 +104,5 @@ export function generateContractTitle(session: BetSession): string {
 }
 
 export function generateSettlementTitle(session: BetSession): string {
-  return session.stake.fulfilled ? "本案正式结案" : "本局已结案";
+  return session.stake.fulfilled ? "本案正式结案" : "本次已结案";
 }

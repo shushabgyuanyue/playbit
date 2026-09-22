@@ -2,6 +2,7 @@
 import { copy } from "@playbit/content";
 import type { BetSession, Coupon } from "@playbit/shared";
 import { computed, ref, watch } from "vue";
+import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import { useVoucherAssets } from "../composables/useVoucherAssets";
 import type { VoucherItem, VoucherStatusFilter, VoucherViewFilter } from "../types/voucher";
 import VoucherSection from "./VoucherSection.vue";
@@ -71,13 +72,36 @@ watch(activeView, () => {
 
 <template>
   <section class="life-page voucher-page">
-    <header class="life-appbar">
-      <button type="button" class="life-back-button" :aria-label="copy.vouchers.aria.back" @click="emit('back')">
-        <span />
-      </button>
+    <LifeServiceHero
+      class="voucher-service-hero"
+      :eyebrow="copy.home.heroSubtitle"
+      :title="copy.vouchers.navTitle"
+      :show-back="true"
+      :back-label="copy.common.back"
+      @back="emit('back')"
+    />
 
-      <h1 class="life-appbar-title">{{ copy.vouchers.navTitle }}</h1>
-    </header>
+    <div class="voucher-overview-wrap">
+      <section class="life-summary-card">
+        <header>
+          <strong>{{ copy.vouchers.overviewTitle }}</strong>
+        </header>
+        <div class="life-metric-row">
+          <span>
+            <strong>{{ statusCounts.pending }}</strong>
+            {{ copy.vouchers.statusTabs.pending }}
+          </span>
+          <span>
+            <strong>{{ statusCounts.available }}</strong>
+            {{ copy.vouchers.statusTabs.available }}
+          </span>
+          <span>
+            <strong>{{ statusCounts.used }}</strong>
+            {{ copy.vouchers.statusTabs.used }}
+          </span>
+        </div>
+      </section>
+    </div>
 
     <nav class="life-status-tabs" :aria-label="copy.vouchers.aria.categoryTabs">
       <button
@@ -105,10 +129,7 @@ watch(activeView, () => {
       />
     </div>
 
-    <van-empty v-else class="life-empty" :description="copy.vouchers.emptyText">
-      <template #image>
-        <div class="voucher-empty-mark">{{ copy.vouchers.emptyMark }}</div>
-      </template>
+    <van-empty v-else class="life-empty" image-size="0" :description="copy.vouchers.emptyText">
       <strong>{{ copy.vouchers.emptyTitle }}</strong>
     </van-empty>
   </section>

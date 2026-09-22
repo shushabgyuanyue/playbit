@@ -5,9 +5,10 @@ const session = createBetSession(
   {
     source: "custom",
     creatorNickname: "甲方",
-    title: "谁先说随便谁输",
-    challenge: "未来 10 分钟内谁先说随便谁输",
-    judgmentRule: "第一个说出口的人判负",
+    creatorSignatureDataUrl: "data:image/png;base64,initiator-signature",
+    title: "随便触发约定",
+    challenge: "未来 10 分钟内第一个说随便的人承担本次权益",
+    judgmentRule: "第一个说出口的人承担本次权益",
     stake: {
       type: "coupon",
       label: "洗碗一次",
@@ -22,11 +23,12 @@ assert.equal(session.status, "pending_confirmation");
 assert.equal(session.participants.length, 1);
 assert.equal(session.participants[0].confirmed, true);
 
-const signed = signCounterparty(session, "乙方", "user_b");
+const signed = signCounterparty(session, "乙方", "user_b", "data:image/png;base64,counterparty-signature");
 assert.equal(signed.status, "active");
 assert.equal(signed.participants.length, 2);
 assert.equal(signed.participants[1].role, "counterparty");
 assert.equal(signed.participants[1].confirmed, true);
+assert.equal(signed.participants[1].signatureDataUrl, "data:image/png;base64,counterparty-signature");
 
 const settled = settleBetSession(signed, signed.participants[1].id, false);
 assert.equal(settled.status, "settling");

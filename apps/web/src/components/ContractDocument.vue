@@ -23,6 +23,12 @@ const props = withDefaults(
   }
 );
 
+const initiatorParticipant = computed(() =>
+  props.session.participants.find((participant) => participant.role === "initiator")
+);
+const counterpartyParticipant = computed(() =>
+  props.session.participants.find((participant) => participant.role === "counterparty")
+);
 const initiator = computed(() => getParticipantName(props.session, "initiator", copy.contract.fallbackInitiator));
 const counterparty = computed(() =>
   getParticipantName(props.session, "counterparty", copy.contract.fallbackCounterparty)
@@ -56,6 +62,29 @@ const articles = computed(() => [
     <ol class="contract-article-list">
       <li v-for="article in articles" :key="article">{{ article }}</li>
     </ol>
+
+    <div class="contract-signature-grid">
+      <section class="contract-signature-box">
+        <span>{{ copy.contract.confirmA }}</span>
+        <strong>{{ initiator }}</strong>
+        <img
+          v-if="initiatorParticipant?.signatureDataUrl"
+          :src="initiatorParticipant.signatureDataUrl"
+          :alt="copy.contract.confirmA"
+        />
+        <em v-else class="contract-signature-placeholder">{{ copy.contract.signaturePending }}</em>
+      </section>
+      <section class="contract-signature-box">
+        <span>{{ copy.contract.confirmB }}</span>
+        <strong>{{ counterparty }}</strong>
+        <img
+          v-if="counterpartyParticipant?.signatureDataUrl"
+          :src="counterpartyParticipant.signatureDataUrl"
+          :alt="copy.contract.confirmB"
+        />
+        <em v-else class="contract-signature-placeholder">{{ copy.contract.signaturePending }}</em>
+      </section>
+    </div>
 
     <div v-if="showSeal" class="contract-seal" :class="{ pending: !signed }">
       {{ signed ? copy.contract.seal : copy.contract.pendingSeal }}

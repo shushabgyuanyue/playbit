@@ -1,6 +1,6 @@
 import type { AuthRepository } from "../authRepository.js";
 import type { CouponRepository } from "../couponRepository.js";
-import { getCurrentUser, isParticipant, participantIds, requireCurrentUser } from "../http/auth.js";
+import { isParticipant, participantIds, requireCurrentUser } from "../http/auth.js";
 import type { SessionRepository } from "../sessionRepository.js";
 import { createBetSession, settleBetSession, signCounterparty } from "@playbit/game-core";
 import {
@@ -18,23 +18,26 @@ export function registerSessionRoutes(
   coupons: CouponRepository
 ) {
   app.post("/sessions", async (context) => {
-    const currentUser = await getCurrentUser(context, auth);
+    const currentUser = await requireCurrentUser(context, auth);
+    if (currentUser instanceof Response) {
+      return currentUser;
+    }
     const payload = createSessionSchema.parse(await context.req.json());
     const session = createBetSession(
       {
         ...payload,
-        creatorNickname: payload.creatorNickname ?? currentUser?.nickname ?? "发起方"
+        creatorNickname: payload.creatorNickname ?? currentUser.nickname
       },
-      currentUser?.id ?? null
+      currentUser.id
     );
     const created = await sessions.create(session);
     return context.json({ session: betSessionSchema.parse(created) }, 201);
   });
 
   app.get("/sessions", async (context) => {
-    const currentUser = await getCurrentUser(context, auth);
-    if (!currentUser) {
-      return context.json({ sessions: [] });
+    const currentUser = await requireCurrentUser(context, auth);
+    if (currentUser instanceof Response) {
+      return currentUser;
     }
 
     const items = await sessions.list(currentUser.id);
@@ -93,7 +96,7 @@ export function registerSessionRoutes(
       return context.json({ message: "Agreement is not open for signing" }, 409);
     }
 
-    const signed = signCounterparty(session, payload.nickname, currentUser.id);
+    const signed = signCounterparty(session, payload.nickname, currentUser.id, payload.signatureDataUrl);
     await sessions.update(signed);
     return context.json({ session: signed });
   });

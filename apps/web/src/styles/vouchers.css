@@ -2,6 +2,16 @@
   padding-bottom: 28px;
 }
 
+.voucher-service-hero {
+  min-height: 154px;
+  padding-bottom: 62px;
+}
+
+.voucher-overview-wrap {
+  margin-top: -52px;
+  padding: 0 var(--pb-page-x) 10px;
+}
+
 .voucher-list-shell {
   display: grid;
   gap: 12px;
@@ -56,21 +66,6 @@
   display: grid;
   gap: 8px;
   padding: 0 10px 12px;
-}
-
-.voucher-empty-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 86px;
-  height: 58px;
-  border: 1px dashed rgba(240, 68, 56, 0.24);
-  border-radius: var(--pb-radius-md);
-  background: #fff1f5;
-  color: #e3686f;
-  font-family: var(--font-serif);
-  font-size: var(--pb-font-xxl);
-  font-weight: var(--pb-weight-semibold);
 }
 
 .voucher-section-more {

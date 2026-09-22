@@ -1,0 +1,107 @@
+.share-sheet-popup {
+  overflow: hidden;
+  background: #fffdf8;
+}
+
+.share-sheet-popup.van-popup--bottom {
+  left: 50%;
+  width: min(100%, 430px);
+  transform: translate3d(-50%, 0, 0);
+}
+
+.share-sheet {
+  display: grid;
+  gap: 16px;
+  padding: 18px var(--pb-page-x) calc(18px + env(safe-area-inset-bottom));
+}
+
+.share-sheet-header {
+  display: grid;
+  gap: 6px;
+}
+
+.share-sheet-header strong {
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-lg);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.share-sheet-header p,
+.share-sheet-caption {
+  margin: 0;
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-base);
+  line-height: 1.55;
+}
+
+.share-native-button {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--pb-radius-md);
+  background: var(--pb-text-1);
+  color: #ffffff;
+  font-size: var(--pb-font-md);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.share-native-button span,
+.share-channel span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-channel-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.share-channel {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--pb-text-2);
+  padding: 0;
+  font-size: var(--pb-font-xs);
+  font-weight: var(--pb-weight-medium);
+}
+
+.share-channel span {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto;
+  border-radius: 50%;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(31, 35, 41, 0.08);
+}
+
+.share-channel strong {
+  overflow: hidden;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-channel.tone-wechat span,
+.share-channel.tone-moments span {
+  background: #16b35f;
+}
+
+.share-channel.tone-qq span {
+  background: #1683ff;
+}
+
+.share-channel.tone-weibo span {
+  background: #f04438;
+}
+
+.share-channel.tone-copy span {
+  background: #4e5969;
+}

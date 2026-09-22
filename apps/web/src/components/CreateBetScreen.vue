@@ -2,32 +2,50 @@
 import { copy } from "@playbit/content";
 import type { CreateSessionInput, Stake } from "@playbit/shared";
 import { FileCheck2 } from "lucide-vue-next";
-import { reactive } from "vue";
+import { reactive, watch } from "vue";
+import type { CreateBetDraft } from "../composables/usePlaybitFlow";
 import StakePicker from "./StakePicker.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
-import LifeAppBar from "./ui/LifeAppBar.vue";
+import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseField from "./ui/BaseField.vue";
+import SignaturePad from "./ui/SignaturePad.vue";
+
+const props = defineProps<{
+  draft: CreateBetDraft;
+}>();
 
 const emit = defineEmits<{
   back: [];
   submit: [payload: CreateSessionInput];
+  updateDraft: [draft: CreateBetDraft];
 }>();
 
 const form = reactive({
-  title: "",
-  judgmentRule: "",
-  stake: {
-    type: "coupon",
-    label: "洗碗一次",
-    fulfilled: false
-  } as Stake
+  title: props.draft.title,
+  judgmentRule: props.draft.judgmentRule,
+  stake: props.draft.stake as Stake,
+  creatorSignatureDataUrl: props.draft.creatorSignatureDataUrl
 });
+
+watch(
+  form,
+  () => {
+    emit("updateDraft", {
+      title: form.title,
+      judgmentRule: form.judgmentRule,
+      stake: form.stake,
+      creatorSignatureDataUrl: form.creatorSignatureDataUrl
+    });
+  },
+  { deep: true }
+);
 
 function submit() {
   emit("submit", {
     source: "custom",
-    creatorNickname: "发起方",
+    creatorNickname: copy.common.initiator,
+    creatorSignatureDataUrl: form.creatorSignatureDataUrl,
     title: form.title,
     challenge: form.title,
     judgmentRule: form.judgmentRule,
@@ -38,12 +56,21 @@ function submit() {
 </script>
 
 <template>
-  <section class="life-page">
-    <LifeAppBar :title="copy.create.navTitle" :show-back="true" :back-label="copy.common.back" @back="emit('back')" />
+  <section class="life-page service-flow-page">
+    <LifeServiceHero
+      class="service-flow-hero"
+      :eyebrow="copy.home.docketLabel"
+      :title="copy.create.title"
+      :show-back="true"
+      :back-label="copy.common.back"
+      @back="emit('back')"
+    />
 
-    <div class="life-page-content">
-      <section class="life-panel">
-        <h2 class="life-section-title">{{ copy.create.title }}</h2>
+    <div class="life-page-content service-flow-content service-overlap-content">
+      <section class="life-summary-card">
+        <header>
+          <strong>{{ copy.create.navTitle }}</strong>
+        </header>
         <p class="life-section-caption">{{ copy.create.subtitle }}</p>
       </section>
 
@@ -63,13 +90,18 @@ function submit() {
         </div>
       </section>
 
-      <StakePicker @change="form.stake = $event" />
+      <StakePicker :model-value="form.stake" @change="form.stake = $event" />
+      <SignaturePad
+        :label="copy.create.signature"
+        :model-value="form.creatorSignatureDataUrl"
+        @change="form.creatorSignatureDataUrl = $event"
+      />
     </div>
 
     <LifeActionBar>
       <BaseButton
         size="lg"
-        :disabled="!form.title.trim() || !form.judgmentRule.trim()"
+        :disabled="!form.title.trim() || !form.judgmentRule.trim() || !form.creatorSignatureDataUrl"
         @click="submit"
       >
         <FileCheck2 :size="18" />

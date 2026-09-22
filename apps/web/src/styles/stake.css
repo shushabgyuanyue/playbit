@@ -10,70 +10,90 @@
   gap: 10px;
 }
 
-.stake-option-grid {
+.stake-change-button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pb-blue-soft);
+  color: var(--pb-theme-contract);
+  padding: 0 10px;
+  font-size: var(--pb-font-sm);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.stake-ticket-button {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.stake-ticket-action {
+  justify-self: end;
+  min-width: 54px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--pb-theme-contract);
+  padding: 7px 10px;
+  font-size: var(--pb-font-sm);
+  font-weight: var(--pb-weight-semibold);
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(22, 119, 255, 0.22);
+}
+
+.stake-picker-sheet {
   display: grid;
+  gap: 10px;
+  max-height: min(68vh, 560px);
+  overflow-y: auto;
+  padding: 18px var(--pb-page-x) calc(18px + env(safe-area-inset-bottom));
+  background: var(--pb-fill-page);
+}
+
+.stake-picker-sheet header {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-lg);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.stake-sheet-option.voucher-ticket {
+  width: 100%;
+  min-height: 76px;
+  border: 1px solid transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.stake-sheet-option .voucher-ticket-main {
+  grid-template-columns: minmax(0, 1fr) 54px;
   gap: 8px;
 }
 
-.stake-option {
-  position: relative;
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
-  min-height: 72px;
-  overflow: hidden;
-  border: 1px solid transparent;
-  border-radius: var(--pb-radius-md);
-  background: var(--pb-fill-card);
-  color: var(--pb-text-1);
-  padding: 0;
-  text-align: left;
-  box-shadow: 0 1px 2px rgba(31, 35, 41, 0.03);
+.stake-sheet-option .voucher-ticket-value strong {
+  font-size: 16px;
 }
 
-.stake-option::before {
-  border-right: 1px dashed rgba(201, 205, 212, 0.85);
-  background: var(--pb-red-soft);
-  content: "";
-}
-
-.stake-option.active {
-  border-color: rgba(22, 119, 255, 0.42);
-  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.08);
-}
-
-.stake-option-main {
-  position: absolute;
-  top: 17px;
-  left: 13px;
-  width: 66px;
-  overflow-wrap: anywhere;
-  color: var(--pb-theme-redeem);
-  font-size: var(--pb-font-lg);
-  font-weight: var(--pb-weight-semibold);
-  line-height: 1.15;
-  text-align: center;
-}
-
-.stake-option-copy {
-  grid-column: 2;
-  align-self: center;
-  padding: 0 12px;
-}
-
-.stake-option-copy strong {
-  display: block;
-  overflow: hidden;
-  color: var(--pb-text-1);
-  font-size: var(--pb-font-base);
-  font-weight: var(--pb-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.stake-option-copy span {
-  display: block;
-  margin-top: 5px;
-  color: var(--pb-text-3);
+.stake-sheet-check {
+  justify-self: end;
+  min-width: 48px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--pb-theme-contract);
+  padding: 7px 8px;
   font-size: var(--pb-font-sm);
-  line-height: 1.35;
+  font-weight: var(--pb-weight-semibold);
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(22, 119, 255, 0.18);
+}
+
+.stake-sheet-option.voucher-ticket.active {
+  border-color: rgba(22, 119, 255, 0.42);
+  box-shadow: 0 6px 18px rgba(22, 119, 255, 0.1);
 }

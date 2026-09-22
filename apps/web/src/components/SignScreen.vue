@@ -4,9 +4,10 @@ import type { BetSession } from "@playbit/shared";
 import { FileSignature } from "lucide-vue-next";
 import ContractDocument from "./ContractDocument.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
-import LifeAppBar from "./ui/LifeAppBar.vue";
+import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseField from "./ui/BaseField.vue";
+import SignaturePad from "./ui/SignaturePad.vue";
 import { ref } from "vue";
 
 const props = defineProps<{
@@ -15,17 +16,23 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  sign: [nickname: string];
+  decline: [];
+  sign: [payload: { nickname: string; signatureDataUrl: string }];
 }>();
 
 const nickname = ref("");
+const signatureDataUrl = ref("");
 </script>
 
 <template>
-  <section class="life-page">
-    <LifeAppBar :title="copy.sign.title" />
+  <section class="life-page service-flow-page">
+    <LifeServiceHero
+      class="service-flow-hero"
+      :eyebrow="copy.home.docketLabel"
+      :title="copy.sign.title"
+    />
 
-    <div v-if="props.session" class="life-page-content">
+    <div v-if="props.session" class="life-page-content service-flow-content">
       <ContractDocument :session="props.session" :compact="true" :show-seal="false" />
       <section class="life-panel">
         <h2 class="life-section-title">{{ copy.sign.title }}</h2>
@@ -45,9 +52,10 @@ const nickname = ref("");
         </ul>
       </section>
       <BaseField v-model="nickname" :label="copy.sign.nameLabel" :placeholder="copy.sign.namePlaceholder" />
+      <SignaturePad :label="copy.contract.confirmB" @change="signatureDataUrl = $event" />
     </div>
 
-    <div v-else class="life-page-content">
+    <div v-else class="life-page-content service-flow-content">
       <section class="life-panel">
         <BaseButton variant="outline" disabled>{{ copy.sign.missingLabel }}</BaseButton>
         <h2 class="life-section-title">{{ copy.sign.missingTitle }}</h2>
@@ -56,7 +64,14 @@ const nickname = ref("");
     </div>
 
     <LifeActionBar v-if="props.session">
-      <BaseButton size="lg" :disabled="!nickname.trim() || props.loading" @click="emit('sign', nickname.trim())">
+      <BaseButton variant="outline" size="lg" :disabled="props.loading" @click="emit('decline')">
+        {{ copy.sign.decline }}
+      </BaseButton>
+      <BaseButton
+        size="lg"
+        :disabled="!nickname.trim() || !signatureDataUrl || props.loading"
+        @click="emit('sign', { nickname: nickname.trim(), signatureDataUrl })"
+      >
         <FileSignature :size="18" />
         {{ props.loading ? copy.common.loading : copy.sign.action }}
       </BaseButton>

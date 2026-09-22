@@ -5,7 +5,8 @@ export const participantSchema = z.object({
   nickname: z.string().min(1).max(24),
   role: z.enum(["initiator", "counterparty"]),
   userId: z.string().nullable().default(null),
-  confirmed: z.boolean().default(false)
+  confirmed: z.boolean().default(false),
+  signatureDataUrl: z.string().max(50000).nullable().default(null)
 });
 
 export const userSchema = z.object({
@@ -82,6 +83,7 @@ export const betSessionSchema = z.object({
 export const createSessionSchema = z.object({
   source: z.enum(["custom", "card"]),
   creatorNickname: z.string().min(1).max(24).optional(),
+  creatorSignatureDataUrl: z.string().min(1).max(50000),
   title: z.string().min(1).max(48),
   challenge: z.string().min(1).max(180).optional(),
   judgmentRule: z.string().min(1).max(180),
@@ -90,7 +92,8 @@ export const createSessionSchema = z.object({
 });
 
 export const signSessionSchema = z.object({
-  nickname: z.string().min(1).max(24)
+  nickname: z.string().min(1).max(24),
+  signatureDataUrl: z.string().min(1).max(50000)
 });
 
 export const guestAuthSchema = z.object({

@@ -2,12 +2,12 @@
 import { copy } from "@playbit/content";
 import { generateSettlementTitle } from "@playbit/game-core";
 import type { BetSession } from "@playbit/shared";
-import { CheckCircle2, Copy, Home, Stamp } from "lucide-vue-next";
+import { CheckCircle2, Home, Share2, Ticket } from "lucide-vue-next";
 import { computed } from "vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseBadge from "./ui/BaseBadge.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
-import LifeAppBar from "./ui/LifeAppBar.vue";
+import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import { getLoserName, getWinnerName } from "../utils/sessionDisplay";
 
 const props = defineProps<{
@@ -18,25 +18,28 @@ const props = defineProps<{
 const emit = defineEmits<{
   back: [];
   home: [];
-  fulfill: [];
-  copyShare: [];
+  openVouchers: [];
+  openShare: [];
 }>();
 
 const winner = computed(() => getWinnerName(props.session));
 const loser = computed(() => getLoserName(props.session));
 const fulfilled = computed(() => props.session.stake.fulfilled);
+const isCouponStake = computed(() => props.session.stake.type === "coupon");
 </script>
 
 <template>
-  <section class="life-page">
-    <LifeAppBar
+  <section class="life-page service-flow-page">
+    <LifeServiceHero
+      class="service-flow-hero"
+      :eyebrow="copy.home.docketLabel"
       :title="copy.settlement.navTitle"
       :show-back="props.showBack"
       :back-label="copy.common.back"
       @back="emit('back')"
     />
 
-    <div class="life-page-content">
+    <div class="life-page-content service-flow-content">
       <article class="settlement-document">
         <BaseBadge :tone="fulfilled ? 'success' : 'pending'">
           {{ fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}
@@ -44,8 +47,8 @@ const fulfilled = computed(() => props.session.stake.fulfilled);
         <h2 class="settlement-title">《{{ generateSettlementTitle(props.session) }}》</h2>
         <div class="settlement-stamp">
           <CheckCircle2 v-if="fulfilled" :size="15" />
-          <Stamp v-else :size="15" />
-          {{ fulfilled ? copy.session.fulfilled : copy.settlement.pending }}
+          <Ticket v-else :size="15" />
+          {{ fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}
         </div>
         <ul class="life-info-list">
           <li><span>{{ copy.settlement.agreement }}</span><strong>{{ props.session.title }}</strong></li>
@@ -58,17 +61,25 @@ const fulfilled = computed(() => props.session.stake.fulfilled);
           </li>
         </ul>
       </article>
+      <section class="life-panel settlement-issue-panel">
+        <h2 class="life-section-title">
+          {{ isCouponStake ? copy.settlement.voucherIssued : copy.settlement.customRecorded }}
+        </h2>
+        <p class="life-section-caption">
+          {{ isCouponStake ? copy.settlement.voucherIssuedHint : copy.settlement.customRecordedHint }}
+        </p>
+      </section>
       <p class="life-section-caption">{{ copy.share.screenshotHint }}</p>
     </div>
 
     <LifeActionBar>
-      <BaseButton variant="outline" size="lg" @click="emit('copyShare')">
-        <Copy :size="18" />
+      <BaseButton variant="outline" size="lg" @click="emit('openShare')">
+        <Share2 :size="18" />
         {{ copy.share.copyLink }}
       </BaseButton>
-      <BaseButton v-if="!fulfilled" variant="danger" size="lg" @click="emit('fulfill')">
-        <Stamp :size="18" />
-        {{ copy.settlement.confirmFulfill }}
+      <BaseButton v-if="isCouponStake" variant="secondary" size="lg" @click="emit('openVouchers')">
+        <Ticket :size="18" />
+        {{ copy.settlement.openVouchers }}
       </BaseButton>
       <BaseButton variant="ghost" size="lg" @click="emit('home')">
         <Home :size="18" />

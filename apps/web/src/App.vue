@@ -6,13 +6,14 @@ import DrawCardScreen from "./components/DrawCardScreen.vue";
 import HistoryScreen from "./components/HistoryScreen.vue";
 import HomeScreen from "./components/HomeScreen.vue";
 import SessionScreen from "./components/SessionScreen.vue";
+import ShareSheet from "./components/ShareSheet.vue";
 import SignScreen from "./components/SignScreen.vue";
 import SettlementScreen from "./components/SettlementScreen.vue";
 import VoucherCenterScreen from "./components/VoucherCenterScreen.vue";
 import VoucherDetailScreen from "./components/VoucherDetailScreen.vue";
 import { usePlaybitFlow } from "./composables/usePlaybitFlow";
 import { buildVoucherItems } from "./composables/useVoucherAssets";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 const {
   activeCard,
@@ -22,29 +23,38 @@ const {
   cardLoading,
   contractBackScreen,
   coupons,
+  createDraft,
   currentUser,
+  sessionRefreshing,
   sessions,
+  sharePayload,
   signLoading,
   screen,
   copyShareText,
   createSession,
   drawCard,
-  fulfillSession,
   loginAccount,
+  nativeShare,
+  openCreate,
+  openDraw,
+  openHistory,
   openSession,
   openSessionById,
   openSessionFrom,
   openVoucherDetail,
   openVouchers,
   redeemCoupon,
+  refreshActiveSession,
   registerAccount,
   settleSession,
-  signSession
+  signSession,
+  updateCreateDraft
 } = usePlaybitFlow();
 
 const activeVoucher = computed(() =>
   buildVoucherItems(sessions.value, coupons.value).find((voucher) => voucher.id === activeVoucherId.value) ?? null
 );
+const shareSheetOpen = ref(false);
 </script>
 
 <template>
@@ -53,12 +63,11 @@ const activeVoucher = computed(() =>
       <HomeScreen
         v-if="screen === 'home'"
         :user="currentUser"
-        @create="screen = 'create'"
-        @draw="
-          screen = 'draw';
-          if (!activeCard) drawCard();
-        "
-        @history="screen = 'history'"
+        :sessions="sessions"
+        :coupons="coupons"
+        @create="openCreate"
+        @draw="openDraw"
+        @history="openHistory"
         @account="screen = 'account'"
         @vouchers="openVouchers"
       />
@@ -70,12 +79,20 @@ const activeVoucher = computed(() =>
         @register="registerAccount"
         @login="loginAccount"
       />
-      <CreateBetScreen v-else-if="screen === 'create'" @back="screen = 'home'" @submit="createSession" />
+      <CreateBetScreen
+        v-else-if="screen === 'create'"
+        :draft="createDraft"
+        @back="screen = 'home'"
+        @submit="createSession"
+        @update-draft="updateCreateDraft"
+      />
       <ContractScreen
         v-else-if="screen === 'contract' && activeSession"
         :session="activeSession"
+        :refreshing="sessionRefreshing"
         @back="screen = contractBackScreen"
-        @copy-share="copyShareText"
+        @open-share="shareSheetOpen = true"
+        @refresh="refreshActiveSession"
         @start="screen = 'session'"
       />
       <DrawCardScreen
@@ -97,8 +114,8 @@ const activeVoucher = computed(() =>
         :session="activeSession"
         :show-back="contractBackScreen === 'history' || contractBackScreen === 'vouchers' || contractBackScreen === 'voucherDetail'"
         @back="screen = contractBackScreen"
-        @copy-share="copyShareText"
-        @fulfill="fulfillSession"
+        @open-share="shareSheetOpen = true"
+        @open-vouchers="openVouchers"
         @home="screen = 'home'"
       />
       <HistoryScreen
@@ -134,8 +151,15 @@ const activeVoucher = computed(() =>
         v-else-if="screen === 'sign'"
         :session="activeSession ?? null"
         :loading="signLoading"
+        @decline="screen = 'home'"
         @sign="signSession"
       />
     </div>
+    <ShareSheet
+      v-model:show="shareSheetOpen"
+      :payload="sharePayload"
+      @native-share="nativeShare"
+      @copy="copyShareText"
+    />
   </main>
 </template>

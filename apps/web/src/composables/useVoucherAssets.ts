@@ -10,7 +10,6 @@ import type {
   VoucherViewFilter
 } from "../types/voucher";
 
-type DemoVoucher = (typeof copy.vouchers.demos)[number];
 const statusOrder: VoucherStatusFilter[] = ["pending", "available", "used"];
 
 export function useVoucherAssets(
@@ -49,15 +48,15 @@ export function useVoucherAssets(
 }
 
 export function buildVoucherItems(sessions: BetSession[], coupons: Coupon[]): VoucherItem[] {
-  const realItems = buildRealVoucherItems(sessions, coupons);
-  return realItems.length > 0 ? realItems : copy.vouchers.demos.map(demoToVoucherItem);
+  return buildRealVoucherItems(sessions, coupons);
 }
 
 function buildRealVoucherItems(sessions: BetSession[], coupons: Coupon[]): VoucherItem[] {
   const sessionMap = new Map(sessions.map((session) => [session.id, session]));
-  const couponSessionIds = new Set(coupons.map((coupon) => coupon.sessionId));
+  const uniqueCoupons = dedupeCouponsBySession(coupons);
+  const couponSessionIds = new Set(uniqueCoupons.map((coupon) => coupon.sessionId));
 
-  const couponItems = coupons.map((coupon) => {
+  const couponItems = uniqueCoupons.map((coupon) => {
     const session = sessionMap.get(coupon.sessionId);
     const status: VoucherUiStatus = coupon.status === "used" ? "used" : "available";
     const benefit = formatVoucherBenefit(coupon.name);
@@ -108,19 +107,15 @@ function buildRealVoucherItems(sessions: BetSession[], coupons: Coupon[]): Vouch
   });
 }
 
-function demoToVoucherItem(demo: DemoVoucher): VoucherItem {
-  const benefit = formatVoucherBenefit(demo.benefitLabel);
-  return {
-    ...demo,
-    benefitTitle: benefit.title,
-    benefitSubtitle: benefit.subtitle,
-    couponId: null,
-    sessionId: null,
-    status: demo.status as VoucherUiStatus,
-    kind: demo.kind as VoucherKind,
-    canRedeem: demo.status === "available",
-    isDemo: true
-  };
+function dedupeCouponsBySession(coupons: Coupon[]) {
+  const couponMap = new Map<string, Coupon>();
+  for (const coupon of coupons) {
+    const existing = couponMap.get(coupon.sessionId);
+    if (!existing || coupon.createdAt.localeCompare(existing.createdAt) > 0) {
+      couponMap.set(coupon.sessionId, coupon);
+    }
+  }
+  return Array.from(couponMap.values());
 }
 
 function formatVoucherBenefit(label: string) {

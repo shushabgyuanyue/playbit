@@ -1,4 +1,13 @@
-import type { BetSession, Card, Coupon, CreateSessionInput, LoginInput, RegisterInput, User } from "@playbit/shared";
+import type {
+  BetSession,
+  Card,
+  Coupon,
+  CreateSessionInput,
+  LoginInput,
+  RegisterInput,
+  SignSessionInput,
+  User
+} from "@playbit/shared";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:8787" : "");
 const authTokenKey = "playbit.authToken";
@@ -9,6 +18,10 @@ function getAuthToken() {
 
 export function setAuthToken(token: string) {
   localStorage.setItem(authTokenKey, token);
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem(authTokenKey);
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -31,15 +44,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   getAuthToken,
+  clearAuthToken,
   setAuthToken,
-  async createGuest(nickname?: string) {
-    const result = await request<{ user: User; token: string }>("/auth/guest", {
-      method: "POST",
-      body: JSON.stringify({ nickname })
-    });
-    setAuthToken(result.token);
-    return result;
-  },
   async register(payload: RegisterInput) {
     const result = await request<{ user: User; token: string }>("/auth/register", {
       method: "POST",
@@ -80,21 +86,16 @@ export const api = {
   getShare(shareCode: string) {
     return request<{ session: BetSession }>(`/share/${shareCode}`);
   },
-  signShare(shareCode: string, nickname: string) {
+  signShare(shareCode: string, payload: SignSessionInput) {
     return request<{ session: BetSession }>(`/share/${shareCode}/sign`, {
       method: "POST",
-      body: JSON.stringify({ nickname })
+      body: JSON.stringify(payload)
     });
   },
   settleSession(id: string, winnerId: string, fulfilled: boolean) {
     return request<{ session: BetSession }>(`/sessions/${id}/settle`, {
       method: "PATCH",
       body: JSON.stringify({ winnerId, fulfilled })
-    });
-  },
-  fulfillSession(id: string) {
-    return request<{ session: BetSession }>(`/sessions/${id}/fulfill`, {
-      method: "PATCH"
     });
   },
   listCoupons() {

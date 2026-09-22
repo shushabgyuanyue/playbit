@@ -170,6 +170,11 @@
   font-weight: var(--pb-weight-semibold);
 }
 
+.settlement-issue-panel {
+  border: 1px solid rgba(0, 168, 112, 0.14);
+  background: linear-gradient(180deg, #ffffff 0%, #f4fbf8 100%);
+}
+
 @media (max-width: 374px) {
   .contract-document,
   .settlement-document,

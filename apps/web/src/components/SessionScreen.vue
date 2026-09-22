@@ -5,7 +5,7 @@ import { BadgePlus, ShieldCheck, Trophy } from "lucide-vue-next";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseBadge from "./ui/BaseBadge.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
-import LifeAppBar from "./ui/LifeAppBar.vue";
+import LifeServiceHero from "./ui/LifeServiceHero.vue";
 
 const props = defineProps<{
   session: BetSession;
@@ -18,10 +18,17 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="life-page">
-    <LifeAppBar :title="copy.session.navTitle" :show-back="true" :back-label="copy.common.back" @back="emit('back')" />
+  <section class="life-page service-flow-page">
+    <LifeServiceHero
+      class="service-flow-hero"
+      :eyebrow="copy.home.docketLabel"
+      :title="copy.session.navTitle"
+      :show-back="true"
+      :back-label="copy.common.back"
+      @back="emit('back')"
+    />
 
-    <div class="life-page-content">
+    <div class="life-page-content service-flow-content">
       <section class="challenge-document">
         <BaseBadge tone="success">{{ copy.session.active }}</BaseBadge>
         <h2 class="challenge-title">{{ props.session.title }}</h2>

@@ -3,7 +3,7 @@ import { copy } from "@playbit/content";
 import type { BetSession } from "@playbit/shared";
 import { ChevronRight } from "lucide-vue-next";
 import BaseBadge from "./ui/BaseBadge.vue";
-import LifeAppBar from "./ui/LifeAppBar.vue";
+import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import { getSessionStatusLabel, getSessionStatusTone } from "../utils/sessionDisplay";
 
 defineProps<{
@@ -17,14 +17,17 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="life-page">
-    <LifeAppBar :title="copy.history.navTitle" :show-back="true" :back-label="copy.common.back" @back="emit('back')" />
+  <section class="life-page service-flow-page">
+    <LifeServiceHero
+      class="service-flow-hero"
+      :eyebrow="copy.home.docketLabel"
+      :title="copy.history.title"
+      :show-back="true"
+      :back-label="copy.common.back"
+      @back="emit('back')"
+    />
 
-    <div class="life-page-content">
-      <div class="life-section-title">
-        <span>{{ copy.history.title }}</span>
-      </div>
-
+    <div class="life-page-content service-flow-content">
       <section v-if="sessions.length === 0" class="life-panel">
         <BaseBadge tone="archive">{{ copy.history.emptyLabel }}</BaseBadge>
         <h2 class="life-section-title">{{ copy.history.emptyTitle }}</h2>

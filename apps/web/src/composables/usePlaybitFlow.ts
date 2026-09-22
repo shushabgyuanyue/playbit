@@ -1,10 +1,27 @@
 import { drawCard as drawLocalCard } from "@playbit/cards";
 import { copy } from "@playbit/content";
-import { createBetSession, settleBetSession } from "@playbit/game-core";
-import type { BetSession, Card, Coupon, CreateSessionInput, LoginInput, RegisterInput, User } from "@playbit/shared";
+import { settleBetSession } from "@playbit/game-core";
+import type {
+  BetSession,
+  Card,
+  Coupon,
+  CreateSessionInput,
+  LoginInput,
+  RegisterInput,
+  Stake,
+  User
+} from "@playbit/shared";
 import { showConfirmDialog, showToast } from "vant";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { api } from "../services/api";
+import {
+  buildSharePayload,
+  defaultStake,
+  loadLocalSessions,
+  persistSessions,
+  type SharePayload
+} from "./playbitFlowHelpers";
+import { useShareActions } from "./useShareActions";
 
 export type Screen =
   | "home"
@@ -19,6 +36,13 @@ export type Screen =
   | "vouchers"
   | "voucherDetail";
 
+export type CreateBetDraft = {
+  title: string;
+  judgmentRule: string;
+  stake: Stake;
+  creatorSignatureDataUrl: string;
+};
+
 export function usePlaybitFlow() {
   const screen = ref<Screen>("home");
   const currentUser = ref<User | null>(null);
@@ -28,88 +52,125 @@ export function usePlaybitFlow() {
   const activeCard = ref<Card | null>(null);
   const activeVoucherId = ref<string | null>(null);
   const contractBackScreen = ref<Screen>("home");
+  const authReturnScreen = ref<Screen>("home");
   const drawnCardIds = ref<string[]>([]);
   const cardLoading = ref(false);
   const signLoading = ref(false);
   const authLoading = ref(false);
+  const sessionRefreshing = ref(false);
   const activeShareCode = ref<string | null>(null);
+  const createDraft = reactive<CreateBetDraft>({
+    title: "",
+    judgmentRule: "",
+    stake: { ...defaultStake },
+    creatorSignatureDataUrl: ""
+  });
 
   const activeSession = computed(() =>
     sessions.value.find((session) => session.id === activeSessionId.value)
   );
 
-  function persistSessions() {
-    localStorage.setItem("playbit.sessions", JSON.stringify(sessions.value));
-  }
-
-  function loadLocalSessions() {
-    const stored = localStorage.getItem("playbit.sessions");
-    sessions.value = stored ? (JSON.parse(stored) as BetSession[]) : [];
-  }
-
-  function localGuest(): User {
-    const stored = localStorage.getItem("playbit.localUser");
-    if (stored) {
-      return JSON.parse(stored) as User;
-    }
-
-    const user: User = {
-      id: `local_${Math.random().toString(36).slice(2, 10)}`,
-      nickname: "我",
-      email: null,
-      authLevel: "guest",
-      createdAt: new Date().toISOString()
-    };
-    localStorage.setItem("playbit.localUser", JSON.stringify(user));
-    return user;
-  }
+  const sharePayload = computed<SharePayload | null>(() =>
+    activeSession.value ? buildSharePayload(activeSession.value) : null
+  );
+  const { copyShareText, nativeShare } = useShareActions(sharePayload);
 
   async function ensureIdentity() {
     if (currentUser.value) {
       return currentUser.value;
     }
 
-    if (api.getAuthToken()) {
-      try {
-        const response = await api.me();
-        if (response.user) {
-          currentUser.value = response.user;
-          return response.user;
-        }
-      } catch {
-        currentUser.value = localGuest();
-        return currentUser.value;
-      }
+    if (!api.getAuthToken()) {
+      return null;
     }
 
     try {
-      const response = await api.createGuest("我");
+      const response = await api.me();
       currentUser.value = response.user;
       return response.user;
     } catch {
-      currentUser.value = localGuest();
-      return currentUser.value;
+      api.clearAuthToken();
+      currentUser.value = null;
+      return null;
     }
   }
 
+  function requireAccount(nextScreen: Screen) {
+    if (currentUser.value) {
+      screen.value = nextScreen;
+      return true;
+    }
+
+    authReturnScreen.value = nextScreen;
+    screen.value = "account";
+    showToast(copy.auth.requiredTitle);
+    return false;
+  }
+
+  function openCreate() {
+    requireAccount("create");
+  }
+
+  function openDraw() {
+    if (requireAccount("draw") && !activeCard.value) {
+      void drawCard();
+    }
+  }
+
+  function openHistory() {
+    requireAccount("history");
+  }
+
   async function refreshSessions() {
-    await ensureIdentity();
+    const user = await ensureIdentity();
+    if (!user) {
+      sessions.value = [];
+      return;
+    }
     try {
       const response = await api.listSessions();
       sessions.value = response.sessions;
-      persistSessions();
+      persistSessions(sessions.value);
     } catch {
-      loadLocalSessions();
+      sessions.value = loadLocalSessions();
     }
   }
 
   async function refreshCoupons() {
-    await ensureIdentity();
+    const user = await ensureIdentity();
+    if (!user) {
+      coupons.value = [];
+      return;
+    }
     try {
       const response = await api.listCoupons();
       coupons.value = response.coupons;
     } catch {
       coupons.value = [];
+    }
+  }
+
+  async function refreshActiveSession(silent = false) {
+    if (!activeSessionId.value) {
+      return;
+    }
+    if (sessionRefreshing.value) {
+      return;
+    }
+
+    if (!silent) {
+      sessionRefreshing.value = true;
+    }
+    try {
+      const response = await api.getSession(activeSessionId.value);
+      upsertSession(response.session);
+      persistSessions(sessions.value);
+    } catch {
+      // Keep the current contract visible if the network is temporarily unavailable.
+    } finally {
+      if (!silent) {
+        sessionRefreshing.value = false;
+      }
     }
   }
 
@@ -132,23 +193,24 @@ export function usePlaybitFlow() {
 
   async function createSession(payload: CreateSessionInput) {
     const user = await ensureIdentity();
+    if (!user) {
+      authReturnScreen.value = screen.value;
+      screen.value = "account";
+      showToast(copy.auth.requiredTitle);
+      return;
+    }
     const sessionInput = {
       ...payload,
       creatorNickname: user.nickname
     };
 
-    try {
-      const response = await api.createSession(sessionInput);
-      sessions.value = [response.session, ...sessions.value.filter((item) => item.id !== response.session.id)];
-      activeSessionId.value = response.session.id;
-    } catch {
-      const session = createBetSession(sessionInput, user.id);
-      sessions.value = [session, ...sessions.value];
-      activeSessionId.value = session.id;
-    }
+    const response = await api.createSession(sessionInput);
+    sessions.value = [response.session, ...sessions.value.filter((item) => item.id !== response.session.id)];
+    activeSessionId.value = response.session.id;
 
-    persistSessions();
-    contractBackScreen.value = "create";
+    persistSessions(sessions.value);
+    resetCreateDraft();
+    contractBackScreen.value = payload.source === "card" ? "draw" : "create";
     screen.value = "contract";
   }
 
@@ -181,25 +243,7 @@ export function usePlaybitFlow() {
       upsertSession(settleBetSession(activeSession.value, winnerId, fulfilled));
     }
 
-    persistSessions();
-    screen.value = "settlement";
-  }
-
-  async function fulfillSession() {
-    if (!activeSession.value) {
-      return;
-    }
-
-    try {
-      const response = await api.fulfillSession(activeSession.value.id);
-      upsertSession(response.session);
-      await refreshCoupons();
-    } catch {
-      const winnerId = activeSession.value.winnerId ?? activeSession.value.participants[0].id;
-      upsertSession(settleBetSession(activeSession.value, winnerId, true));
-    }
-
-    persistSessions();
+    persistSessions(sessions.value);
     screen.value = "settlement";
   }
 
@@ -221,22 +265,24 @@ export function usePlaybitFlow() {
   async function openSessionById(sessionId: string, backScreen: Screen = "home") {
     contractBackScreen.value = backScreen;
     const localSession = sessions.value.find((session) => session.id === sessionId);
-    if (localSession) {
-      openSession(localSession);
-      return;
-    }
 
     try {
       const response = await api.getSession(sessionId);
       upsertSession(response.session);
       openSession(response.session);
     } catch {
+      if (localSession) {
+        openSession(localSession);
+        return;
+      }
       showToast(copy.vouchers.openFailed);
     }
   }
 
   function openVouchers() {
-    screen.value = "vouchers";
+    if (!requireAccount("vouchers")) {
+      return;
+    }
     void refreshCoupons();
   }
 
@@ -265,34 +311,27 @@ export function usePlaybitFlow() {
     }
   }
 
-  async function copyShareText() {
-    if (!activeSession.value) {
-      return;
-    }
-
-    const session = activeSession.value;
-    const winner = session.participants.find((participant) => participant.id === session.winnerId)?.nickname;
-    const shareLink = `${window.location.origin}${window.location.pathname}?share=${session.shareCode}`;
-    const text = winner
-      ? `《${copy.share.settlementTitle}》\n${copy.share.labels.agreement}：${session.title}\n${copy.share.labels.winner}：${winner}\n${copy.share.labels.stake}：${session.stake.label}`
-      : `《${session.title}》${copy.share.labels.pending}\n${copy.share.labels.challenge}：${session.challenge}\n${copy.share.labels.judgment}：${session.judgmentRule}\n${copy.share.labels.stake}：${session.stake.label}\n${copy.share.labels.signLink}：${shareLink}`;
-
-    await navigator.clipboard?.writeText(text);
-  }
-
-  async function signSession(nickname: string) {
+  async function signSession(payload: { nickname: string; signatureDataUrl: string }) {
     if (!activeShareCode.value) {
       return;
     }
 
-    await ensureIdentity();
+    const user = await ensureIdentity();
+    if (!user) {
+      authReturnScreen.value = "sign";
+      screen.value = "account";
+      showToast(copy.auth.requiredTitle);
+      return;
+    }
     signLoading.value = true;
     try {
-      const response = await api.signShare(activeShareCode.value, nickname);
+      const response = await api.signShare(activeShareCode.value, payload);
       upsertSession(response.session);
-      persistSessions();
+      persistSessions(sessions.value);
       await refreshCoupons();
       screen.value = "contract";
+    } catch {
+      showToast(copy.contract.signFailed);
     } finally {
       signLoading.value = false;
     }
@@ -305,7 +344,13 @@ export function usePlaybitFlow() {
       currentUser.value = response.user;
       await refreshSessions();
       await refreshCoupons();
-      screen.value = "home";
+      screen.value = authReturnScreen.value;
+      if (authReturnScreen.value === "draw" && !activeCard.value) {
+        void drawCard();
+      }
+      authReturnScreen.value = "home";
+    } catch {
+      showToast(copy.auth.saveFailed);
     } finally {
       authLoading.value = false;
     }
@@ -318,23 +363,90 @@ export function usePlaybitFlow() {
       currentUser.value = response.user;
       await refreshSessions();
       await refreshCoupons();
-      screen.value = "home";
+      screen.value = authReturnScreen.value;
+      if (authReturnScreen.value === "draw" && !activeCard.value) {
+        void drawCard();
+      }
+      authReturnScreen.value = "home";
+    } catch {
+      showToast(copy.auth.loginFailed);
     } finally {
       authLoading.value = false;
     }
   }
 
+  function updateCreateDraft(nextDraft: CreateBetDraft) {
+    createDraft.title = nextDraft.title;
+    createDraft.judgmentRule = nextDraft.judgmentRule;
+    createDraft.stake = nextDraft.stake;
+    createDraft.creatorSignatureDataUrl = nextDraft.creatorSignatureDataUrl;
+  }
+
+  function resetCreateDraft() {
+    createDraft.title = "";
+    createDraft.judgmentRule = "";
+    createDraft.stake = { ...defaultStake };
+    createDraft.creatorSignatureDataUrl = "";
+  }
+
+  let refreshTimer: number | undefined;
+
+  function shouldPollActiveSession() {
+    return screen.value === "contract" && activeSession.value?.status === "pending_confirmation";
+  }
+
+  function startActiveSessionPolling() {
+    stopActiveSessionPolling();
+    refreshTimer = window.setInterval(() => {
+      if (shouldPollActiveSession()) {
+        void refreshActiveSession(true);
+      }
+    }, 5000);
+  }
+
+  function stopActiveSessionPolling() {
+    if (refreshTimer) {
+      window.clearInterval(refreshTimer);
+      refreshTimer = undefined;
+    }
+  }
+
+  function refreshWhenVisible() {
+    if ((document.visibilityState === "visible" || document.hasFocus()) && activeSessionId.value) {
+      void refreshActiveSession(true);
+    }
+  }
+
+  watch(
+    () => [screen.value, activeSession.value?.status, activeSessionId.value],
+    () => {
+      if (shouldPollActiveSession()) {
+        void refreshActiveSession(true);
+        startActiveSessionPolling();
+        return;
+      }
+      stopActiveSessionPolling();
+    }
+  );
+
   onMounted(() => {
-    loadLocalSessions();
+    sessions.value = loadLocalSessions();
     const shareCode = new URLSearchParams(window.location.search).get("share");
     if (shareCode) {
-      void ensureIdentity();
       void loadShareSession(shareCode);
       return;
     }
     void ensureIdentity();
     void refreshSessions();
     void refreshCoupons();
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+  });
+
+  onUnmounted(() => {
+    stopActiveSessionPolling();
+    window.removeEventListener("focus", refreshWhenVisible);
+    document.removeEventListener("visibilitychange", refreshWhenVisible);
   });
 
   return {
@@ -345,23 +457,31 @@ export function usePlaybitFlow() {
     cardLoading,
     contractBackScreen,
     coupons,
+    createDraft,
     currentUser,
+    sessionRefreshing,
     sessions,
+    sharePayload,
     signLoading,
     screen,
     copyShareText,
     createSession,
     drawCard,
-    fulfillSession,
     loginAccount,
+    nativeShare,
+    openCreate,
+    openDraw,
+    openHistory,
     openSession,
     openSessionById,
     openSessionFrom,
     openVoucherDetail,
     openVouchers,
+    refreshActiveSession,
     registerAccount,
     redeemCoupon,
     settleSession,
-    signSession
+    signSession,
+    updateCreateDraft
   };
 }

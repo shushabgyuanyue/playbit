@@ -7,7 +7,7 @@ import BaseBadge from "./ui/BaseBadge.vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseField from "./ui/BaseField.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
-import LifeAppBar from "./ui/LifeAppBar.vue";
+import LifeServiceHero from "./ui/LifeServiceHero.vue";
 
 defineProps<{
   user: User | null;
@@ -22,22 +22,29 @@ const emit = defineEmits<{
 
 const mode = ref<"register" | "login">("register");
 const form = reactive({
-  nickname: "我",
+  nickname: copy.common.me,
   email: "",
   password: ""
 });
 </script>
 
 <template>
-  <section class="life-page">
-    <LifeAppBar :title="copy.auth.account" :show-back="true" :back-label="copy.common.back" @back="emit('back')" />
+  <section class="life-page service-flow-page">
+    <LifeServiceHero
+      class="service-flow-hero"
+      :eyebrow="copy.home.heroSubtitle"
+      :title="copy.auth.account"
+      :show-back="true"
+      :back-label="copy.common.back"
+      @back="emit('back')"
+    />
 
-    <div class="life-page-content">
+    <div class="life-page-content service-flow-content">
       <section class="life-panel">
         <BaseBadge :tone="user?.authLevel === 'registered' ? 'success' : 'contract'">
           {{ user?.authLevel === "registered" ? copy.auth.registered : copy.auth.guest }}
         </BaseBadge>
-        <h2 class="life-section-title">{{ user?.nickname ?? copy.auth.localUser }}</h2>
+        <h2 class="life-section-title">{{ user?.nickname ?? copy.auth.requiredTitle }}</h2>
         <p class="life-section-caption">{{ copy.auth.saveHint }}</p>
       </section>
 

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f6fa;
+  --background: #fbf8f1;
   --foreground: #1f2329;
   --card: #ffffff;
   --card-foreground: #1f2329;
@@ -19,7 +19,7 @@
   --border: #e5e6eb;
   --input: #e5e6eb;
   --ring: #1677ff;
-  --paper: #f7f8fa;
+  --paper: #fbf8f1;
   --seal: #c83b36;
   --gold: #f59a23;
   --shadow-soft: 0 10px 28px rgba(31, 35, 41, 0.08);
@@ -52,7 +52,7 @@
   --pb-text-3: #86909c;
   --pb-text-4: #c9cdd4;
   --pb-line: #e5e6eb;
-  --pb-fill-page: #f5f6fa;
+  --pb-fill-page: #fbf8f1;
   --pb-fill-card: #ffffff;
   --pb-fill-soft: #f7f8fa;
   --pb-fill-control: #eef0f3;
@@ -66,6 +66,7 @@
   --pb-radius-sm: 6px;
   --pb-radius-md: 8px;
   --pb-radius-lg: 8px;
+  --pb-radius-xl: 10px;
   --pb-page-x: 14px;
   --pb-touch: 44px;
 }

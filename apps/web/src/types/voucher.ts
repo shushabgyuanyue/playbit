@@ -18,7 +18,6 @@ export type VoucherItem = {
   status: VoucherUiStatus;
   kind: VoucherKind;
   canRedeem: boolean;
-  isDemo?: boolean;
 };
 
 export type VoucherSection = {
