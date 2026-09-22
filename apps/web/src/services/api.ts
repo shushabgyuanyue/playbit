@@ -9,7 +9,18 @@ import type {
   User
 } from "@playbit/shared";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:8787" : "");
+function normalizeApiBaseUrl(value: string | undefined) {
+  const baseUrl = value?.trim() ?? "";
+  if (!baseUrl) {
+    return import.meta.env.DEV ? "http://localhost:8787" : "";
+  }
+  if (baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
+    return baseUrl.replace(/\/$/, "");
+  }
+  return `https://${baseUrl.replace(/^\/+|\/$/g, "")}`;
+}
+
+const apiBaseUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 const authTokenKey = "playbit.authToken";
 
 function getAuthToken() {

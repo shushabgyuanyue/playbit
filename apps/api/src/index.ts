@@ -4,20 +4,23 @@ import { createDbClient } from "./db/client.js";
 
 const db = createDbClient();
 const repositories = createRepositories(db);
-const webOrigins = (
-  process.env.WEB_ORIGIN ??
-  "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174"
-)
+const defaultWebOrigins =
+  process.env.NODE_ENV === "production"
+    ? "*"
+    : "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174";
+const webOrigins = (process.env.WEB_ORIGIN ?? defaultWebOrigins)
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
 const app = createPlaybitApp(repositories, webOrigins);
-const port = Number(process.env.PORT ?? 8787);
+const defaultPort = process.env.NODE_ENV === "production" ? 8080 : 8787;
+const port = Number(process.env.PORT ?? defaultPort);
 
 serve(
   {
     fetch: app.fetch,
+    hostname: "0.0.0.0",
     port
   },
   (info) => {

@@ -22,9 +22,15 @@ Attach a PostgreSQL database and set these variables on the API service:
 ```bash
 DATABASE_URL=<Railway PostgreSQL connection string>
 WEB_ORIGIN=https://<your-vercel-domain>
-PORT=8787
-DATABASE_SSL=true
+PORT=8080
+DATABASE_SSL=false
 ```
+
+`WEB_ORIGIN` is the frontend domain allowed to call the API from a browser. If it is not set in production, the API falls back to permissive CORS so the app can still be tested, but setting the exact Vercel/custom domain is recommended.
+
+`PORT` must match the port shown in Railway `Networking -> Public Networking`. Railway commonly routes public HTTP traffic to `8080`; if that panel shows another port, use that value instead.
+
+Use `DATABASE_SSL=false` when `DATABASE_URL` points to Railway's internal PostgreSQL host. The API also detects `.railway.internal` database URLs and disables SSL automatically.
 
 Railway reads `railway.json` from the repository root.
 
@@ -51,6 +57,8 @@ Set this environment variable:
 ```bash
 VITE_API_BASE_URL=https://<your-railway-api-domain>
 ```
+
+This variable is required for login, registration, signing, and coupon management in production. Without it, the deployed web app will try to call `/auth/register` and `/auth/login` on the Vercel domain instead of the Railway API.
 
 Vercel reads `vercel.json` from the repository root:
 

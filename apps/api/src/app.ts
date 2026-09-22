@@ -28,10 +28,11 @@ export function createPlaybitApp(repositories: AppRepositories, webOrigins: stri
   const app = new Hono();
 
   if (webOrigins.length > 0) {
+    const origin = webOrigins.includes("*") ? "*" : webOrigins;
     app.use(
       "*",
       cors({
-        origin: webOrigins,
+        origin,
         allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
         allowHeaders: ["Content-Type", "Authorization"]
       })
