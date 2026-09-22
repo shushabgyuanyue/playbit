@@ -2,59 +2,78 @@
 import { copy } from "@playbit/content";
 import { generateSettlementTitle } from "@playbit/game-core";
 import type { BetSession } from "@playbit/shared";
-import { Copy, Home, Stamp } from "lucide-vue-next";
+import { CheckCircle2, Copy, Home, Stamp } from "lucide-vue-next";
 import { computed } from "vue";
 import BaseButton from "./ui/BaseButton.vue";
+import BaseBadge from "./ui/BaseBadge.vue";
+import LifeActionBar from "./ui/LifeActionBar.vue";
+import LifeAppBar from "./ui/LifeAppBar.vue";
+import { getLoserName, getWinnerName } from "../utils/sessionDisplay";
 
 const props = defineProps<{
   session: BetSession;
+  showBack?: boolean;
 }>();
 
 const emit = defineEmits<{
+  back: [];
   home: [];
   fulfill: [];
   copyShare: [];
 }>();
 
-const winner = computed(
-  () => props.session.participants.find((participant) => participant.id === props.session.winnerId)?.nickname ?? "待定"
-);
-const loser = computed(
-  () => props.session.participants.find((participant) => participant.id === props.session.loserId)?.nickname ?? "待定"
-);
+const winner = computed(() => getWinnerName(props.session));
+const loser = computed(() => getLoserName(props.session));
+const fulfilled = computed(() => props.session.stake.fulfilled);
 </script>
 
 <template>
-  <section class="screen">
-    <article class="settlement-poster">
-      <h2 class="poster-title">《{{ generateSettlementTitle(props.session) }}》</h2>
-      <ul class="fact-list">
-        <li><span>赌局</span><strong>{{ props.session.title }}</strong></li>
-        <li><span>胜方</span><strong>{{ winner }}</strong></li>
-        <li><span>败方</span><strong>{{ loser }}</strong></li>
-        <li><span>赌注</span><strong>{{ props.session.stake.label }} × {{ props.session.stake.quantity }}</strong></li>
-        <li><span>状态</span><strong>{{ props.session.stake.fulfilled ? "已履约" : "待履约" }}</strong></li>
-      </ul>
-    </article>
-    <p class="hero-copy">{{ copy.share.screenshotHint }}</p>
+  <section class="life-page">
+    <LifeAppBar
+      :title="copy.settlement.navTitle"
+      :show-back="props.showBack"
+      :back-label="copy.common.back"
+      @back="emit('back')"
+    />
 
-    <div class="bottom-actions">
-      <BaseButton variant="secondary" size="lg" @click="emit('copyShare')">
+    <div class="life-page-content">
+      <article class="settlement-document">
+        <BaseBadge :tone="fulfilled ? 'success' : 'pending'">
+          {{ fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}
+        </BaseBadge>
+        <h2 class="settlement-title">《{{ generateSettlementTitle(props.session) }}》</h2>
+        <div class="settlement-stamp">
+          <CheckCircle2 v-if="fulfilled" :size="15" />
+          <Stamp v-else :size="15" />
+          {{ fulfilled ? copy.session.fulfilled : copy.settlement.pending }}
+        </div>
+        <ul class="life-info-list">
+          <li><span>{{ copy.settlement.agreement }}</span><strong>{{ props.session.title }}</strong></li>
+          <li><span>{{ copy.settlement.winner }}</span><strong>{{ winner }}</strong></li>
+          <li><span>{{ copy.settlement.loser }}</span><strong>{{ loser }}</strong></li>
+          <li><span>{{ copy.settlement.stake }}</span><strong>{{ props.session.stake.label }}</strong></li>
+          <li>
+            <span>{{ copy.settlement.status }}</span>
+            <strong>{{ fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}</strong>
+          </li>
+        </ul>
+      </article>
+      <p class="life-section-caption">{{ copy.share.screenshotHint }}</p>
+    </div>
+
+    <LifeActionBar>
+      <BaseButton variant="outline" size="lg" @click="emit('copyShare')">
         <Copy :size="18" />
         {{ copy.share.copyLink }}
       </BaseButton>
-      <BaseButton
-        v-if="!props.session.stake.fulfilled"
-        size="lg"
-        @click="emit('fulfill')"
-      >
+      <BaseButton v-if="!fulfilled" variant="danger" size="lg" @click="emit('fulfill')">
         <Stamp :size="18" />
-        确认履约
+        {{ copy.settlement.confirmFulfill }}
       </BaseButton>
-      <BaseButton variant="outline" size="lg" @click="emit('home')">
+      <BaseButton variant="ghost" size="lg" @click="emit('home')">
         <Home :size="18" />
-        回到首页
+        {{ copy.settlement.backHome }}
       </BaseButton>
-    </div>
+    </LifeActionBar>
   </section>
 </template>

@@ -56,7 +56,9 @@ export function signCounterparty(
   const counterparty = session.participants.find((participant) => participant.role === "counterparty");
   const participants: Participant[] = counterparty
     ? session.participants.map((participant) =>
-        participant.role === "counterparty" ? { ...participant, nickname, confirmed: true } : participant
+        participant.role === "counterparty"
+          ? { ...participant, nickname, userId: counterpartyUserId, confirmed: true }
+          : participant
       )
     : [
         ...(initiator ? [initiator] : session.participants),
@@ -75,7 +77,12 @@ export function settleBetSession(
   winnerId: string,
   fulfilled = false
 ): BetSession {
+  const winner = session.participants.find((participant) => participant.id === winnerId);
   const loser = session.participants.find((participant) => participant.id !== winnerId);
+
+  if (!winner) {
+    throw new Error("WINNER_NOT_IN_SESSION");
+  }
 
   return {
     ...session,

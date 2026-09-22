@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { copy } from "@playbit/content";
 import type { BetSession } from "@playbit/shared";
-import { ArrowLeft } from "lucide-vue-next";
-import BaseButton from "./ui/BaseButton.vue";
+import { ChevronRight } from "lucide-vue-next";
+import BaseBadge from "./ui/BaseBadge.vue";
+import LifeAppBar from "./ui/LifeAppBar.vue";
+import { getSessionStatusLabel, getSessionStatusTone } from "../utils/sessionDisplay";
 
 defineProps<{
   sessions: BetSession[];
@@ -14,25 +17,40 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="screen">
-    <div class="topbar">
-      <BaseButton variant="outline" class="w-auto min-h-9 px-3" @click="emit('back')">
-        <ArrowLeft :size="17" />
-        返回
-      </BaseButton>
-      <span class="muted">历史</span>
-    </div>
+  <section class="life-page">
+    <LifeAppBar :title="copy.history.navTitle" :show-back="true" :back-label="copy.common.back" @back="emit('back')" />
 
-    <h2 class="section-title">我的赌约</h2>
-    <div v-if="sessions.length === 0" class="challenge-card">
-      <span class="card-label">暂无记录</span>
-      <h3 class="card-name">第一局还没开始</h3>
-      <p class="card-content">生活里下一次“赌不赌”，就可以记在这里。</p>
-    </div>
-    <div v-for="session in sessions" :key="session.id" class="challenge-card" @click="emit('open', session)">
-      <span class="card-label">{{ session.status }}</span>
-      <h3 class="card-name">{{ session.title }}</h3>
-      <p class="hero-copy">赌注：{{ session.stake.label }} × {{ session.stake.quantity }}</p>
+    <div class="life-page-content">
+      <div class="life-section-title">
+        <span>{{ copy.history.title }}</span>
+      </div>
+
+      <section v-if="sessions.length === 0" class="life-panel">
+        <BaseBadge tone="archive">{{ copy.history.emptyLabel }}</BaseBadge>
+        <h2 class="life-section-title">{{ copy.history.emptyTitle }}</h2>
+        <p class="life-section-caption">{{ copy.history.emptyContent }}</p>
+      </section>
+
+      <div v-else class="history-list">
+        <button
+          v-for="session in sessions"
+          :key="session.id"
+          type="button"
+          class="history-item"
+          @click="emit('open', session)"
+        >
+          <div class="history-item-header">
+            <h2 class="history-item-title">{{ session.title }}</h2>
+            <ChevronRight :size="18" class="life-muted" />
+          </div>
+          <div class="history-item-meta">
+            <BaseBadge :tone="getSessionStatusTone(session.status)">
+              {{ getSessionStatusLabel(session.status) }}
+            </BaseBadge>
+            <span>{{ copy.history.stake }}：{{ session.stake.label }}</span>
+          </div>
+        </button>
+      </div>
     </div>
   </section>
 </template>

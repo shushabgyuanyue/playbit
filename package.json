@@ -9,6 +9,7 @@
     "dev:api": "pnpm --filter @playbit/api dev",
     "build": "pnpm -r build",
     "check": "pnpm -r check",
+    "test": "pnpm --filter @playbit/game-core test && pnpm --filter @playbit/api test",
     "db:generate": "pnpm --filter @playbit/api db:generate",
     "db:migrate": "pnpm --filter @playbit/api db:migrate"
   },
@@ -20,4 +21,3 @@
     "typescript": "^5.9.2"
   }
 }
-

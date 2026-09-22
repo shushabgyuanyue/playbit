@@ -58,6 +58,10 @@ export const betSessions = pgTable("bet_sessions", {
 
 export const coupons = pgTable("coupons", {
   id: text("id").primaryKey(),
+  sessionId: text("session_id")
+    .notNull()
+    .references(() => betSessions.id, { onDelete: "cascade" }),
+  issuerUserId: text("issuer_user_id").references(() => users.id, { onDelete: "set null" }),
   holderUserId: text("holder_user_id").references(() => users.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   description: text("description").notNull(),

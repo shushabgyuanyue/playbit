@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { LoginInput, RegisterInput, User } from "@playbit/shared";
-import { ArrowLeft, LogIn, ShieldCheck } from "lucide-vue-next";
+import { LogIn, ShieldCheck } from "lucide-vue-next";
 import { reactive, ref } from "vue";
+import BaseBadge from "./ui/BaseBadge.vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseField from "./ui/BaseField.vue";
+import LifeActionBar from "./ui/LifeActionBar.vue";
+import LifeAppBar from "./ui/LifeAppBar.vue";
 
 defineProps<{
   user: User | null;
@@ -26,33 +29,47 @@ const form = reactive({
 </script>
 
 <template>
-  <section class="screen">
-    <div class="topbar">
-      <BaseButton variant="outline" class="w-auto min-h-9 px-3" @click="emit('back')">
-        <ArrowLeft :size="17" />
-        返回
-      </BaseButton>
-      <span class="muted">{{ copy.auth.account }}</span>
+  <section class="life-page">
+    <LifeAppBar :title="copy.auth.account" :show-back="true" :back-label="copy.common.back" @back="emit('back')" />
+
+    <div class="life-page-content">
+      <section class="life-panel">
+        <BaseBadge :tone="user?.authLevel === 'registered' ? 'success' : 'contract'">
+          {{ user?.authLevel === "registered" ? copy.auth.registered : copy.auth.guest }}
+        </BaseBadge>
+        <h2 class="life-section-title">{{ user?.nickname ?? copy.auth.localUser }}</h2>
+        <p class="life-section-caption">{{ copy.auth.saveHint }}</p>
+      </section>
+
+      <div class="life-status-tabs" :aria-label="copy.auth.account">
+        <button type="button" :class="{ active: mode === 'register' }" @click="mode = 'register'">
+          {{ copy.auth.saveAccount }}
+        </button>
+        <button type="button" :class="{ active: mode === 'login' }" @click="mode = 'login'">
+          {{ copy.auth.login }}
+        </button>
+      </div>
+
+      <section class="life-panel">
+        <div class="life-field-group">
+          <BaseField v-if="mode === 'register'" v-model="form.nickname" :label="copy.auth.nickname" />
+          <BaseField
+            v-model="form.email"
+            type="email"
+            :label="copy.auth.email"
+            :placeholder="copy.auth.emailPlaceholder"
+          />
+          <BaseField
+            v-model="form.password"
+            type="password"
+            :label="copy.auth.password"
+            :placeholder="copy.auth.passwordPlaceholder"
+          />
+        </div>
+      </section>
     </div>
 
-    <div class="challenge-card">
-      <span class="card-label">{{ user?.authLevel === "registered" ? copy.auth.registered : copy.auth.guest }}</span>
-      <h2 class="card-name">{{ user?.nickname ?? "临时用户" }}</h2>
-      <p class="card-content">{{ copy.auth.saveHint }}</p>
-    </div>
-
-    <div class="segmented-control">
-      <button :class="{ active: mode === 'register' }" @click="mode = 'register'">{{ copy.auth.saveAccount }}</button>
-      <button :class="{ active: mode === 'login' }" @click="mode = 'login'">{{ copy.auth.login }}</button>
-    </div>
-
-    <div class="field-group">
-      <BaseField v-if="mode === 'register'" v-model="form.nickname" :label="copy.auth.nickname" />
-      <BaseField v-model="form.email" type="email" :label="copy.auth.email" placeholder="name@example.com" />
-      <BaseField v-model="form.password" type="password" :label="copy.auth.password" placeholder="至少 8 位" />
-    </div>
-
-    <div class="bottom-actions">
+    <LifeActionBar>
       <BaseButton
         v-if="mode === 'register'"
         size="lg"
@@ -60,7 +77,7 @@ const form = reactive({
         @click="emit('register', { email: form.email.trim(), password: form.password, nickname: form.nickname.trim() })"
       >
         <ShieldCheck :size="18" />
-        {{ copy.auth.saveAccount }}
+        {{ loading ? copy.common.loading : copy.auth.saveAccount }}
       </BaseButton>
       <BaseButton
         v-else
@@ -69,8 +86,8 @@ const form = reactive({
         @click="emit('login', { email: form.email.trim(), password: form.password })"
       >
         <LogIn :size="18" />
-        {{ copy.auth.login }}
+        {{ loading ? copy.common.loading : copy.auth.login }}
       </BaseButton>
-    </div>
+    </LifeActionBar>
   </section>
 </template>

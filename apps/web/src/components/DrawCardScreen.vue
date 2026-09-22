@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { copy } from "@playbit/content";
 import type { Card, CreateSessionInput, Stake } from "@playbit/shared";
-import { ArrowLeft, Check, RefreshCcw } from "lucide-vue-next";
+import { Check, RefreshCcw } from "lucide-vue-next";
 import { reactive } from "vue";
 import BaseBadge from "./ui/BaseBadge.vue";
 import BaseButton from "./ui/BaseButton.vue";
+import LifeActionBar from "./ui/LifeActionBar.vue";
+import LifeAppBar from "./ui/LifeAppBar.vue";
 import StakePicker from "./StakePicker.vue";
 
 const props = defineProps<{
@@ -20,8 +23,7 @@ const emit = defineEmits<{
 const form = reactive({
   stake: {
     type: "coupon",
-    label: "奶茶券",
-    quantity: 1,
+    label: "请奶茶一杯",
     fulfilled: false
   } as Stake
 });
@@ -44,41 +46,43 @@ function accept() {
 </script>
 
 <template>
-  <section class="screen">
-    <div class="topbar">
-      <BaseButton variant="outline" class="w-auto min-h-9 px-3" @click="emit('back')">
-        <ArrowLeft :size="17" />
-        返回
-      </BaseButton>
-      <span class="muted">抽卡</span>
+  <section class="life-page">
+    <LifeAppBar :title="copy.draw.navTitle" :show-back="true" :back-label="copy.common.back" @back="emit('back')" />
+
+    <div class="life-page-content">
+      <section class="challenge-document">
+        <template v-if="props.card">
+          <BaseBadge tone="contract">{{ props.card.mechanism }}</BaseBadge>
+          <h2 class="challenge-title">{{ props.card.name }}</h2>
+          <p class="challenge-content">{{ props.card.content }}</p>
+          <ul class="life-info-list">
+            <li>
+              <span>{{ copy.draw.winCondition }}</span>
+              <strong>{{ props.card.winCondition }}</strong>
+            </li>
+          </ul>
+        </template>
+        <template v-else>
+          <BaseBadge tone="contract">{{ copy.draw.emptyLabel }}</BaseBadge>
+          <h2 class="challenge-title">{{ copy.draw.emptyTitle }}</h2>
+          <p class="challenge-content">{{ copy.draw.emptyContent }}</p>
+        </template>
+      </section>
+
+      <StakePicker @change="form.stake = $event" />
     </div>
 
-    <div v-if="props.card" class="challenge-card">
-      <BaseBadge>{{ props.card.mechanism }}</BaseBadge>
-      <h2 class="card-name">{{ props.card.name }}</h2>
-      <p class="card-content">{{ props.card.content }}</p>
-      <p class="hero-copy">胜负：{{ props.card.winCondition }}</p>
-    </div>
-
-    <div v-else class="challenge-card">
-      <BaseBadge>开一局</BaseBadge>
-      <h2 class="card-name">抽一张，让现实动一下</h2>
-      <p class="card-content">卡片会给当前生活加一条临时规则。</p>
-    </div>
-
-    <StakePicker @change="form.stake = $event" />
-
-    <div class="bottom-actions">
-      <div class="inline-actions">
+    <LifeActionBar>
+      <div class="life-inline-actions">
         <BaseButton variant="outline" size="lg" :disabled="props.loading" @click="emit('draw')">
           <RefreshCcw :size="18" />
-          重抽
+          {{ copy.draw.reroll }}
         </BaseButton>
         <BaseButton size="lg" :disabled="!props.card" @click="accept">
           <Check :size="18" />
-          接受
+          {{ copy.draw.accept }}
         </BaseButton>
       </div>
-    </div>
+    </LifeActionBar>
   </section>
 </template>

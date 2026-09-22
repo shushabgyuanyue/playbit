@@ -1,4 +1,4 @@
-import type { BetSession, Card, CreateSessionInput, LoginInput, RegisterInput, User } from "@playbit/shared";
+import type { BetSession, Card, Coupon, CreateSessionInput, LoginInput, RegisterInput, User } from "@playbit/shared";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:8787" : "");
 const authTokenKey = "playbit.authToken";
@@ -74,6 +74,9 @@ export const api = {
   listSessions() {
     return request<{ sessions: BetSession[] }>("/sessions");
   },
+  getSession(id: string) {
+    return request<{ session: BetSession }>(`/sessions/${id}`);
+  },
   getShare(shareCode: string) {
     return request<{ session: BetSession }>(`/share/${shareCode}`);
   },
@@ -87,6 +90,19 @@ export const api = {
     return request<{ session: BetSession }>(`/sessions/${id}/settle`, {
       method: "PATCH",
       body: JSON.stringify({ winnerId, fulfilled })
+    });
+  },
+  fulfillSession(id: string) {
+    return request<{ session: BetSession }>(`/sessions/${id}/fulfill`, {
+      method: "PATCH"
+    });
+  },
+  listCoupons() {
+    return request<{ coupons: Coupon[] }>("/coupons");
+  },
+  useCoupon(id: string) {
+    return request<{ coupon: Coupon }>(`/coupons/${id}/use`, {
+      method: "PATCH"
     });
   }
 };

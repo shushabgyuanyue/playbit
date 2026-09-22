@@ -19,8 +19,21 @@ export const userSchema = z.object({
 export const stakeSchema = z.object({
   type: z.enum(["point", "coupon", "custom"]),
   label: z.string().min(1).max(80),
-  quantity: z.number().int().positive().default(1),
   fulfilled: z.boolean().default(false)
+});
+
+export const couponSchema = z.object({
+  id: z.string(),
+  sessionId: z.string(),
+  name: z.string().min(1).max(80),
+  description: z.string().min(1).max(180),
+  issuerUserId: z.string().nullable(),
+  issuerNickname: z.string(),
+  holderUserId: z.string().nullable(),
+  holderNickname: z.string(),
+  status: z.enum(["available", "used"]),
+  createdAt: z.string(),
+  usedAt: z.string().nullable()
 });
 
 export const cardCategorySchema = z.enum(["challenge", "rule", "hidden", "magic"]);
@@ -103,6 +116,7 @@ export const settleSessionSchema = z.object({
 export type Participant = z.infer<typeof participantSchema>;
 export type User = z.infer<typeof userSchema>;
 export type Stake = z.infer<typeof stakeSchema>;
+export type Coupon = z.infer<typeof couponSchema>;
 export type CardCategory = z.infer<typeof cardCategorySchema>;
 export type Card = z.infer<typeof cardSchema>;
 export type SessionStatus = z.infer<typeof sessionStatusSchema>;

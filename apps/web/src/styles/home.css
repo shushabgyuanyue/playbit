@@ -1,0 +1,96 @@
+.home-page .life-page-content {
+  gap: 14px;
+}
+
+.home-account-button {
+  display: inline-flex;
+  width: auto;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--pb-line);
+  border-radius: 999px;
+  background: var(--pb-fill-card);
+  color: var(--pb-text-2);
+  padding: 0 12px;
+  font-size: var(--pb-font-sm);
+  font-weight: var(--pb-weight-medium);
+}
+
+.home-hero {
+  display: grid;
+  gap: 12px;
+  border-radius: var(--pb-radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.98)),
+    linear-gradient(90deg, rgba(22, 119, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(22, 119, 255, 0.05) 1px, transparent 1px);
+  background-size: auto, 18px 18px, 18px 18px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(31, 35, 41, 0.03);
+}
+
+.home-hero-mark {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  color: var(--pb-theme-contract);
+  font-size: var(--pb-font-base);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.home-hero-title {
+  margin: 0;
+  color: var(--pb-text-1);
+  font-size: 24px;
+  font-weight: var(--pb-weight-semibold);
+  line-height: 1.24;
+  letter-spacing: 0;
+}
+
+.home-hero-copy {
+  margin: 0;
+  color: var(--pb-text-2);
+  font-size: var(--pb-font-base);
+  line-height: 1.65;
+}
+
+.home-stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.home-stat {
+  border-radius: var(--pb-radius-md);
+  background: var(--pb-fill-soft);
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.home-stat strong {
+  display: block;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-lg);
+  font-weight: var(--pb-weight-semibold);
+  line-height: 1;
+}
+
+.home-stat span {
+  display: block;
+  margin-top: 5px;
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-xs);
+}
+
+.home-action-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.home-secondary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}

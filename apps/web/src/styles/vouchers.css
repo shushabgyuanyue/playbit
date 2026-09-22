@@ -1,0 +1,96 @@
+.voucher-page {
+  padding-bottom: 28px;
+}
+
+.voucher-list-shell {
+  display: grid;
+  gap: 12px;
+  padding: 8px var(--pb-page-x) 28px;
+}
+
+.voucher-section {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--pb-radius-lg);
+  background: var(--pb-fill-card);
+  box-shadow: 0 1px 2px rgba(31, 35, 41, 0.03);
+}
+
+.voucher-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-lg);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.voucher-section-header > span:last-child {
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-base);
+  font-weight: var(--pb-weight-regular);
+}
+
+.voucher-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--pb-theme-pending);
+  color: #ffffff;
+}
+
+.voucher-section.status-available .voucher-section-icon {
+  background: var(--pb-theme-redeem);
+}
+
+.voucher-section.status-used .voucher-section-icon {
+  background: var(--pb-theme-archive);
+}
+
+.voucher-section-stack {
+  display: grid;
+  gap: 8px;
+  padding: 0 10px 12px;
+}
+
+.voucher-empty-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 86px;
+  height: 58px;
+  border: 1px dashed rgba(240, 68, 56, 0.24);
+  border-radius: var(--pb-radius-md);
+  background: #fff1f5;
+  color: #e3686f;
+  font-family: var(--font-serif);
+  font-size: var(--pb-font-xxl);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.voucher-section-more {
+  justify-self: end;
+  min-width: 92px;
+  min-height: 34px;
+  margin: -2px 10px 10px auto;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pb-fill-card);
+  color: var(--pb-blue);
+  padding: 0 14px;
+  font-size: var(--pb-font-base);
+  font-weight: var(--pb-weight-semibold);
+  box-shadow: 0 4px 14px rgba(31, 35, 41, 0.1);
+}
+
+@media (max-width: 374px) {
+  .voucher-list-shell {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+}
