@@ -520,10 +520,18 @@ export function usePlaybitFlow() {
     }
 
     const sessionId = activeSession.value.id;
-    realtimeDispose = api.subscribeSessionEvents(sessionId, handleRealtimeEvent);
+    realtimeDispose = api.subscribeSessionEvents(
+      sessionId,
+      handleRealtimeEvent,
+      () => {
+        void refreshActiveSession(true);
+      }
+    );
+    void refreshActiveSession(true);
+    const syncInterval = activeSession.value.status === "pending_confirmation" ? 3_000 : 6_000;
     syncTimer = window.setInterval(() => {
       void refreshActiveSession(true);
-    }, 8_000);
+    }, syncInterval);
   }
 
   function refreshWhenVisible() {
@@ -537,7 +545,13 @@ export function usePlaybitFlow() {
   }
 
   watch(
-    () => [screen.value, activeSession.value?.id, currentUser.value?.id],
+    () => [
+      screen.value,
+      activeSession.value?.id,
+      activeSession.value?.status,
+      activeSession.value?.revision,
+      currentUser.value?.id
+    ],
     () => {
       startSessionRealtime();
     }

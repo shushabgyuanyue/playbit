@@ -3,15 +3,23 @@
 .challenge-document {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(31, 35, 41, 0.12);
+  border: 1px solid rgba(31, 35, 41, 0.1);
   border-radius: var(--pb-radius-lg);
   background:
-    linear-gradient(90deg, rgba(31, 35, 41, 0.035) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(31, 35, 41, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(253, 252, 248, 0.98) 100%),
     #ffffff;
-  background-size: 18px 18px;
   padding: 16px;
-  box-shadow: 0 1px 2px rgba(31, 35, 41, 0.03);
+  box-shadow: 0 10px 26px rgba(31, 35, 41, 0.06);
+}
+
+.contract-document::before,
+.settlement-document::before,
+.challenge-document::before {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(31, 35, 41, 0.045);
+  content: "";
+  pointer-events: none;
 }
 
 .agreement-progress {

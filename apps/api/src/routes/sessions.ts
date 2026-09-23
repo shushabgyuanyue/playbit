@@ -18,7 +18,7 @@ import {
   settleSessionSchema
 } from "@playbit/shared";
 import type { SessionRealtimeEvent } from "@playbit/shared";
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 
 export function registerSessionRoutes(
   app: Hono,
@@ -27,6 +27,10 @@ export function registerSessionRoutes(
   coupons: CouponRepository,
   realtime: SessionRealtimeHub
 ) {
+  const noStore = (context: Context) => {
+    context.header("Cache-Control", "no-store, max-age=0");
+  };
+
   app.post("/sessions", async (context) => {
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
@@ -46,6 +50,7 @@ export function registerSessionRoutes(
   });
 
   app.get("/sessions", async (context) => {
+    noStore(context);
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
@@ -56,6 +61,7 @@ export function registerSessionRoutes(
   });
 
   app.get("/sessions/:id", async (context) => {
+    noStore(context);
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
@@ -73,6 +79,7 @@ export function registerSessionRoutes(
   });
 
   app.get("/sessions/:id/sync", async (context) => {
+    noStore(context);
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
@@ -161,6 +168,7 @@ export function registerSessionRoutes(
   });
 
   app.get("/share/:shareCode", async (context) => {
+    noStore(context);
     const session = await sessions.findByShareCode(context.req.param("shareCode"));
     if (!session) {
       return context.json({ message: "Share page not found" }, 404);

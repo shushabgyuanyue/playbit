@@ -138,21 +138,27 @@ onBeforeUnmount(() => {
 <template>
   <section class="signature-pad">
     <div class="signature-pad-header">
-      <span>{{ label }}</span>
+      <div>
+        <span>{{ label }}</span>
+        <small>{{ copy.signature.hint }}</small>
+      </div>
       <button type="button" @click="clear">
         <Eraser :size="14" />
         {{ copy.signature.clear }}
       </button>
     </div>
-    <canvas
-      ref="canvasRef"
-      class="signature-pad-canvas"
-      :aria-label="label"
-      @pointerdown.prevent="start"
-      @pointermove.prevent="move"
-      @pointerup.prevent="end"
-      @pointercancel.prevent="end"
-    />
-    <p class="signature-pad-hint">{{ copy.signature.hint }}</p>
+    <div class="signature-pad-paper">
+      <canvas
+        ref="canvasRef"
+        class="signature-pad-canvas"
+        :aria-label="label"
+        @pointerdown.prevent="start"
+        @pointermove.prevent="move"
+        @pointerup.prevent="end"
+        @pointercancel.prevent="end"
+      />
+      <span class="signature-pad-line" />
+      <span class="signature-pad-label">{{ label }}</span>
+    </div>
   </section>
 </template>

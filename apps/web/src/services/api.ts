@@ -49,12 +49,13 @@ export function clearAuthToken() {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAuthToken();
   const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...init,
+    cache: init?.cache ?? "no-store",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers
-    },
-    ...init
+    }
   });
 
   if (!response.ok) {
@@ -118,7 +119,11 @@ export const api = {
   syncSession(id: string) {
     return request<{ session: BetSession }>(`/sessions/${id}/sync`);
   },
-  subscribeSessionEvents(id: string, onEvent: (event: SessionRealtimeEvent) => void) {
+  subscribeSessionEvents(
+    id: string,
+    onEvent: (event: SessionRealtimeEvent) => void,
+    onError?: () => void
+  ) {
     const token = getAuthToken();
     if (!token || typeof EventSource === "undefined") {
       return () => undefined;
@@ -132,9 +137,13 @@ export const api = {
       onEvent(JSON.parse(message.data) as SessionRealtimeEvent);
     };
     source.addEventListener("session.updated", handleEvent);
+    source.onerror = () => {
+      onError?.();
+    };
 
     return () => {
       source.removeEventListener("session.updated", handleEvent);
+      source.onerror = null;
       source.close();
     };
   },
