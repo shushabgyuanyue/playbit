@@ -155,6 +155,7 @@ export const copy = {
     agreementNo: "协议编号",
     titlePrefix: "关于",
     titleSuffix: "之友好约定",
+    signedDate: "签约日期",
     seal: "合约正式成立",
     pendingSeal: "待对方签署",
     confirmA: "甲方确认",
@@ -177,6 +178,29 @@ export const copy = {
     },
     stakePrefix: "未达成方应承担",
     stakeSuffix: "一项。",
+    clauseTitles: {
+      subject: "约定事项",
+      judgment: "结果判定",
+      stake: "权益与履约",
+      exception: "免责说明",
+      effective: "生效条件"
+    },
+    clauseSentences: {
+      subjectPrefix: "双方确认，本次约定事项为",
+      subjectSuffix: "。",
+      judgmentPrefix: "本次结果以",
+      judgmentSuffix: "作为判定依据。"
+    },
+    summaryTable: {
+      item: "项目",
+      content: "具体内容",
+      note: "备注",
+      subjectNote: "以双方签署内容为准",
+      judgmentNote: "结算时作为判定依据",
+      stakeNote: "结算后进入权益记录",
+      statusNote: "由系统同步留存",
+      status: "当前状态"
+    },
     articles: {
       spirit: "双方本着公平、公正、友好确认之精神，就本次事项达成如下约定：",
       exception: "任何诸如“刚好”“本来”“差一点”等理由，原则上均不构成自动免责事由。",

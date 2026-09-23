@@ -124,6 +124,12 @@
   padding: 14px;
 }
 
+.contract-document-rule {
+  height: 2px;
+  margin: 4px 0 16px;
+  background: rgba(31, 35, 41, 0.72);
+}
+
 .contract-document-meta {
   display: flex;
   align-items: center;
@@ -138,10 +144,10 @@
 .contract-document-title,
 .settlement-title,
 .challenge-title {
-  margin: 14px 0;
+  margin: 14px 0 12px;
   color: var(--pb-text-1);
   font-family: var(--font-serif);
-  font-size: 21px;
+  font-size: 22px;
   font-weight: var(--pb-weight-bold);
   line-height: 1.38;
   letter-spacing: 0;
@@ -153,23 +159,63 @@
   text-align: left;
 }
 
-.contract-party-grid {
+.contract-field-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 7px;
+  margin: 0 0 18px;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-base);
+  font-weight: var(--pb-weight-semibold);
+  line-height: 1.4;
 }
 
-.contract-party-grid span {
+.contract-field-list div {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.contract-field-list dt,
+.contract-field-list dd {
+  margin: 0;
+}
+
+.contract-field-list dt {
+  flex: 0 0 auto;
+}
+
+.contract-field-list dd {
+  min-width: 0;
+  flex: 1;
+}
+
+.contract-underline,
+.contract-inline-value {
+  display: inline;
+  color: var(--pb-text-1);
+  font-weight: var(--pb-weight-bold);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.contract-underline {
+  display: inline-block;
+  min-width: 72px;
+  max-width: 100%;
   overflow: hidden;
-  border: 1px solid var(--pb-line);
-  border-radius: var(--pb-radius-sm);
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--pb-text-2);
-  padding: 9px 10px;
-  font-size: var(--pb-font-base);
+  vertical-align: bottom;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.contract-preface {
+  margin: 0 0 12px;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-base);
+  font-weight: var(--pb-weight-semibold);
+  line-height: 1.72;
 }
 
 .contract-article-list {
@@ -181,6 +227,62 @@
   font-size: var(--pb-font-base);
   line-height: 1.68;
   list-style: none;
+}
+
+.contract-clause {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+}
+
+.contract-clause h3 {
+  margin: 0;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-base);
+  font-weight: var(--pb-weight-bold);
+  line-height: 1.55;
+}
+
+.contract-clause p {
+  margin: 0;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-base);
+  line-height: 1.72;
+}
+
+.contract-summary-table {
+  width: 100%;
+  margin: 14px 0 2px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-sm);
+  line-height: 1.45;
+}
+
+.contract-summary-table th,
+.contract-summary-table td {
+  border: 1px solid rgba(31, 35, 41, 0.58);
+  padding: 8px 7px;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.contract-summary-table thead th {
+  font-weight: var(--pb-weight-bold);
+  text-align: center;
+}
+
+.contract-summary-table tbody th {
+  width: 24%;
+  font-weight: var(--pb-weight-semibold);
+}
+
+.contract-summary-table td:nth-child(2) {
+  width: 47%;
+  font-weight: var(--pb-weight-medium);
 }
 
 .contract-seal {

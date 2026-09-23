@@ -35,36 +35,115 @@ const counterparty = computed(() =>
 );
 const signed = computed(() => isCounterpartySigned(props.session));
 const statusTone = computed(() => getSessionStatusTone(props.session.status));
+const statusLabel = computed(() => getSessionStatusLabel(props.session.status));
 const effectiveStakeLabel = computed(() => getEffectiveStakeLabel(props.session));
-const articles = computed(() => [
-  copy.contract.articles.spirit,
-  `${copy.contract.articleLabels.first}：${props.session.challenge}`,
-  `${copy.contract.articleLabels.second}：${props.session.judgmentRule}`,
-  `${copy.contract.articleLabels.third}：${copy.contract.stakePrefix}「${effectiveStakeLabel.value}」${copy.contract.stakeSuffix}`,
-  `${copy.contract.articleLabels.fourth}：${copy.contract.articles.exception}`,
-  `${copy.contract.articleLabels.fifth}：${copy.contract.articles.effective}`
-]);
+const agreementDate = computed(() => {
+  const date = new Date(props.session.createdAt);
+  if (Number.isNaN(date.getTime())) {
+    return props.session.createdAt;
+  }
+  return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
+});
 </script>
 
 <template>
   <article class="contract-document" :class="{ compact }">
+    <div class="contract-document-rule" />
+
     <div class="contract-document-meta">
       <span>{{ copy.contract.agreementNo }} {{ props.session.shareCode }}</span>
-      <BaseBadge :tone="statusTone">{{ getSessionStatusLabel(props.session.status) }}</BaseBadge>
+      <BaseBadge :tone="statusTone">{{ statusLabel }}</BaseBadge>
     </div>
 
     <h2 class="contract-document-title">
       {{ copy.contract.titlePrefix }}{{ props.session.title }}{{ copy.contract.titleSuffix }}
     </h2>
 
-    <div class="contract-party-grid">
-      <span>{{ copy.contract.partyA }}：{{ initiator }}</span>
-      <span>{{ copy.contract.partyB }}：{{ counterparty }}</span>
-    </div>
+    <dl class="contract-field-list">
+      <div>
+        <dt>{{ copy.contract.signedDate }}：</dt>
+        <dd><span class="contract-underline">{{ agreementDate }}</span></dd>
+      </div>
+      <div>
+        <dt>{{ copy.contract.partyA }}：</dt>
+        <dd><span class="contract-underline">{{ initiator }}</span></dd>
+      </div>
+      <div>
+        <dt>{{ copy.contract.partyB }}：</dt>
+        <dd><span class="contract-underline">{{ counterparty }}</span></dd>
+      </div>
+    </dl>
 
-    <ol class="contract-article-list">
-      <li v-for="article in articles" :key="article">{{ article }}</li>
-    </ol>
+    <p class="contract-preface">{{ copy.contract.articles.spirit }}</p>
+
+    <section class="contract-clause">
+      <h3>{{ copy.contract.articleLabels.first }} {{ copy.contract.clauseTitles.subject }}</h3>
+      <p>
+        {{ copy.contract.clauseSentences.subjectPrefix }}
+        <strong class="contract-inline-value">{{ props.session.challenge }}</strong>
+        {{ copy.contract.clauseSentences.subjectSuffix }}
+      </p>
+    </section>
+
+    <section class="contract-clause">
+      <h3>{{ copy.contract.articleLabels.second }} {{ copy.contract.clauseTitles.judgment }}</h3>
+      <p>
+        {{ copy.contract.clauseSentences.judgmentPrefix }}
+        <strong class="contract-inline-value">{{ props.session.judgmentRule }}</strong>
+        {{ copy.contract.clauseSentences.judgmentSuffix }}
+      </p>
+    </section>
+
+    <section class="contract-clause">
+      <h3>{{ copy.contract.articleLabels.third }} {{ copy.contract.clauseTitles.stake }}</h3>
+      <p>
+        {{ copy.contract.stakePrefix }}
+        <strong class="contract-inline-value">{{ effectiveStakeLabel }}</strong>
+        {{ copy.contract.stakeSuffix }}
+      </p>
+    </section>
+
+    <table class="contract-summary-table">
+      <thead>
+        <tr>
+          <th>{{ copy.contract.summaryTable.item }}</th>
+          <th>{{ copy.contract.summaryTable.content }}</th>
+          <th>{{ copy.contract.summaryTable.note }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>{{ copy.contract.clauseTitles.subject }}</th>
+          <td>{{ props.session.challenge }}</td>
+          <td>{{ copy.contract.summaryTable.subjectNote }}</td>
+        </tr>
+        <tr>
+          <th>{{ copy.contract.clauseTitles.judgment }}</th>
+          <td>{{ props.session.judgmentRule }}</td>
+          <td>{{ copy.contract.summaryTable.judgmentNote }}</td>
+        </tr>
+        <tr>
+          <th>{{ copy.contract.clauseTitles.stake }}</th>
+          <td>{{ effectiveStakeLabel }}</td>
+          <td>{{ copy.contract.summaryTable.stakeNote }}</td>
+        </tr>
+        <tr>
+          <th>{{ copy.contract.summaryTable.status }}</th>
+          <td>{{ statusLabel }}</td>
+          <td>{{ copy.contract.summaryTable.statusNote }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <section class="contract-clause">
+      <h3>{{ copy.contract.articleLabels.fourth }} {{ copy.contract.clauseTitles.exception }}</h3>
+      <p>{{ copy.contract.articles.exception }}</p>
+    </section>
+
+    <section class="contract-clause">
+      <h3>{{ copy.contract.articleLabels.fifth }} {{ copy.contract.clauseTitles.effective }}</h3>
+      <p>{{ copy.contract.articles.effective }}</p>
+    </section>
 
     <div class="contract-signature-grid">
       <section class="contract-signature-box">
