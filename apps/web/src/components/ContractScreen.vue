@@ -3,6 +3,7 @@ import { copy } from "@playbit/content";
 import type { BetSession } from "@playbit/shared";
 import { Play, RefreshCw, Share2 } from "lucide-vue-next";
 import { computed } from "vue";
+import AgreementProgress from "./AgreementProgress.vue";
 import ContractDocument from "./ContractDocument.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
@@ -47,6 +48,7 @@ const signed = computed(() => isCounterpartySigned(props.session));
     </LifeServiceHero>
 
     <div class="life-page-content service-flow-content">
+      <AgreementProgress :session="props.session" />
       <ContractDocument :session="props.session" />
       <p class="life-section-caption">
         {{ signed ? copy.contract.enterSession : props.refreshing ? copy.contract.refreshing : copy.contract.waiting }}

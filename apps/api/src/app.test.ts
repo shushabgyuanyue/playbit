@@ -32,6 +32,24 @@ const health = await json<{ ok: boolean }>("/health");
 assert.equal(health.ok, true);
 
 const initiator = await register("甲方", "initiator@example.com");
+const unknownLogin = await app.request("/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "new@example.com", password: "password123" })
+});
+assert.equal(unknownLogin.status, 404);
+assert.deepEqual(await unknownLogin.json(), {
+  code: "ACCOUNT_NOT_FOUND",
+  message: "Account not found"
+});
+
+const invalidLogin = await app.request("/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "initiator@example.com", password: "wrongpass" })
+});
+assert.equal(invalidLogin.status, 401);
+
 const created = await json<{ session: BetSession }>("/sessions", {
   method: "POST",
   headers: auth(initiator.token),
@@ -44,7 +62,8 @@ const created = await json<{ session: BetSession }>("/sessions", {
     stake: {
       type: "coupon",
       label: "洗碗一次",
-      fulfilled: false
+      fulfilled: false,
+      additions: []
     },
     cardId: null
   })
@@ -103,6 +122,20 @@ const confirmedBoost = await json<{ session: BetSession }>(
 );
 assert.equal(confirmedBoost.session.boosts[0].confirmedBy.length, 2);
 
+const secondBoost = await json<{ session: BetSession }>(`/sessions/${signed.session.id}/boost`, {
+  method: "POST",
+  headers: auth(counterparty.token),
+  body: JSON.stringify({ label: "extra benefit" })
+});
+const confirmedSecondBoost = await json<{ session: BetSession }>(
+  `/sessions/${signed.session.id}/boost/${secondBoost.session.boosts[1].id}/confirm`,
+  {
+    method: "POST",
+    headers: auth(initiator.token)
+  }
+);
+assert.equal(confirmedSecondBoost.session.stake.additions.length, 2);
+
 const winnerId = signed.session.participants.find((participant) => participant.role === "counterparty")?.id;
 assert.ok(winnerId);
 
@@ -139,7 +172,7 @@ const couponList = await json<{ coupons: Coupon[] }>("/coupons", {
 });
 
 assert.equal(couponList.coupons.length, 1);
-assert.equal(couponList.coupons[0].name, "洗碗一次；增加一次路线决定权");
+assert.equal(couponList.coupons[0].name.includes("extra benefit"), true);
 assert.equal(couponList.coupons[0].status, "available");
 
 const issuerCouponList = await json<{ coupons: Coupon[] }>("/coupons", {

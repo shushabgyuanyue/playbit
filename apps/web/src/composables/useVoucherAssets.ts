@@ -3,12 +3,13 @@ import type { BetSession, Coupon, SessionStatus } from "@playbit/shared";
 import { computed, type MaybeRefOrGetter, toValue } from "vue";
 import type {
   VoucherItem,
-  VoucherKind,
   VoucherSection,
   VoucherStatusFilter,
   VoucherUiStatus,
   VoucherViewFilter
 } from "../types/voucher";
+import { getEffectiveStakeLabel } from "../utils/sessionDisplay";
+import { formatVoucherBenefit, inferVoucherKind } from "../utils/voucherDisplay";
 
 const statusOrder: VoucherStatusFilter[] = ["pending", "available", "used"];
 
@@ -103,7 +104,7 @@ function buildRealVoucherItems(sessions: BetSession[], coupons: Coupon[], curren
     })
     .map((session) => {
       const status = inferSessionVoucherStatus(session);
-      const benefit = formatVoucherBenefit(session.stake.label);
+      const benefit = formatVoucherBenefit(getEffectiveStakeLabel(session));
       return {
         id: `session-${session.id}`,
         couponId: null,
@@ -138,66 +139,6 @@ function dedupeCouponsBySession(coupons: Coupon[]) {
     }
   }
   return Array.from(couponMap.values());
-}
-
-function formatVoucherBenefit(label: string) {
-  const compact = label.trim();
-
-  if (compact.includes("一杯")) {
-    return {
-      title: compact.replace(/^请/, "").replace("一杯", "") || compact,
-      subtitle: copy.vouchers.benefitSubtitles.cup
-    };
-  }
-
-  if (compact.endsWith("一次")) {
-    return {
-      title: compact.slice(0, -"一次".length),
-      subtitle: copy.vouchers.benefitSubtitles.once
-    };
-  }
-
-  if (compact.endsWith("选择权")) {
-    return {
-      title: compact.slice(0, -"选择权".length),
-      subtitle: copy.vouchers.benefitSubtitles.choiceRight
-    };
-  }
-
-  if (compact.endsWith("决定权")) {
-    return {
-      title: compact.slice(0, -"决定权".length),
-      subtitle: copy.vouchers.benefitSubtitles.decisionRight
-    };
-  }
-
-  if (compact.endsWith("路线权")) {
-    return {
-      title: compact.slice(0, -"路线权".length),
-      subtitle: copy.vouchers.benefitSubtitles.routeRight
-    };
-  }
-
-  return {
-    title: compact,
-    subtitle: copy.vouchers.ticketCaption
-  };
-}
-
-function inferVoucherKind(label: string): VoucherKind {
-  if (/洗|饭|家务|做饭|碗/.test(label)) {
-    return "housework";
-  }
-  if (/奶茶|咖啡|请客|红包|喝|吃/.test(label)) {
-    return "treat";
-  }
-  if (/决定|安排|选择|同意|免/.test(label)) {
-    return "decision";
-  }
-  if (/按摩|接送|陪|服务/.test(label)) {
-    return "service";
-  }
-  return "custom";
 }
 
 function inferSessionVoucherStatus(session: BetSession): VoucherUiStatus {

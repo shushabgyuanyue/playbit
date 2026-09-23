@@ -1,6 +1,5 @@
 import { drawCard as drawLocalCard } from "@playbit/cards";
 import { copy } from "@playbit/content";
-import { settleBetSession } from "@playbit/game-core";
 import type {
   BetSession,
   Card,
@@ -8,12 +7,13 @@ import type {
   CreateSessionInput,
   LoginInput,
   RegisterInput,
+  SessionRealtimeEvent,
   Stake,
   User
 } from "@playbit/shared";
 import { showConfirmDialog, showToast } from "vant";
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { api } from "../services/api";
+import { api, ApiRequestError } from "../services/api";
 import {
   buildSharePayload,
   defaultStake,
@@ -44,6 +44,9 @@ export type CreateBetDraft = {
 export function usePlaybitFlow() {
   const screen = ref<Screen>("home");
   const currentUser = ref<User | null>(null);
+  const authOpen = ref(false);
+  const authError = ref<string | null>(null);
+  const authStep = ref<"credentials" | "register">("credentials");
   const sessions = ref<BetSession[]>([]);
   const coupons = ref<Coupon[]>([]);
   const activeSessionId = ref<string | null>(null);
@@ -100,9 +103,35 @@ export function usePlaybitFlow() {
     }
 
     authReturnScreen.value = nextScreen;
-    screen.value = "account";
-    showToast(copy.auth.requiredTitle);
+    authError.value = null;
+    authStep.value = "credentials";
+    authOpen.value = true;
     return false;
+  }
+
+  function openAccount() {
+    if (currentUser.value) {
+      screen.value = "account";
+      return;
+    }
+
+    authReturnScreen.value = "home";
+    authError.value = null;
+    authStep.value = "credentials";
+    authOpen.value = true;
+  }
+
+  function closeAuthSheet() {
+    if (authLoading.value) {
+      return;
+    }
+    authOpen.value = false;
+    authError.value = null;
+    authStep.value = "credentials";
+  }
+
+  function clearAuthError() {
+    authError.value = null;
   }
 
   function openCreate() {
@@ -133,6 +162,20 @@ export function usePlaybitFlow() {
     }
   }
 
+  async function restorePendingShareSession() {
+    if (!activeShareCode.value) {
+      return false;
+    }
+
+    try {
+      const response = await api.getShare(activeShareCode.value);
+      upsertSession(response.session);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function refreshCoupons() {
     const user = await ensureIdentity();
     if (!user) {
@@ -159,7 +202,7 @@ export function usePlaybitFlow() {
       sessionRefreshing.value = true;
     }
     try {
-      const response = await api.getSession(activeSessionId.value);
+      const response = await api.syncSession(activeSessionId.value);
       upsertSession(response.session);
     } catch {
       // Keep the current contract visible if the network is temporarily unavailable.
@@ -174,25 +217,20 @@ export function usePlaybitFlow() {
     activeShareCode.value = shareCode;
     const localSession = sessions.value.find((session) => session.shareCode === shareCode);
     if (localSession) {
-      activeSessionId.value = localSession.id;
-      screen.value = "sign";
+      upsertSession(localSession);
     }
 
-    try {
-      const response = await api.getShare(shareCode);
-      upsertSession(response.session);
-      screen.value = "sign";
-    } catch {
-      screen.value = "sign";
-    }
+    await restorePendingShareSession();
+    screen.value = "sign";
   }
 
   async function createSession(payload: CreateSessionInput) {
     const user = await ensureIdentity();
     if (!user) {
       authReturnScreen.value = screen.value;
-      screen.value = "account";
-      showToast(copy.auth.requiredTitle);
+      authError.value = null;
+      authStep.value = "credentials";
+      authOpen.value = true;
       return;
     }
     const sessionInput = {
@@ -239,7 +277,9 @@ export function usePlaybitFlow() {
       upsertSession(response.session);
       await refreshCoupons();
     } catch {
-      upsertSession(settleBetSession(activeSession.value, winnerId));
+      await refreshActiveSession(true);
+      showToast(copy.session.stateSyncFailed);
+      return;
     }
 
     screen.value = "settlement";
@@ -270,6 +310,10 @@ export function usePlaybitFlow() {
   }
 
   function upsertSession(session: BetSession) {
+    const existing = sessions.value.find((candidate) => candidate.id === session.id);
+    if (existing && session.revision < existing.revision) {
+      return;
+    }
     sessions.value = [session, ...sessions.value.filter((candidate) => candidate.id !== session.id)];
     activeSessionId.value = session.id;
   }
@@ -342,11 +386,13 @@ export function usePlaybitFlow() {
     const user = await ensureIdentity();
     if (!user) {
       authReturnScreen.value = "sign";
-      screen.value = "account";
-      showToast(copy.auth.requiredTitle);
+      authError.value = null;
+      authStep.value = "credentials";
+      authOpen.value = true;
       return;
     }
     signLoading.value = true;
+    authError.value = null;
     try {
       const response = await api.signShare(activeShareCode.value, payload);
       currentUser.value = {
@@ -365,18 +411,22 @@ export function usePlaybitFlow() {
 
   async function registerAccount(payload: RegisterInput) {
     authLoading.value = true;
+    authError.value = null;
     try {
       const response = await api.register(payload);
       currentUser.value = response.user;
       await refreshSessions();
       await refreshCoupons();
-      screen.value = authReturnScreen.value;
+      const shareRestored = authReturnScreen.value === "sign" && (await restorePendingShareSession());
+      authOpen.value = false;
+      authStep.value = "credentials";
+      screen.value = shareRestored ? "sign" : authReturnScreen.value;
       if (authReturnScreen.value === "draw" && !activeCard.value) {
         void drawCard();
       }
       authReturnScreen.value = "home";
     } catch {
-      showToast(copy.auth.saveFailed);
+      authError.value = copy.auth.saveFailed;
     } finally {
       authLoading.value = false;
     }
@@ -384,24 +434,34 @@ export function usePlaybitFlow() {
 
   async function loginAccount(payload: LoginInput) {
     authLoading.value = true;
+    authError.value = null;
     try {
       const response = await api.login(payload);
       currentUser.value = response.user;
       await refreshSessions();
       await refreshCoupons();
-      screen.value = authReturnScreen.value;
+      const shareRestored = authReturnScreen.value === "sign" && (await restorePendingShareSession());
+      authOpen.value = false;
+      authStep.value = "credentials";
+      screen.value = shareRestored ? "sign" : authReturnScreen.value;
       if (authReturnScreen.value === "draw" && !activeCard.value) {
         void drawCard();
       }
       authReturnScreen.value = "home";
-    } catch {
-      showToast(copy.auth.loginFailed);
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 404 && error.code === "ACCOUNT_NOT_FOUND") {
+        authStep.value = "register";
+        authError.value = copy.auth.accountNotFound;
+        return;
+      }
+      authError.value = copy.auth.loginFailed;
     } finally {
       authLoading.value = false;
     }
   }
 
   function logoutAccount() {
+    stopSessionRealtime();
     api.clearAuthToken();
     currentUser.value = null;
     sessions.value = [];
@@ -425,61 +485,83 @@ export function usePlaybitFlow() {
     createDraft.creatorSignatureDataUrl = "";
   }
 
-  let refreshTimer: number | undefined;
+  let realtimeDispose: (() => void) | undefined;
+  let syncTimer: number | undefined;
 
-  function shouldPollActiveSession() {
-    return screen.value === "contract" && activeSession.value?.status === "pending_confirmation";
+  function shouldUseSessionRealtime() {
+    return Boolean(
+      currentUser.value &&
+        activeSession.value &&
+        ["contract", "session", "settlement"].includes(screen.value)
+    );
   }
 
-  function startActiveSessionPolling() {
-    stopActiveSessionPolling();
-    refreshTimer = window.setInterval(() => {
-      if (shouldPollActiveSession()) {
-        void refreshActiveSession(true);
-      }
-    }, 5000);
-  }
-
-  function stopActiveSessionPolling() {
-    if (refreshTimer) {
-      window.clearInterval(refreshTimer);
-      refreshTimer = undefined;
+  function handleRealtimeEvent(event: SessionRealtimeEvent) {
+    upsertSession(event.session);
+    if (screen.value === "session" && event.session.winnerId) {
+      screen.value = "settlement";
+      void refreshCoupons();
     }
   }
 
+  function stopSessionRealtime() {
+    realtimeDispose?.();
+    realtimeDispose = undefined;
+    if (syncTimer) {
+      window.clearInterval(syncTimer);
+      syncTimer = undefined;
+    }
+  }
+
+  function startSessionRealtime() {
+    stopSessionRealtime();
+    if (!shouldUseSessionRealtime() || !activeSession.value) {
+      return;
+    }
+
+    const sessionId = activeSession.value.id;
+    realtimeDispose = api.subscribeSessionEvents(sessionId, handleRealtimeEvent);
+    syncTimer = window.setInterval(() => {
+      void refreshActiveSession(true);
+    }, 8_000);
+  }
+
   function refreshWhenVisible() {
-    if ((document.visibilityState === "visible" || document.hasFocus()) && activeSessionId.value) {
+    if (
+      (document.visibilityState === "visible" || document.hasFocus()) &&
+      activeSessionId.value &&
+      shouldUseSessionRealtime()
+    ) {
       void refreshActiveSession(true);
     }
   }
 
   watch(
-    () => [screen.value, activeSession.value?.status, activeSessionId.value],
+    () => [screen.value, activeSession.value?.id, currentUser.value?.id],
     () => {
-      if (shouldPollActiveSession()) {
-        void refreshActiveSession(true);
-        startActiveSessionPolling();
-        return;
-      }
-      stopActiveSessionPolling();
+      startSessionRealtime();
     }
   );
 
-  onMounted(() => {
-    const shareCode = new URLSearchParams(window.location.search).get("share");
-    if (shareCode) {
-      void loadShareSession(shareCode);
-      return;
-    }
-    void ensureIdentity();
-    void refreshSessions();
-    void refreshCoupons();
+  onMounted(async () => {
     window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
+    const shareCode = new URLSearchParams(window.location.search).get("share");
+    const user = await ensureIdentity();
+    if (shareCode) {
+      await loadShareSession(shareCode);
+      if (user) {
+        await refreshSessions();
+        await restorePendingShareSession();
+      }
+      return;
+    }
+    void refreshSessions();
+    void refreshCoupons();
   });
 
   onUnmounted(() => {
-    stopActiveSessionPolling();
+    stopSessionRealtime();
     window.removeEventListener("focus", refreshWhenVisible);
     document.removeEventListener("visibilitychange", refreshWhenVisible);
   });
@@ -489,7 +571,10 @@ export function usePlaybitFlow() {
     activeSession,
     activeVoucherId,
     addBoost,
+    authError,
     authLoading,
+    authOpen,
+    authStep,
     cardLoading,
     contractBackScreen,
     coupons,
@@ -507,6 +592,9 @@ export function usePlaybitFlow() {
     loginAccount,
     logoutAccount,
     nativeShare,
+    closeAuthSheet,
+    clearAuthError,
+    openAccount,
     openCreate,
     openAgreementById,
     openDraw,

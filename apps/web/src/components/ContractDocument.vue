@@ -4,6 +4,7 @@ import type { BetSession } from "@playbit/shared";
 import { computed } from "vue";
 import {
   getParticipantName,
+  getEffectiveStakeLabel,
   getSessionStatusLabel,
   getSessionStatusTone,
   isCounterpartySigned
@@ -34,11 +35,12 @@ const counterparty = computed(() =>
 );
 const signed = computed(() => isCounterpartySigned(props.session));
 const statusTone = computed(() => getSessionStatusTone(props.session.status));
+const effectiveStakeLabel = computed(() => getEffectiveStakeLabel(props.session));
 const articles = computed(() => [
   copy.contract.articles.spirit,
   `${copy.contract.articleLabels.first}：${props.session.challenge}`,
   `${copy.contract.articleLabels.second}：${props.session.judgmentRule}`,
-  `${copy.contract.articleLabels.third}：${copy.contract.stakePrefix}「${props.session.stake.label}」${copy.contract.stakeSuffix}`,
+  `${copy.contract.articleLabels.third}：${copy.contract.stakePrefix}「${effectiveStakeLabel.value}」${copy.contract.stakeSuffix}`,
   `${copy.contract.articleLabels.fourth}：${copy.contract.articles.exception}`,
   `${copy.contract.articleLabels.fifth}：${copy.contract.articles.effective}`
 ]);

@@ -8,19 +8,22 @@ import { registerAuthRoutes } from "./routes/auth.js";
 import { registerCardRoutes } from "./routes/cards.js";
 import { registerCouponRoutes } from "./routes/coupons.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
+import { SessionRealtimeHub } from "./sessionRealtime.js";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 export type AppRepositories = {
   auth: AuthRepository;
   sessions: SessionRepository;
   coupons: CouponRepository;
+  realtime: SessionRealtimeHub;
 };
 
 export function createRepositories(db: PostgresJsDatabase | null): AppRepositories {
   return {
     auth: createAuthRepository(db),
     sessions: createSessionRepository(db),
-    coupons: createCouponRepository(db)
+    coupons: createCouponRepository(db),
+    realtime: new SessionRealtimeHub()
   };
 }
 
@@ -48,8 +51,20 @@ export function createPlaybitApp(repositories: AppRepositories, webOrigins: stri
 
   registerAuthRoutes(app, repositories.auth);
   registerCardRoutes(app);
-  registerSessionRoutes(app, repositories.auth, repositories.sessions, repositories.coupons);
-  registerCouponRoutes(app, repositories.auth, repositories.sessions, repositories.coupons);
+  registerSessionRoutes(
+    app,
+    repositories.auth,
+    repositories.sessions,
+    repositories.coupons,
+    repositories.realtime
+  );
+  registerCouponRoutes(
+    app,
+    repositories.auth,
+    repositories.sessions,
+    repositories.coupons,
+    repositories.realtime
+  );
 
   return app;
 }

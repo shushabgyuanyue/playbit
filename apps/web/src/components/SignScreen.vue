@@ -8,7 +8,7 @@ import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseField from "./ui/BaseField.vue";
 import SignaturePad from "./ui/SignaturePad.vue";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 const props = defineProps<{
   session: BetSession | null;
@@ -23,6 +23,22 @@ const emit = defineEmits<{
 
 const nickname = ref(props.user?.nickname ?? "");
 const signatureDataUrl = ref(props.user?.signatureDataUrl ?? "");
+
+watch(
+  () => props.user,
+  (user) => {
+    if (!user) {
+      return;
+    }
+    if (!nickname.value.trim()) {
+      nickname.value = user.nickname;
+    }
+    if (!signatureDataUrl.value && user.signatureDataUrl) {
+      signatureDataUrl.value = user.signatureDataUrl;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>

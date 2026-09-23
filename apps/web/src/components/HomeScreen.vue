@@ -5,6 +5,12 @@ import { computed } from "vue";
 import { Dices, FilePenLine, History, Ticket, UserRound } from "lucide-vue-next";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import { buildVoucherItems } from "../composables/useVoucherAssets";
+import {
+  getEffectiveStakeLabel,
+  getSessionStatusLabel,
+  getSessionStatusTone
+} from "../utils/sessionDisplay";
+import BaseBadge from "./ui/BaseBadge.vue";
 
 const props = defineProps<{
   user: User | null;
@@ -18,6 +24,7 @@ const emit = defineEmits<{
   history: [];
   account: [];
   vouchers: [];
+  open: [session: BetSession];
 }>();
 
 const pendingCount = computed(
@@ -30,6 +37,9 @@ const fulfilledCount = computed(
   () => props.sessions.filter((session) => session.status === "fulfilled" || session.status === "finished").length
 );
 const voucherAssetCount = computed(() => buildVoucherItems(props.sessions, props.coupons, props.user?.id ?? null).length);
+const todoSession = computed(() =>
+  props.sessions.find((session) => ["pending_confirmation", "active", "settling"].includes(session.status)) ?? null
+);
 </script>
 
 <template>
@@ -66,6 +76,23 @@ const voucherAssetCount = computed(() => buildVoucherItems(props.sessions, props
           </span>
         </div>
       </section>
+
+      <button
+        v-if="todoSession"
+        type="button"
+        class="home-todo-card"
+        @click="emit('open', todoSession)"
+      >
+        <div class="home-todo-header">
+          <strong>{{ copy.home.todoTitle }}</strong>
+          <BaseBadge :tone="getSessionStatusTone(todoSession.status)">
+            {{ getSessionStatusLabel(todoSession.status) }}
+          </BaseBadge>
+        </div>
+        <h2>{{ todoSession.title }}</h2>
+        <p>{{ getEffectiveStakeLabel(todoSession) }}</p>
+        <span>{{ copy.home.todoAction }}</span>
+      </button>
 
       <section>
         <h2 class="life-group-title">{{ copy.home.quickTitle }}</h2>

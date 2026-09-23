@@ -56,6 +56,12 @@ export type AuthResult = {
   token: string;
 };
 
+export class AuthAccountNotFound extends Error {
+  constructor() {
+    super("ACCOUNT_NOT_FOUND");
+  }
+}
+
 class MemoryAuthRepository {
   private users = new Map<string, UserRow>();
   private sessions = new Map<string, AuthSessionRow>();
@@ -82,7 +88,10 @@ class MemoryAuthRepository {
 
   async login(input: LoginInput): Promise<AuthResult | null> {
     const user = Array.from(this.users.values()).find((candidate) => candidate.email === input.email);
-    if (!user?.passwordHash || !verifyPassword(input.password, user.passwordHash)) {
+    if (!user) {
+      throw new AuthAccountNotFound();
+    }
+    if (!user.passwordHash || !verifyPassword(input.password, user.passwordHash)) {
       return null;
     }
     return this.createSessionForUser(user);
@@ -156,7 +165,10 @@ class PostgresAuthRepository {
 
   async login(input: LoginInput): Promise<AuthResult | null> {
     const [user] = await this.db.select().from(users).where(eq(users.email, input.email)).limit(1);
-    if (!user?.passwordHash || !verifyPassword(input.password, user.passwordHash)) {
+    if (!user) {
+      throw new AuthAccountNotFound();
+    }
+    if (!user.passwordHash || !verifyPassword(input.password, user.passwordHash)) {
       return null;
     }
     return this.createSessionForUser(user);

@@ -5,6 +5,7 @@ import type {
   CreateSessionInput,
   LoginInput,
   RegisterInput,
+  SessionRealtimeEvent,
   SignSessionInput,
   User
 } from "@playbit/shared";
@@ -22,6 +23,16 @@ function normalizeApiBaseUrl(value: string | undefined) {
 
 const apiBaseUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 const authTokenKey = "playbit.authToken";
+
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string
+  ) {
+    super(message);
+  }
+}
 
 function getAuthToken() {
   return localStorage.getItem(authTokenKey);
@@ -47,7 +58,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    let payload: { message?: string; code?: string } = {};
+    try {
+      payload = (await response.json()) as typeof payload;
+    } catch {
+      // Keep the HTTP status when the server does not return JSON.
+    }
+    throw new ApiRequestError(
+      payload.message ?? `Request failed: ${response.status}`,
+      response.status,
+      payload.code
+    );
   }
 
   return response.json() as Promise<T>;
@@ -93,6 +114,29 @@ export const api = {
   },
   getSession(id: string) {
     return request<{ session: BetSession }>(`/sessions/${id}`);
+  },
+  syncSession(id: string) {
+    return request<{ session: BetSession }>(`/sessions/${id}/sync`);
+  },
+  subscribeSessionEvents(id: string, onEvent: (event: SessionRealtimeEvent) => void) {
+    const token = getAuthToken();
+    if (!token || typeof EventSource === "undefined") {
+      return () => undefined;
+    }
+
+    const source = new EventSource(
+      `${apiBaseUrl}/sessions/${id}/events?token=${encodeURIComponent(token)}`
+    );
+    const handleEvent = (event: Event) => {
+      const message = event as MessageEvent<string>;
+      onEvent(JSON.parse(message.data) as SessionRealtimeEvent);
+    };
+    source.addEventListener("session.updated", handleEvent);
+
+    return () => {
+      source.removeEventListener("session.updated", handleEvent);
+      source.close();
+    };
   },
   getShare(shareCode: string) {
     return request<{ session: BetSession }>(`/share/${shareCode}`);

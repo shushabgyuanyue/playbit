@@ -4,6 +4,10 @@ import type { Stake } from "@playbit/shared";
 import { ChevronRight } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 import BaseField from "./ui/BaseField.vue";
+import {
+  formatVoucherBenefit,
+  inferStakeVoucherKind
+} from "../utils/voucherDisplay";
 
 type StakePreset = {
   type: Stake["type"];
@@ -38,11 +42,12 @@ const stake = computed<Stake>(() => ({
     selectedPreset.value.type === "custom" && customLabel.value.trim()
       ? customLabel.value.trim()
       : selectedPreset.value.label,
-  fulfilled: false
+  fulfilled: false,
+  additions: []
 }));
 
-const benefit = computed(() => splitBenefit(stake.value.label));
-const selectedKind = computed(() => kindForStake(stake.value));
+const benefit = computed(() => formatVoucherBenefit(stake.value.label));
+const selectedKind = computed(() => inferStakeVoucherKind(stake.value));
 
 watch(stake, (value) => emit("change", value), { immediate: true });
 
@@ -64,40 +69,8 @@ function choose(preset: StakePreset) {
   pickerOpen.value = false;
 }
 
-function splitBenefit(label: string) {
-  if (label.includes("一杯")) {
-    return { title: label.replace(/^请/, "").replace("一杯", "") || label, subtitle: copy.vouchers.benefitSubtitles.cup };
-  }
-  if (label.endsWith("一次")) {
-    return { title: label.slice(0, -"一次".length), subtitle: copy.vouchers.benefitSubtitles.once };
-  }
-  if (label.endsWith("权一次")) {
-    return { title: label.replace("权一次", "权"), subtitle: copy.vouchers.benefitSubtitles.decisionRight };
-  }
-  return { title: label, subtitle: copy.vouchers.ticketCaption };
-}
-
-function kindForStake(value: Stake) {
-  if (value.type === "point") {
-    return "decision";
-  }
-  if (value.type === "custom") {
-    return "custom";
-  }
-  if (/洗|饭|家务|做饭|碗/.test(value.label)) {
-    return "housework";
-  }
-  if (/奶茶|咖啡|请客|喝|吃/.test(value.label)) {
-    return "treat";
-  }
-  if (/决定|安排|选择|同意|免/.test(value.label)) {
-    return "decision";
-  }
-  return "service";
-}
-
 function kindForPreset(preset: StakePreset) {
-  return kindForStake({ type: preset.type, label: preset.label, fulfilled: false });
+  return inferStakeVoucherKind({ type: preset.type, label: preset.label, fulfilled: false, additions: [] });
 }
 </script>
 
@@ -153,8 +126,8 @@ function kindForPreset(preset: StakePreset) {
           @click="choose(preset)"
         >
           <section class="voucher-ticket-value">
-            <strong>{{ splitBenefit(preset.label).title }}</strong>
-            <span>{{ splitBenefit(preset.label).subtitle }}</span>
+            <strong>{{ formatVoucherBenefit(preset.label).title }}</strong>
+            <span>{{ formatVoucherBenefit(preset.label).subtitle }}</span>
           </section>
           <section class="voucher-ticket-main">
             <div class="voucher-ticket-copy">

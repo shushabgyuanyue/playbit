@@ -1,6 +1,7 @@
 import { coupons } from "./db/schema.js";
 import type { BetSession, Coupon, Participant } from "@playbit/shared";
-import { desc, eq } from "drizzle-orm";
+import { getEffectiveStakeLabel } from "@playbit/game-core";
+import { and, desc, eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { randomBytes } from "node:crypto";
 
@@ -57,16 +58,12 @@ export function couponFromSettledSession(session: BetSession): Coupon | null {
     return null;
   }
 
-  const confirmedBoosts = (session.boosts ?? []).filter(
-    (boost) => boost.confirmedBy.length >= session.participants.length
-  );
-  const effectiveName = [session.stake.label, ...confirmedBoosts.map((boost) => boost.label)].join("；");
   const usedAt = session.stake.fulfilled ? session.settledAt ?? new Date().toISOString() : null;
 
   return {
     id: makeId("coupon"),
     sessionId: session.id,
-    name: effectiveName,
+    name: getEffectiveStakeLabel(session),
     description: session.title,
     issuerUserId: loser.userId,
     issuerNickname: loser.nickname,
@@ -107,20 +104,9 @@ class MemoryCouponRepository {
     return Array.from(this.coupons.values()).find((coupon) => coupon.sessionId === sessionId) ?? null;
   }
 
-  async markSessionUsed(sessionId: string): Promise<Coupon | null> {
-    const coupon = await this.findBySessionId(sessionId);
-    if (!coupon) {
-      return null;
-    }
-
-    const next: Coupon = { ...coupon, status: "used", usedAt: new Date().toISOString() };
-    this.coupons.set(next.id, next);
-    return next;
-  }
-
-  async markUsed(id: string): Promise<Coupon | null> {
+  async markUsedIfAvailable(id: string): Promise<Coupon | null> {
     const coupon = await this.findById(id);
-    if (!coupon) {
+    if (!coupon || coupon.status === "used") {
       return null;
     }
 
@@ -139,14 +125,23 @@ class PostgresCouponRepository {
       return null;
     }
 
-    const existing = await this.findBySessionId(session.id);
-    if (existing) {
-      const next = { ...coupon, id: existing.id, createdAt: existing.createdAt };
-      const [row] = await this.db.update(coupons).set(toRow(next)).where(eq(coupons.id, existing.id)).returning();
-      return fromRow(row);
-    }
-
-    const [row] = await this.db.insert(coupons).values(toRow(coupon)).returning();
+    const [row] = await this.db
+      .insert(coupons)
+      .values(toRow(coupon))
+      .onConflictDoUpdate({
+        target: coupons.sessionId,
+        set: {
+          name: coupon.name,
+          description: coupon.description,
+          issuerUserId: coupon.issuerUserId,
+          issuerNickname: coupon.issuerNickname,
+          holderUserId: coupon.holderUserId,
+          holderNickname: coupon.holderNickname,
+          used: coupon.status === "used",
+          usedAt: coupon.usedAt ? new Date(coupon.usedAt) : null
+        }
+      })
+      .returning();
     return fromRow(row);
   }
 
@@ -167,20 +162,11 @@ class PostgresCouponRepository {
     return row ? fromRow(row) : null;
   }
 
-  async markSessionUsed(sessionId: string): Promise<Coupon | null> {
+  async markUsedIfAvailable(id: string): Promise<Coupon | null> {
     const [row] = await this.db
       .update(coupons)
       .set({ used: true, usedAt: new Date() })
-      .where(eq(coupons.sessionId, sessionId))
-      .returning();
-    return row ? fromRow(row) : null;
-  }
-
-  async markUsed(id: string): Promise<Coupon | null> {
-    const [row] = await this.db
-      .update(coupons)
-      .set({ used: true, usedAt: new Date() })
-      .where(eq(coupons.id, id))
+      .where(and(eq(coupons.id, id), eq(coupons.used, false)))
       .returning();
     return row ? fromRow(row) : null;
   }

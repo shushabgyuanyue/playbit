@@ -1,4 +1,4 @@
-import type { AuthRepository } from "../authRepository.js";
+import { AuthAccountNotFound, type AuthRepository } from "../authRepository.js";
 import { getCurrentUser } from "../http/auth.js";
 import { loginSchema, registerSchema } from "@playbit/shared";
 import type { Hono } from "hono";
@@ -21,7 +21,15 @@ export function registerAuthRoutes(app: Hono, auth: AuthRepository) {
 
   app.post("/auth/login", async (context) => {
     const payload = loginSchema.parse(await context.req.json());
-    const result = await auth.login(payload);
+    let result: Awaited<ReturnType<AuthRepository["login"]>>;
+    try {
+      result = await auth.login(payload);
+    } catch (error) {
+      if (error instanceof AuthAccountNotFound) {
+        return context.json({ code: "ACCOUNT_NOT_FOUND", message: "Account not found" }, 404);
+      }
+      throw error;
+    }
     if (!result) {
       return context.json({ message: "Invalid email or password" }, 401);
     }

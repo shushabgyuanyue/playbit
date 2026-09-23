@@ -1,4 +1,14 @@
-import { boolean, index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex
+} from "drizzle-orm/pg-core";
 import type { Boost, Participant, Stake } from "@playbit/shared";
 
 export const sessionSource = pgEnum("session_source", ["custom", "card"]);
@@ -54,6 +64,8 @@ export const betSessions = pgTable("bet_sessions", {
   winnerId: text("winner_id"),
   loserId: text("loser_id"),
   shareCode: text("share_code").notNull().unique(),
+  revision: integer("revision").default(1).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   settledAt: timestamp("settled_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });

@@ -14,6 +14,104 @@
   box-shadow: 0 1px 2px rgba(31, 35, 41, 0.03);
 }
 
+.agreement-progress {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--pb-line);
+  border-radius: var(--pb-radius-lg);
+  background: var(--pb-fill-card);
+  padding: 12px 14px;
+}
+
+.agreement-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--pb-text-2);
+  font-size: var(--pb-font-sm);
+  font-weight: var(--pb-weight-medium);
+}
+
+.agreement-progress-header strong {
+  color: var(--pb-theme-contract);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--pb-font-xs);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.agreement-progress-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agreement-progress-steps li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  color: var(--pb-text-4);
+  font-size: var(--pb-font-xs);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.agreement-progress-steps li::before {
+  position: absolute;
+  top: 5px;
+  right: calc(50% + 8px);
+  left: calc(-50% + 8px);
+  height: 1px;
+  background: var(--pb-line);
+  content: "";
+}
+
+.agreement-progress-steps li:first-child::before {
+  display: none;
+}
+
+.agreement-progress-dot {
+  position: relative;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--pb-line);
+  border-radius: 50%;
+  background: var(--pb-fill-card);
+}
+
+.agreement-progress-steps li.complete,
+.agreement-progress-steps li.active {
+  color: var(--pb-text-2);
+}
+
+.agreement-progress-steps li.complete::before,
+.agreement-progress-steps li.active::before {
+  background: rgba(22, 119, 255, 0.4);
+}
+
+.agreement-progress-steps li.complete .agreement-progress-dot,
+.agreement-progress-steps li.active .agreement-progress-dot {
+  border-color: var(--pb-theme-contract);
+}
+
+.agreement-progress-steps li.complete .agreement-progress-dot {
+  background: var(--pb-theme-contract);
+}
+
+.agreement-progress-steps li.active {
+  color: var(--pb-theme-contract);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.agreement-progress-steps li.active .agreement-progress-dot {
+  box-shadow: 0 0 0 4px var(--pb-blue-soft);
+}
+
 .contract-document.compact {
   padding: 14px;
 }

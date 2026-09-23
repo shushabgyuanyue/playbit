@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AccountScreen from "./components/AccountScreen.vue";
+import AuthSheet from "./components/AuthSheet.vue";
 import ContractScreen from "./components/ContractScreen.vue";
 import CreateBetScreen from "./components/CreateBetScreen.vue";
 import DrawCardScreen from "./components/DrawCardScreen.vue";
@@ -19,7 +20,10 @@ const {
   activeCard,
   activeSession,
   activeVoucherId,
+  authError,
   authLoading,
+  authOpen,
+  authStep,
   cardLoading,
   contractBackScreen,
   coupons,
@@ -31,6 +35,8 @@ const {
   signLoading,
   screen,
   copyShareText,
+  clearAuthError,
+  closeAuthSheet,
   createSession,
   drawCard,
   loginAccount,
@@ -38,6 +44,7 @@ const {
   addBoost,
   confirmBoost,
   nativeShare,
+  openAccount,
   openCreate,
   openAgreementById,
   openDraw,
@@ -75,16 +82,14 @@ const shareSheetOpen = ref(false);
         @create="openCreate"
         @draw="openDraw"
         @history="openHistory"
-        @account="screen = 'account'"
+        @account="openAccount"
         @vouchers="openVouchers"
+        @open="(session) => openSessionFrom(session, 'home')"
       />
       <AccountScreen
-        v-else-if="screen === 'account'"
+        v-else-if="screen === 'account' && currentUser"
         :user="currentUser"
-        :loading="authLoading"
         @back="screen = 'home'"
-        @register="registerAccount"
-        @login="loginAccount"
         @logout="logoutAccount"
       />
       <CreateBetScreen
@@ -173,6 +178,16 @@ const shareSheetOpen = ref(false);
         @sign="signSession"
       />
     </div>
+    <AuthSheet
+      :show="authOpen"
+      :loading="authLoading"
+      :error="authError"
+      :step="authStep"
+      @update:show="(show) => (show ? undefined : closeAuthSheet())"
+      @clear-error="clearAuthError"
+      @login="loginAccount"
+      @register="registerAccount"
+    />
     <ShareSheet
       v-model:show="shareSheetOpen"
       :payload="sharePayload"

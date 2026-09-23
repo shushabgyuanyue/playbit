@@ -1,9 +1,15 @@
 import { betSessions } from "./db/schema.js";
-import type { BetSession } from "@playbit/shared";
-import { desc, eq } from "drizzle-orm";
+import { stakeSchema, type BetSession } from "@playbit/shared";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 type SessionRow = typeof betSessions.$inferSelect;
+
+export class SessionRevisionConflict extends Error {
+  constructor() {
+    super("SESSION_REVISION_CONFLICT");
+  }
+}
 
 function toRow(session: BetSession): typeof betSessions.$inferInsert {
   return {
@@ -21,6 +27,8 @@ function toRow(session: BetSession): typeof betSessions.$inferInsert {
     winnerId: session.winnerId,
     loserId: session.loserId,
     shareCode: session.shareCode,
+    revision: session.revision,
+    updatedAt: new Date(session.updatedAt),
     settledAt: session.settledAt ? new Date(session.settledAt) : null,
     createdAt: new Date(session.createdAt)
   };
@@ -36,12 +44,14 @@ function fromRow(row: SessionRow): BetSession {
     boosts: row.boosts ?? [],
     challenge: row.challenge,
     judgmentRule: row.judgmentRule,
-    stake: row.stake,
+    stake: stakeSchema.parse(row.stake),
     cardId: row.cardId,
     status: row.status,
     winnerId: row.winnerId,
     loserId: row.loserId,
     shareCode: row.shareCode,
+    revision: row.revision,
+    updatedAt: row.updatedAt.toISOString(),
     settledAt: row.settledAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString()
   };
@@ -69,9 +79,18 @@ class MemorySessionRepository {
     return Array.from(this.sessions.values()).find((session) => session.shareCode === shareCode) ?? null;
   }
 
-  async update(session: BetSession): Promise<BetSession> {
-    this.sessions.set(session.id, session);
-    return session;
+  async update(session: BetSession, expectedRevision = session.revision): Promise<BetSession> {
+    const current = this.sessions.get(session.id);
+    if (!current || current.revision !== expectedRevision) {
+      throw new SessionRevisionConflict();
+    }
+    const updated = {
+      ...session,
+      revision: current.revision + 1,
+      updatedAt: new Date().toISOString()
+    };
+    this.sessions.set(session.id, updated);
+    return updated;
   }
 }
 
@@ -104,12 +123,32 @@ class PostgresSessionRepository {
     return row ? fromRow(row) : null;
   }
 
-  async update(session: BetSession): Promise<BetSession> {
+  async update(session: BetSession, expectedRevision = session.revision): Promise<BetSession> {
     const [row] = await this.db
       .update(betSessions)
-      .set(toRow(session))
-      .where(eq(betSessions.id, session.id))
+      .set({
+        ownerUserId: session.ownerUserId,
+        title: session.title,
+        source: session.source,
+        participants: session.participants,
+        boosts: session.boosts,
+        challenge: session.challenge,
+        judgmentRule: session.judgmentRule,
+        stake: session.stake,
+        cardId: session.cardId,
+        status: session.status,
+        winnerId: session.winnerId,
+        loserId: session.loserId,
+        shareCode: session.shareCode,
+        revision: sql`${betSessions.revision} + 1`,
+        updatedAt: new Date(),
+        settledAt: session.settledAt ? new Date(session.settledAt) : null
+      })
+      .where(and(eq(betSessions.id, session.id), eq(betSessions.revision, expectedRevision)))
       .returning();
+    if (!row) {
+      throw new SessionRevisionConflict();
+    }
     return fromRow(row);
   }
 }

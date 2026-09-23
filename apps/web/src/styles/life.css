@@ -40,6 +40,9 @@
 }
 
 .account-identity-list dd {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   margin: 0;
   overflow: hidden;
   color: var(--pb-text-2);

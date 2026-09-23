@@ -1,7 +1,8 @@
 import type { AuthRepository } from "../authRepository.js";
 import type { CouponRepository } from "../couponRepository.js";
 import { requireCurrentUser } from "../http/auth.js";
-import type { SessionRepository } from "../sessionRepository.js";
+import { SessionRevisionConflict, type SessionRepository } from "../sessionRepository.js";
+import type { SessionRealtimeHub } from "../sessionRealtime.js";
 import { couponSchema } from "@playbit/shared";
 import type { Hono } from "hono";
 
@@ -9,7 +10,8 @@ export function registerCouponRoutes(
   app: Hono,
   auth: AuthRepository,
   sessions: SessionRepository,
-  coupons: CouponRepository
+  coupons: CouponRepository,
+  realtime: SessionRealtimeHub
 ) {
   app.get("/coupons", async (context) => {
     const currentUser = await requireCurrentUser(context, auth);
@@ -38,19 +40,36 @@ export function registerCouponRoutes(
       return context.json({ message: "Coupon already used" }, 409);
     }
 
-    const used = await coupons.markUsed(coupon.id);
     const session = await sessions.findById(coupon.sessionId);
-    if (session && session.status === "settling") {
-      await sessions.update({
-        ...session,
-        status: "fulfilled",
-        stake: {
-          ...session.stake,
-          fulfilled: true
-        }
-      });
+    if (!session || session.status !== "settling") {
+      return context.json({ message: "Agreement is not awaiting redemption" }, 409);
     }
 
-    return context.json({ coupon: couponSchema.parse(used) });
+    try {
+      const updated = await sessions.update(
+        {
+          ...session,
+          status: "fulfilled",
+          stake: {
+            ...session.stake,
+            fulfilled: true
+          }
+        },
+        session.revision
+      );
+      const used = await coupons.markUsedIfAvailable(coupon.id);
+      if (!used) {
+        const latest = await sessions.findById(session.id);
+        return context.json({ message: "Coupon already used", session: latest }, 409);
+      }
+      realtime.publishSession(updated);
+      return context.json({ coupon: couponSchema.parse(used) });
+    } catch (error) {
+      if (error instanceof SessionRevisionConflict) {
+        const latest = await sessions.findById(session.id);
+        return context.json({ message: "Agreement changed, please refresh", session: latest }, 409);
+      }
+      throw error;
+    }
   });
 }

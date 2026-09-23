@@ -26,10 +26,17 @@ export const boostSchema = z.object({
   createdAt: z.string()
 });
 
+export const stakeAdditionSchema = z.object({
+  boostId: z.string(),
+  label: z.string().min(1).max(80),
+  createdAt: z.string()
+});
+
 export const stakeSchema = z.object({
   type: z.enum(["point", "coupon", "custom"]),
   label: z.string().min(1).max(80),
-  fulfilled: z.boolean().default(false)
+  fulfilled: z.boolean().default(false),
+  additions: z.array(stakeAdditionSchema).default([])
 });
 
 export const couponSchema = z.object({
@@ -85,10 +92,18 @@ export const betSessionSchema = z.object({
   winnerId: z.string().nullable(),
   loserId: z.string().nullable(),
   boosts: z.array(boostSchema).default([]),
+  revision: z.number().int().positive(),
   createdAt: z.string(),
+  updatedAt: z.string(),
   settledAt: z.string().nullable(),
   shareCode: z.string()
 });
+
+export type SessionRealtimeEvent =
+  | {
+      type: "session.updated";
+      session: z.infer<typeof betSessionSchema>;
+    };
 
 export const createSessionSchema = z.object({
   source: z.enum(["custom", "card"]),
@@ -118,7 +133,7 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1).max(72)
+  password: z.string().min(8).max(72)
 });
 
 export const settleSessionSchema = z.object({
@@ -128,6 +143,7 @@ export const settleSessionSchema = z.object({
 export type Participant = z.infer<typeof participantSchema>;
 export type User = z.infer<typeof userSchema>;
 export type Boost = z.infer<typeof boostSchema>;
+export type StakeAddition = z.infer<typeof stakeAdditionSchema>;
 export type Stake = z.infer<typeof stakeSchema>;
 export type Coupon = z.infer<typeof couponSchema>;
 export type CardCategory = z.infer<typeof cardCategorySchema>;

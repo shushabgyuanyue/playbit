@@ -4,7 +4,12 @@ import type { BetSession } from "@playbit/shared";
 import { ChevronRight } from "lucide-vue-next";
 import BaseBadge from "./ui/BaseBadge.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
-import { getSessionStatusLabel, getSessionStatusTone } from "../utils/sessionDisplay";
+import {
+  getCounterpartyName,
+  getEffectiveStakeLabel,
+  getSessionStatusLabel,
+  getSessionStatusTone
+} from "../utils/sessionDisplay";
 
 defineProps<{
   sessions: BetSession[];
@@ -14,6 +19,14 @@ const emit = defineEmits<{
   back: [];
   open: [session: BetSession];
 }>();
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
+}
 </script>
 
 <template>
@@ -44,14 +57,19 @@ const emit = defineEmits<{
         >
           <div class="history-item-header">
             <h2 class="history-item-title">{{ session.title }}</h2>
-            <ChevronRight :size="18" class="life-muted" />
-          </div>
-          <div class="history-item-meta">
             <BaseBadge :tone="getSessionStatusTone(session.status)">
               {{ getSessionStatusLabel(session.status) }}
             </BaseBadge>
-            <span>{{ copy.history.stake }}：{{ session.stake.label }}</span>
           </div>
+          <div class="history-item-code">
+            {{ copy.history.agreementNo }} {{ session.shareCode }}
+          </div>
+          <div class="history-item-meta-grid">
+            <span>{{ copy.history.createdAt }}：{{ formatDate(session.createdAt) }}</span>
+            <span>{{ copy.history.counterparty }}：{{ getCounterpartyName(session) }}</span>
+            <span>{{ copy.history.stake }}：{{ getEffectiveStakeLabel(session) }}</span>
+          </div>
+          <ChevronRight :size="18" class="history-item-chevron" />
         </button>
       </div>
     </div>

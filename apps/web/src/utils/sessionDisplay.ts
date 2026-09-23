@@ -13,6 +13,16 @@ export function getLoserName(session: BetSession, fallback = copy.common.pending
   return session.participants.find((participant) => participant.id === session.loserId)?.nickname ?? fallback;
 }
 
+export function getCounterpartyName(session: BetSession, fallback = copy.contract.fallbackCounterparty) {
+  return getParticipantName(session, "counterparty", fallback);
+}
+
+export function getEffectiveStakeLabel(session: Pick<BetSession, "stake">) {
+  return [session.stake.label, ...(session.stake.additions ?? []).map((addition) => addition.label)]
+    .filter(Boolean)
+    .join("；");
+}
+
 export function isCounterpartySigned(session: BetSession) {
   return session.participants.some((participant) => participant.role === "counterparty" && participant.confirmed);
 }

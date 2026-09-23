@@ -30,6 +30,7 @@ const buttonVariants = cva(
 type ButtonVariants = VariantProps<typeof buttonVariants>;
 
 const props = defineProps<{
+  type?: "button" | "submit";
   variant?: ButtonVariants["variant"];
   size?: ButtonVariants["size"];
   disabled?: boolean;
@@ -40,7 +41,7 @@ const classes = computed(() => cn(buttonVariants({ variant: props.variant, size:
 </script>
 
 <template>
-  <button type="button" :class="classes" :disabled="disabled">
+  <button :type="props.type ?? 'button'" :class="classes" :disabled="disabled">
     <slot />
   </button>
 </template>

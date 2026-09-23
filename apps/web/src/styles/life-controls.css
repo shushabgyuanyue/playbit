@@ -233,6 +233,115 @@
   font-size: var(--pb-font-lg);
 }
 
+.auth-sheet-popup {
+  overflow: hidden;
+  background: #fffdf8;
+}
+
+.auth-sheet-popup.van-popup--bottom {
+  left: 50%;
+  width: min(100%, 430px);
+  transform: translate3d(-50%, 0, 0);
+}
+
+.auth-sheet {
+  display: grid;
+  gap: 14px;
+  padding: 10px var(--pb-page-x) calc(18px + env(safe-area-inset-bottom));
+}
+
+.auth-sheet-handle {
+  width: 36px;
+  height: 4px;
+  justify-self: center;
+  border-radius: 999px;
+  background: #d8d2c7;
+}
+
+.auth-sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 6px;
+}
+
+.auth-sheet-kicker,
+.auth-sheet-hint,
+.auth-sheet-footnote {
+  margin: 0;
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-base);
+  line-height: 1.55;
+}
+
+.auth-sheet-kicker {
+  margin-bottom: 4px;
+  color: var(--pb-theme-contract);
+  font-size: var(--pb-font-xs);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.auth-sheet-header h2 {
+  margin: 0;
+  color: var(--pb-text-1);
+  font-size: 21px;
+  font-weight: var(--pb-weight-semibold);
+  line-height: 1.25;
+}
+
+.auth-sheet-close {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--pb-fill-soft);
+  color: var(--pb-text-2);
+  padding: 0;
+}
+
+.auth-sheet-form {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-sheet-field-hint {
+  margin: -5px 0 0;
+  color: var(--pb-theme-pending);
+  font-size: var(--pb-font-sm);
+  line-height: 1.45;
+}
+
+.auth-sheet-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  border-radius: var(--pb-radius-md);
+  background: var(--pb-red-soft);
+  color: var(--pb-theme-redeem);
+  padding: 10px 12px;
+  font-size: var(--pb-font-base);
+  line-height: 1.45;
+}
+
+.auth-sheet-error svg,
+.auth-sheet-footnote svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.auth-sheet-footnote {
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid var(--pb-line);
+  padding-top: 12px;
+}
+
 @media (max-width: 374px) {
   .life-info-list li {
     grid-template-columns: 64px minmax(0, 1fr);

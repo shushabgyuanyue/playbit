@@ -27,7 +27,8 @@ const form = reactive({
   stake: {
     type: "coupon",
     label: copy.stakes.presets[1]?.label ?? copy.stakes.presets[0].label,
-    fulfilled: false
+    fulfilled: false,
+    additions: []
   } as Stake,
   creatorSignatureDataUrl: props.user?.signatureDataUrl ?? ""
 });

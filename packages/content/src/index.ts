@@ -28,6 +28,8 @@ export const copy = {
     docketTitle: "把一句临时约定，变成可签署、可结算、可留存的生活协议。",
     heroSubtitle: "轻量签署 | 权益记录 | 履约留存",
     overviewTitle: "合约管理",
+    todoTitle: "待处理约定",
+    todoAction: "查看处理",
     quickTitle: "常用功能",
     stats: {
       pending: "待签约",
@@ -46,7 +48,7 @@ export const copy = {
     registered: "已登录",
     account: "账号与凭证",
     saveAccount: "注册并登录",
-    login: "登录已有账号",
+    login: "登录或注册",
     email: "邮箱",
     password: "密码",
     nickname: "称呼",
@@ -61,8 +63,21 @@ export const copy = {
     logout: "退出登录",
     accountReady: "账号已登录",
     accountEmail: "登录邮箱",
+    signatureStatus: "签名状态",
+    signatureSaved: "已保存，可在签署时重签",
+    signaturePending: "尚未保存",
     loginTitle: "登录后继续",
     registerTitle: "创建账号",
+    loginHint: "登录后继续处理你的合约与权益记录。",
+    registerHint: "这个邮箱还没有账号，补充一个称呼即可完成注册。",
+    accountNotFound: "未找到该邮箱对应的账号，请补充称呼完成注册。",
+    completeRegisterTitle: "完成注册",
+    completeRegister: "完成注册并继续",
+    nicknamePlaceholder: "例如：小王",
+    invalidEmail: "请输入有效的邮箱地址",
+    passwordRule: "密码至少 8 位",
+    securityHint: "账号只用于保存你的合约与权益，不涉及支付。",
+    close: "关闭",
     switchToRegister: "没有账号？注册",
     switchToLogin: "已有账号？登录"
   },
@@ -130,6 +145,13 @@ export const copy = {
   },
   contract: {
     navTitle: "合约",
+    progressTitle: "办理进度",
+    progress: {
+      signing: "双方签署",
+      running: "约定进行",
+      closing: "结果结算",
+      archived: "完成归档"
+    },
     agreementNo: "协议编号",
     titlePrefix: "关于",
     titleSuffix: "之友好约定",
@@ -175,6 +197,7 @@ export const copy = {
     boostPending: "等待对方确认",
     boostConfirmed: "双方已确认",
     boostFailed: "加码暂时未提交，请稍后再试",
+    stateSyncFailed: "合约状态暂未同步，请稍后重试",
     reroll: "重抽",
     accept: "接受这张",
     fulfilled: "本案正式结案",
@@ -217,7 +240,9 @@ export const copy = {
     emptyTitle: "第一局还没开始",
     emptyContent: "生活里下一次临时约定，就可以记在这里。",
     stake: "权益",
-    createdAt: "创建"
+    createdAt: "创建",
+    agreementNo: "协议编号",
+    counterparty: "对方"
   },
   share: {
     contractCta: "复制签约链接",
@@ -281,7 +306,8 @@ export const copy = {
       once: "一次",
       choiceRight: "选择权",
       decisionRight: "决定权",
-      routeRight: "路线权"
+      routeRight: "路线权",
+      additions: "含权益变更"
     },
     expand: "展开",
     itemUnit: "张",

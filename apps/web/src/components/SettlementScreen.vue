@@ -5,12 +5,13 @@ import { Home, Share2, Ticket } from "lucide-vue-next";
 import { computed } from "vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseBadge from "./ui/BaseBadge.vue";
+import AgreementProgress from "./AgreementProgress.vue";
 import ContractDocument from "./ContractDocument.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import VoucherCard from "./VoucherCard.vue";
 import { buildVoucherItems } from "../composables/useVoucherAssets";
-import { getLoserName, getWinnerName } from "../utils/sessionDisplay";
+import { getEffectiveStakeLabel, getLoserName, getWinnerName } from "../utils/sessionDisplay";
 
 const props = defineProps<{
   session: BetSession;
@@ -36,6 +37,7 @@ const voucher = computed(() =>
     (item) => item.sessionId === props.session.id
   ) ?? null
 );
+const effectiveStake = computed(() => getEffectiveStakeLabel(props.session));
 </script>
 
 <template>
@@ -50,6 +52,7 @@ const voucher = computed(() =>
     />
 
     <div class="life-page-content service-flow-content">
+      <AgreementProgress :session="props.session" />
       <ContractDocument :session="props.session" :compact="true" :show-seal="true" />
       <section class="life-panel settlement-result-panel">
         <div class="settlement-result-heading">
@@ -62,7 +65,7 @@ const voucher = computed(() =>
           <li><span>{{ copy.settlement.agreement }}</span><strong>{{ props.session.title }}</strong></li>
           <li><span>{{ copy.settlement.winner }}</span><strong>{{ winner }}</strong></li>
           <li><span>{{ copy.settlement.loser }}</span><strong>{{ loser }}</strong></li>
-          <li><span>{{ copy.settlement.stake }}</span><strong>{{ props.session.stake.label }}</strong></li>
+          <li><span>{{ copy.settlement.stake }}</span><strong>{{ effectiveStake }}</strong></li>
           <li>
             <span>{{ copy.settlement.status }}</span>
             <strong>{{ fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}</strong>

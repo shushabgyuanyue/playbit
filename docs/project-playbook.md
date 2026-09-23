@@ -31,6 +31,9 @@ lightweight way to start an agreement when the user has no existing one.
 - Silver bullet is intentionally out of the current scope.
 - A boost changes the current session only, requires the other participant's
   confirmation, and is limited to three per session.
+- A confirmed boost is an amendment to the original equity, not a new asset.
+  Store it under `stake.additions` for display and keep `boosts` as the
+  in-session operation record.
 
 ## Domain Rules
 
@@ -64,6 +67,9 @@ lightweight way to start an agreement when the user has no existing one.
 The API stores one coupon per agreement. The client derives the user's
 perspective from `holderUserId` and `issuerUserId`; it must not infer ownership
 from array order or winner text.
+
+If the agreement is boosted before settlement, the final coupon still remains
+one record. Its display value is the base equity plus confirmed amendments.
 
 ## Frontend Patterns
 

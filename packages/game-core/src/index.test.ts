@@ -1,5 +1,12 @@
 import { strict as assert } from "node:assert";
-import { addBoost, confirmBoost, createBetSession, settleBetSession, signCounterparty } from "./index";
+import {
+  addBoost,
+  confirmBoost,
+  createBetSession,
+  getEffectiveStakeLabel,
+  settleBetSession,
+  signCounterparty
+} from "./index";
 
 const session = createBetSession(
   {
@@ -12,7 +19,8 @@ const session = createBetSession(
     stake: {
       type: "coupon",
       label: "洗碗一次",
-      fulfilled: false
+      fulfilled: false,
+      additions: []
     },
     cardId: null
   },
@@ -35,8 +43,18 @@ assert.equal(boosted.boosts.length, 1);
 assert.equal(boosted.boosts[0].confirmedBy.length, 1);
 const confirmedBoost = confirmBoost(boosted, boosted.boosts[0].id, signed.participants[1].id);
 assert.equal(confirmedBoost.boosts[0].confirmedBy.length, 2);
+assert.equal(confirmedBoost.stake.additions.length, 1);
 
-const settled = settleBetSession(confirmedBoost, signed.participants[1].id);
+const secondBoost = addBoost(confirmedBoost, signed.participants[1].id, "extra benefit");
+const confirmedSecondBoost = confirmBoost(
+  secondBoost,
+  secondBoost.boosts[1].id,
+  signed.participants[0].id
+);
+assert.equal(confirmedSecondBoost.stake.additions.length, 2);
+assert.equal(getEffectiveStakeLabel(confirmedSecondBoost).includes("extra benefit"), true);
+
+const settled = settleBetSession(confirmedSecondBoost, signed.participants[1].id);
 assert.equal(settled.status, "settling");
 assert.equal(settled.winnerId, signed.participants[1].id);
 assert.equal(settled.loserId, signed.participants[0].id);
