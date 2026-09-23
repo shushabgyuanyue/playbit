@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import { generateSettlementTitle } from "@playbit/game-core";
-import type { BetSession } from "@playbit/shared";
-import { CheckCircle2, Home, Share2, Ticket } from "lucide-vue-next";
+import type { BetSession, Coupon } from "@playbit/shared";
+import { Home, Share2, Ticket } from "lucide-vue-next";
 import { computed } from "vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseBadge from "./ui/BaseBadge.vue";
+import ContractDocument from "./ContractDocument.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
+import VoucherCard from "./VoucherCard.vue";
+import { buildVoucherItems } from "../composables/useVoucherAssets";
 import { getLoserName, getWinnerName } from "../utils/sessionDisplay";
 
 const props = defineProps<{
   session: BetSession;
+  coupon: Coupon | null;
+  currentUserId: string | null;
   showBack?: boolean;
 }>();
 
@@ -19,6 +23,7 @@ const emit = defineEmits<{
   back: [];
   home: [];
   openVouchers: [];
+  openAgreement: [];
   openShare: [];
 }>();
 
@@ -26,6 +31,11 @@ const winner = computed(() => getWinnerName(props.session));
 const loser = computed(() => getLoserName(props.session));
 const fulfilled = computed(() => props.session.stake.fulfilled);
 const isCouponStake = computed(() => props.session.stake.type === "coupon");
+const voucher = computed(() =>
+  buildVoucherItems([props.session], props.coupon ? [props.coupon] : [], props.currentUserId).find(
+    (item) => item.sessionId === props.session.id
+  ) ?? null
+);
 </script>
 
 <template>
@@ -40,15 +50,13 @@ const isCouponStake = computed(() => props.session.stake.type === "coupon");
     />
 
     <div class="life-page-content service-flow-content">
-      <article class="settlement-document">
-        <BaseBadge :tone="fulfilled ? 'success' : 'pending'">
-          {{ fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}
-        </BaseBadge>
-        <h2 class="settlement-title">《{{ generateSettlementTitle(props.session) }}》</h2>
-        <div class="settlement-stamp">
-          <CheckCircle2 v-if="fulfilled" :size="15" />
-          <Ticket v-else :size="15" />
-          {{ fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}
+      <ContractDocument :session="props.session" :compact="true" :show-seal="true" />
+      <section class="life-panel settlement-result-panel">
+        <div class="settlement-result-heading">
+          <BaseBadge :tone="fulfilled ? 'success' : 'pending'">
+            {{ fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}
+          </BaseBadge>
+          <h2 class="life-section-title">{{ copy.settlement.title }}</h2>
         </div>
         <ul class="life-info-list">
           <li><span>{{ copy.settlement.agreement }}</span><strong>{{ props.session.title }}</strong></li>
@@ -60,7 +68,7 @@ const isCouponStake = computed(() => props.session.stake.type === "coupon");
             <strong>{{ fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}</strong>
           </li>
         </ul>
-      </article>
+      </section>
       <section class="life-panel settlement-issue-panel">
         <h2 class="life-section-title">
           {{ isCouponStake ? copy.settlement.voucherIssued : copy.settlement.customRecorded }}
@@ -68,6 +76,14 @@ const isCouponStake = computed(() => props.session.stake.type === "coupon");
         <p class="life-section-caption">
           {{ isCouponStake ? copy.settlement.voucherIssuedHint : copy.settlement.customRecordedHint }}
         </p>
+        <VoucherCard
+          v-if="voucher"
+          :voucher="voucher"
+          @open-agreement="emit('openAgreement')"
+          @open-detail="emit('openVouchers')"
+          @open-rules="emit('openVouchers')"
+          @redeem="emit('openVouchers')"
+        />
       </section>
       <p class="life-section-caption">{{ copy.share.screenshotHint }}</p>
     </div>

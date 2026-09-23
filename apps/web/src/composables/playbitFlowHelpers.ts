@@ -26,12 +26,3 @@ export function buildSharePayload(session: BetSession): SharePayload {
     url
   };
 }
-
-export function persistSessions(sessions: BetSession[]) {
-  localStorage.setItem("playbit.sessions", JSON.stringify(sessions));
-}
-
-export function loadLocalSessions(): BetSession[] {
-  const stored = localStorage.getItem("playbit.sessions");
-  return stored ? (JSON.parse(stored) as BetSession[]) : [];
-}

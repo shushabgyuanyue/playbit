@@ -1,3 +1,5 @@
+import type { CardCategory } from "@playbit/shared";
+
 export const copy = {
   common: {
     back: "返回",
@@ -55,7 +57,14 @@ export const copy = {
     requiredTitle: "请先登录或注册",
     requiredHint: "为了保护合约、签名和权益卡券，当前操作需要账号身份。",
     saveFailed: "注册失败，请稍后再试",
-    loginFailed: "登录失败，请检查邮箱和密码"
+    loginFailed: "登录失败，请检查邮箱和密码",
+    logout: "退出登录",
+    accountReady: "账号已登录",
+    accountEmail: "登录邮箱",
+    loginTitle: "登录后继续",
+    registerTitle: "创建账号",
+    switchToRegister: "没有账号？注册",
+    switchToLogin: "已有账号？登录"
   },
   create: {
     navTitle: "立约",
@@ -78,14 +87,18 @@ export const copy = {
     emptyTitle: "抽一张，让现实动一下",
     emptyContent: "卡片会给当前生活加一条临时规则。",
     winCondition: "判定",
-    accept: "接受",
-    createSession: "创建本局",
+    accept: "接受挑战",
+    accepted: "挑战已开始",
+    acceptedHint: "先去完成这条现实规则；如果想增加权益，再回来生成签署链接。",
+    addAgreement: "添加权益并签署",
+    agreementHint: "想让这次挑战留下正式记录，再添加一项权益并邀请对方签署。",
+    createSession: "生成签署链接",
     reroll: "重抽"
   },
   sign: {
     title: "待你签约",
-    nameLabel: "签署姓名",
-    namePlaceholder: "填写你的称呼",
+    nameLabel: "签署称呼",
+    namePlaceholder: "例如：小王",
     action: "确认签约",
     decline: "暂不签署",
     signed: "双方已签约",
@@ -154,8 +167,14 @@ export const copy = {
     settle: "结束并判定结果",
     boost: "加码",
     boostHint: "双方确认后生效",
-    silverBullet: "银弹",
-    silverHint: "每人每局一次",
+    boostCount: "已加码",
+    boostLimit: "最多 3 次",
+    boostPlaceholder: "例如：增加一张洗碗券",
+    boostSubmit: "提交加码",
+    boostConfirm: "确认这次加码",
+    boostPending: "等待对方确认",
+    boostConfirmed: "双方已确认",
+    boostFailed: "加码暂时未提交，请稍后再试",
     reroll: "重抽",
     accept: "接受这张",
     fulfilled: "本案正式结案",
@@ -176,6 +195,7 @@ export const copy = {
   },
   settlement: {
     navTitle: "结算",
+    title: "本次结算凭证",
     agreement: "约定",
     winner: "权益获得方",
     loser: "权益提供方",
@@ -306,9 +326,95 @@ export const copy = {
   },
   signature: {
     clear: "重写",
-    hint: "请在框内手写签名",
+    hint: "建议使用昵称或称呼，不必填写真实姓名",
     required: "请先完成手写签名"
   }
 } as const;
+
+export const cardCatalog: Array<{
+  id: string;
+  name: string;
+  category: CardCategory;
+  sceneTags: string[];
+  participantMin: number;
+  participantMax: number;
+  durationMinutes: number | null;
+  content: string;
+  winCondition: string;
+  mechanism: string;
+}> = [
+  {
+    id: "rule-no-whatever",
+    name: "随便禁止令",
+    category: "rule",
+    sceneTags: ["date", "walk", "meal"],
+    participantMin: 2,
+    participantMax: 8,
+    durationMinutes: 10,
+    content: "从现在开始 10 分钟内，谁先说出“随便”就触发本轮约定。",
+    winCondition: "第一个说出禁词的人承担本轮权益；无人触发则平局或进入下一张。",
+    mechanism: "禁词规则"
+  },
+  {
+    id: "hidden-jay",
+    name: "暗线点歌",
+    category: "hidden",
+    sceneTags: ["date", "party", "walk"],
+    participantMin: 2,
+    participantMax: 4,
+    durationMinutes: 20,
+    content: "秘密任务：在 20 分钟内，让对方主动提到一位你指定的歌手。",
+    winCondition: "对方主动说出歌手名，持有任务者达成本轮挑战。",
+    mechanism: "隐藏任务"
+  },
+  {
+    id: "challenge-five-yuan-joy",
+    name: "五元快乐",
+    category: "challenge",
+    sceneTags: ["walk", "travel", "date"],
+    participantMin: 1,
+    participantMax: 4,
+    durationMinutes: 15,
+    content: "去附近找到一个 5 元以内、但能让今天变快乐一点的小东西。",
+    winCondition: "多人时，大家投票选出最让人快乐的选择；单人时完成即胜。",
+    mechanism: "寻物挑战"
+  },
+  {
+    id: "magic-double-next",
+    name: "下一局翻倍",
+    category: "magic",
+    sceneTags: ["party", "date", "family"],
+    participantMin: 2,
+    participantMax: 8,
+    durationMinutes: null,
+    content: "下一局的奖励或承担事项翻倍。所有人确认后生效。",
+    winCondition: "这张卡改变下一局规则，本轮不直接产生结果。",
+    mechanism: "权益翻倍"
+  },
+  {
+    id: "challenge-phone-check",
+    name: "别看手机",
+    category: "challenge",
+    sceneTags: ["meal", "date", "family"],
+    participantMin: 2,
+    participantMax: 6,
+    durationMinutes: 10,
+    content: "未来 10 分钟，谁先主动解锁手机就触发本轮约定。",
+    winCondition: "第一个主动解锁手机的人承担本轮权益；紧急电话可由大家共同豁免。",
+    mechanism: "限时自控"
+  },
+  {
+    id: "rule-decision-swap",
+    name: "决定权交换",
+    category: "rule",
+    sceneTags: ["meal", "travel", "date"],
+    participantMin: 2,
+    participantMax: 4,
+    durationMinutes: 15,
+    content: "接下来一次需要做选择时，由平时更少做决定的人拍板。",
+    winCondition: "选择被执行即完成；若对方反悔，对方承担本轮权益。",
+    mechanism: "角色交换"
+  }
+];
 
 export type CopyKey = typeof copy;

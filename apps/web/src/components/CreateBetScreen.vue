@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { CreateSessionInput, Stake } from "@playbit/shared";
+import type { CreateSessionInput, Stake, User } from "@playbit/shared";
 import { FileCheck2 } from "lucide-vue-next";
 import { reactive, watch } from "vue";
 import type { CreateBetDraft } from "../composables/usePlaybitFlow";
@@ -13,6 +13,7 @@ import SignaturePad from "./ui/SignaturePad.vue";
 
 const props = defineProps<{
   draft: CreateBetDraft;
+  user: User | null;
 }>();
 
 const emit = defineEmits<{
@@ -25,7 +26,7 @@ const form = reactive({
   title: props.draft.title,
   judgmentRule: props.draft.judgmentRule,
   stake: props.draft.stake as Stake,
-  creatorSignatureDataUrl: props.draft.creatorSignatureDataUrl
+  creatorSignatureDataUrl: props.draft.creatorSignatureDataUrl || props.user?.signatureDataUrl || ""
 });
 
 watch(

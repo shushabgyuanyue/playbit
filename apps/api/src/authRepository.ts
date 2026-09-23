@@ -46,6 +46,7 @@ function fromUserRow(row: UserRow): User {
     nickname: row.nickname,
     email: row.email,
     authLevel: row.authLevel,
+    signatureDataUrl: row.signatureDataUrl,
     createdAt: row.createdAt.toISOString()
   };
 }
@@ -59,20 +60,6 @@ class MemoryAuthRepository {
   private users = new Map<string, UserRow>();
   private sessions = new Map<string, AuthSessionRow>();
 
-  async createGuest(nickname = "我"): Promise<AuthResult> {
-    const now = new Date();
-    const user: UserRow = {
-      id: makeId("user"),
-      nickname,
-      email: null,
-      passwordHash: null,
-      authLevel: "guest",
-      createdAt: now
-    };
-    this.users.set(user.id, user);
-    return this.createSessionForUser(user);
-  }
-
   async register(input: RegisterInput, currentUserId: string | null): Promise<AuthResult> {
     const existing = Array.from(this.users.values()).find((user) => user.email === input.email);
     if (existing && existing.id !== currentUserId) {
@@ -85,6 +72,7 @@ class MemoryAuthRepository {
       nickname: input.nickname,
       email: input.email,
       passwordHash: hashPassword(input.password),
+      signatureDataUrl: user?.signatureDataUrl ?? null,
       authLevel: "registered",
       createdAt: user?.createdAt ?? new Date()
     };
@@ -109,6 +97,13 @@ class MemoryAuthRepository {
     return user ? fromUserRow(user) : null;
   }
 
+  async updateSignature(userId: string, signatureDataUrl: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) {
+      this.users.set(userId, { ...user, signatureDataUrl });
+    }
+  }
+
   private async createSessionForUser(user: UserRow): Promise<AuthResult> {
     const token = `pb_${randomBytes(32).toString("base64url")}`;
     this.sessions.set(tokenHash(token), {
@@ -125,18 +120,6 @@ class MemoryAuthRepository {
 class PostgresAuthRepository {
   constructor(private readonly db: PostgresJsDatabase) {}
 
-  async createGuest(nickname = "我"): Promise<AuthResult> {
-    const [user] = await this.db
-      .insert(users)
-      .values({
-        id: makeId("user"),
-        nickname,
-        authLevel: "guest"
-      })
-      .returning();
-    return this.createSessionForUser(user);
-  }
-
   async register(input: RegisterInput, currentUserId: string | null): Promise<AuthResult> {
     const [existing] = await this.db.select().from(users).where(eq(users.email, input.email)).limit(1);
     if (existing && existing.id !== currentUserId) {
@@ -151,6 +134,7 @@ class PostgresAuthRepository {
             nickname: input.nickname,
             email: input.email,
             passwordHash,
+            signatureDataUrl: existing?.signatureDataUrl ?? null,
             authLevel: "registered"
           })
           .where(eq(users.id, currentUserId))
@@ -162,6 +146,7 @@ class PostgresAuthRepository {
             nickname: input.nickname,
             email: input.email,
             passwordHash,
+            signatureDataUrl: null,
             authLevel: "registered"
           })
           .returning();
@@ -192,6 +177,10 @@ class PostgresAuthRepository {
     return user ? fromUserRow(user) : null;
   }
 
+  async updateSignature(userId: string, signatureDataUrl: string): Promise<void> {
+    await this.db.update(users).set({ signatureDataUrl }).where(eq(users.id, userId));
+  }
+
   private async createSessionForUser(user: UserRow): Promise<AuthResult> {
     const token = `pb_${randomBytes(32).toString("base64url")}`;
     await this.db.insert(authSessions).values({
@@ -209,4 +198,3 @@ export type AuthRepository = MemoryAuthRepository | PostgresAuthRepository;
 export function createAuthRepository(db: PostgresJsDatabase | null): AuthRepository {
   return db ? new PostgresAuthRepository(db) : new MemoryAuthRepository();
 }
-

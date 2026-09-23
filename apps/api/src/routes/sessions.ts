@@ -2,9 +2,16 @@ import type { AuthRepository } from "../authRepository.js";
 import type { CouponRepository } from "../couponRepository.js";
 import { isParticipant, participantIds, requireCurrentUser } from "../http/auth.js";
 import type { SessionRepository } from "../sessionRepository.js";
-import { createBetSession, settleBetSession, signCounterparty } from "@playbit/game-core";
+import {
+  addBoost,
+  confirmBoost,
+  createBetSession,
+  settleBetSession,
+  signCounterparty
+} from "@playbit/game-core";
 import {
   betSessionSchema,
+  createBoostSchema,
   createSessionSchema,
   signSessionSchema,
   settleSessionSchema
@@ -30,6 +37,7 @@ export function registerSessionRoutes(
       },
       currentUser.id
     );
+    await auth.updateSignature(currentUser.id, payload.creatorSignatureDataUrl);
     const created = await sessions.create(session);
     return context.json({ session: betSessionSchema.parse(created) }, 201);
   });
@@ -97,6 +105,7 @@ export function registerSessionRoutes(
     }
 
     const signed = signCounterparty(session, payload.nickname, currentUser.id, payload.signatureDataUrl);
+    await auth.updateSignature(currentUser.id, payload.signatureDataUrl);
     await sessions.update(signed);
     return context.json({ session: signed });
   });
@@ -123,13 +132,13 @@ export function registerSessionRoutes(
       return context.json({ message: "Winner must be a participant" }, 422);
     }
 
-    const settled = settleBetSession(session, payload.winnerId, payload.fulfilled);
+    const settled = settleBetSession(session, payload.winnerId);
     await sessions.update(settled);
     await coupons.upsertForSession(settled);
     return context.json({ session: settled });
   });
 
-  app.patch("/sessions/:id/fulfill", async (context) => {
+  app.post("/sessions/:id/boost", async (context) => {
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
@@ -142,20 +151,48 @@ export function registerSessionRoutes(
     if (!isParticipant(session, currentUser.id)) {
       return context.json({ message: "Forbidden" }, 403);
     }
-    if (session.status !== "settling" || !session.winnerId) {
-      return context.json({ message: "Only settling agreements can be fulfilled" }, 409);
+    const participant = session.participants.find((candidate) => candidate.userId === currentUser.id);
+    if (!participant) {
+      return context.json({ message: "Forbidden" }, 403);
     }
 
-    const fulfilled = {
-      ...session,
-      status: "fulfilled" as const,
-      stake: {
-        ...session.stake,
-        fulfilled: true
+    const payload = createBoostSchema.parse(await context.req.json());
+    try {
+      const boosted = addBoost(session, participant.id, payload.label);
+      await sessions.update(boosted);
+      return context.json({ session: betSessionSchema.parse(boosted) }, 201);
+    } catch (error) {
+      if (error instanceof Error && error.message === "BOOST_LIMIT_REACHED") {
+        return context.json({ message: "Boost limit reached" }, 409);
       }
-    };
-    await sessions.update(fulfilled);
-    await coupons.markSessionUsed(fulfilled.id);
-    return context.json({ session: betSessionSchema.parse(fulfilled) });
+      throw error;
+    }
+  });
+
+  app.post("/sessions/:id/boost/:boostId/confirm", async (context) => {
+    const currentUser = await requireCurrentUser(context, auth);
+    if (currentUser instanceof Response) {
+      return currentUser;
+    }
+
+    const session = await sessions.findById(context.req.param("id"));
+    if (!session) {
+      return context.json({ message: "Session not found" }, 404);
+    }
+    const participant = session.participants.find((candidate) => candidate.userId === currentUser.id);
+    if (!participant) {
+      return context.json({ message: "Forbidden" }, 403);
+    }
+
+    try {
+      const confirmed = confirmBoost(session, context.req.param("boostId"), participant.id);
+      await sessions.update(confirmed);
+      return context.json({ session: betSessionSchema.parse(confirmed) });
+    } catch (error) {
+      if (error instanceof Error && error.message === "BOOST_NOT_FOUND") {
+        return context.json({ message: "Boost not found" }, 404);
+      }
+      throw error;
+    }
   });
 }

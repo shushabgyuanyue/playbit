@@ -15,12 +15,13 @@ const statusOrder: VoucherStatusFilter[] = ["pending", "available", "used"];
 export function useVoucherAssets(
   sessionsSource: MaybeRefOrGetter<BetSession[]>,
   couponsSource: MaybeRefOrGetter<Coupon[]>,
-  activeView: MaybeRefOrGetter<VoucherViewFilter>
+  activeView: MaybeRefOrGetter<VoucherViewFilter>,
+  currentUserId: MaybeRefOrGetter<string | null>
 ) {
   const allVoucherItems = computed(() => {
     const sessions = toValue(sessionsSource);
     const coupons = toValue(couponsSource);
-    return buildVoucherItems(sessions, coupons);
+    return buildVoucherItems(sessions, coupons, toValue(currentUserId));
   });
 
   const voucherItems = computed(() => {
@@ -47,20 +48,31 @@ export function useVoucherAssets(
   };
 }
 
-export function buildVoucherItems(sessions: BetSession[], coupons: Coupon[]): VoucherItem[] {
-  return buildRealVoucherItems(sessions, coupons);
+export function buildVoucherItems(
+  sessions: BetSession[],
+  coupons: Coupon[],
+  currentUserId: string | null = null
+): VoucherItem[] {
+  return buildRealVoucherItems(sessions, coupons, currentUserId);
 }
 
-function buildRealVoucherItems(sessions: BetSession[], coupons: Coupon[]): VoucherItem[] {
+function buildRealVoucherItems(sessions: BetSession[], coupons: Coupon[], currentUserId: string | null): VoucherItem[] {
   const sessionMap = new Map(sessions.map((session) => [session.id, session]));
   const uniqueCoupons = dedupeCouponsBySession(coupons);
   const couponSessionIds = new Set(uniqueCoupons.map((coupon) => coupon.sessionId));
 
-  const couponItems = uniqueCoupons.map((coupon) => {
+  const couponItems = uniqueCoupons.flatMap((coupon) => {
     const session = sessionMap.get(coupon.sessionId);
-    const status: VoucherUiStatus = coupon.status === "used" ? "used" : "available";
+    const fallbackHolderId = session?.participants.find((participant) => participant.id === session.winnerId)?.userId;
+    const fallbackIssuerId = session?.participants.find((participant) => participant.id === session.loserId)?.userId;
+    const isHolder = coupon.holderUserId === currentUserId || (!coupon.holderUserId && fallbackHolderId === currentUserId);
+    const isIssuer = coupon.issuerUserId === currentUserId || (!coupon.issuerUserId && fallbackIssuerId === currentUserId);
+    if (!isHolder && !isIssuer) {
+      return [];
+    }
+    const status: VoucherUiStatus = coupon.status === "used" ? "used" : isHolder ? "available" : "pending";
     const benefit = formatVoucherBenefit(coupon.name);
-    return {
+    return [{
       id: coupon.id,
       couponId: coupon.id,
       sessionId: coupon.sessionId,
@@ -74,12 +86,21 @@ function buildRealVoucherItems(sessions: BetSession[], coupons: Coupon[]): Vouch
       timeText: formatCouponTime(coupon),
       status,
       kind: inferVoucherKind(coupon.name),
-      canRedeem: status === "available"
-    } satisfies VoucherItem;
+      canRedeem: isHolder && status === "available",
+      role: isHolder ? "holder" : "issuer"
+    } satisfies VoucherItem];
   });
 
   const pendingItems = sessions
-    .filter((session) => session.stake.type === "coupon" && !couponSessionIds.has(session.id))
+    .filter((session) => {
+      const loser = session.participants.find((participant) => participant.id === session.loserId);
+      return (
+        session.stake.type === "coupon" &&
+        session.status === "settling" &&
+        !couponSessionIds.has(session.id) &&
+        loser?.userId === currentUserId
+      );
+    })
     .map((session) => {
       const status = inferSessionVoucherStatus(session);
       const benefit = formatVoucherBenefit(session.stake.label);
@@ -97,7 +118,8 @@ function buildRealVoucherItems(sessions: BetSession[], coupons: Coupon[]): Vouch
         timeText: formatSessionStatus(session.status),
         status,
         kind: inferVoucherKind(session.stake.label),
-        canRedeem: false
+        canRedeem: false,
+        role: "issuer"
       } satisfies VoucherItem;
     });
 

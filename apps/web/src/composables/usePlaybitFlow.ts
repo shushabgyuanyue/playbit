@@ -17,8 +17,6 @@ import { api } from "../services/api";
 import {
   buildSharePayload,
   defaultStake,
-  loadLocalSessions,
-  persistSessions,
   type SharePayload
 } from "./playbitFlowHelpers";
 import { useShareActions } from "./useShareActions";
@@ -130,9 +128,8 @@ export function usePlaybitFlow() {
     try {
       const response = await api.listSessions();
       sessions.value = response.sessions;
-      persistSessions(sessions.value);
     } catch {
-      sessions.value = loadLocalSessions();
+      sessions.value = [];
     }
   }
 
@@ -164,7 +161,6 @@ export function usePlaybitFlow() {
     try {
       const response = await api.getSession(activeSessionId.value);
       upsertSession(response.session);
-      persistSessions(sessions.value);
     } catch {
       // Keep the current contract visible if the network is temporarily unavailable.
     } finally {
@@ -205,10 +201,13 @@ export function usePlaybitFlow() {
     };
 
     const response = await api.createSession(sessionInput);
+    currentUser.value = {
+      ...user,
+      signatureDataUrl: payload.creatorSignatureDataUrl
+    };
     sessions.value = [response.session, ...sessions.value.filter((item) => item.id !== response.session.id)];
     activeSessionId.value = response.session.id;
 
-    persistSessions(sessions.value);
     resetCreateDraft();
     contractBackScreen.value = payload.source === "card" ? "draw" : "create";
     screen.value = "contract";
@@ -230,21 +229,44 @@ export function usePlaybitFlow() {
     }
   }
 
-  async function settleSession(winnerId: string, fulfilled: boolean) {
+  async function settleSession(winnerId: string) {
     if (!activeSession.value) {
       return;
     }
 
     try {
-      const response = await api.settleSession(activeSession.value.id, winnerId, fulfilled);
+      const response = await api.settleSession(activeSession.value.id, winnerId);
       upsertSession(response.session);
       await refreshCoupons();
     } catch {
-      upsertSession(settleBetSession(activeSession.value, winnerId, fulfilled));
+      upsertSession(settleBetSession(activeSession.value, winnerId));
     }
 
-    persistSessions(sessions.value);
     screen.value = "settlement";
+  }
+
+  async function addBoost(label: string) {
+    if (!activeSession.value) {
+      return;
+    }
+    try {
+      const response = await api.addBoost(activeSession.value.id, label);
+      upsertSession(response.session);
+    } catch {
+      showToast(copy.session.boostFailed);
+    }
+  }
+
+  async function confirmBoost(boostId: string) {
+    if (!activeSession.value) {
+      return;
+    }
+    try {
+      const response = await api.confirmBoost(activeSession.value.id, boostId);
+      upsertSession(response.session);
+    } catch {
+      showToast(copy.session.boostFailed);
+    }
   }
 
   function upsertSession(session: BetSession) {
@@ -262,17 +284,18 @@ export function usePlaybitFlow() {
     openSession(session);
   }
 
-  async function openSessionById(sessionId: string, backScreen: Screen = "home") {
+  async function openAgreementById(sessionId: string, backScreen: Screen = "home") {
     contractBackScreen.value = backScreen;
     const localSession = sessions.value.find((session) => session.id === sessionId);
 
     try {
       const response = await api.getSession(sessionId);
       upsertSession(response.session);
-      openSession(response.session);
+      screen.value = "contract";
     } catch {
       if (localSession) {
-        openSession(localSession);
+        upsertSession(localSession);
+        screen.value = "contract";
         return;
       }
       showToast(copy.vouchers.openFailed);
@@ -326,8 +349,11 @@ export function usePlaybitFlow() {
     signLoading.value = true;
     try {
       const response = await api.signShare(activeShareCode.value, payload);
+      currentUser.value = {
+        ...user,
+        signatureDataUrl: payload.signatureDataUrl
+      };
       upsertSession(response.session);
-      persistSessions(sessions.value);
       await refreshCoupons();
       screen.value = "contract";
     } catch {
@@ -373,6 +399,16 @@ export function usePlaybitFlow() {
     } finally {
       authLoading.value = false;
     }
+  }
+
+  function logoutAccount() {
+    api.clearAuthToken();
+    currentUser.value = null;
+    sessions.value = [];
+    coupons.value = [];
+    activeSessionId.value = null;
+    activeVoucherId.value = null;
+    screen.value = "home";
   }
 
   function updateCreateDraft(nextDraft: CreateBetDraft) {
@@ -430,7 +466,6 @@ export function usePlaybitFlow() {
   );
 
   onMounted(() => {
-    sessions.value = loadLocalSessions();
     const shareCode = new URLSearchParams(window.location.search).get("share");
     if (shareCode) {
       void loadShareSession(shareCode);
@@ -453,6 +488,7 @@ export function usePlaybitFlow() {
     activeCard,
     activeSession,
     activeVoucherId,
+    addBoost,
     authLoading,
     cardLoading,
     contractBackScreen,
@@ -466,14 +502,16 @@ export function usePlaybitFlow() {
     screen,
     copyShareText,
     createSession,
+    confirmBoost,
     drawCard,
     loginAccount,
+    logoutAccount,
     nativeShare,
     openCreate,
+    openAgreementById,
     openDraw,
     openHistory,
     openSession,
-    openSessionById,
     openSessionFrom,
     openVoucherDetail,
     openVouchers,

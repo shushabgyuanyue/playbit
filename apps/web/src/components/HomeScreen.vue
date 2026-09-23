@@ -29,7 +29,7 @@ const activeCount = computed(
 const fulfilledCount = computed(
   () => props.sessions.filter((session) => session.status === "fulfilled" || session.status === "finished").length
 );
-const voucherAssetCount = computed(() => buildVoucherItems(props.sessions, props.coupons).length);
+const voucherAssetCount = computed(() => buildVoucherItems(props.sessions, props.coupons, props.user?.id ?? null).length);
 </script>
 
 <template>

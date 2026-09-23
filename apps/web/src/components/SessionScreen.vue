@@ -1,20 +1,50 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { BetSession } from "@playbit/shared";
-import { BadgePlus, ShieldCheck, Trophy } from "lucide-vue-next";
+import { BadgePlus, Trophy } from "lucide-vue-next";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseBadge from "./ui/BaseBadge.vue";
+import BaseField from "./ui/BaseField.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
   session: BetSession;
+  currentUserId: string | null;
 }>();
 
 const emit = defineEmits<{
   back: [];
-  settle: [winnerId: string, fulfilled: boolean];
+  settle: [winnerId: string];
+  addBoost: [label: string];
+  confirmBoost: [boostId: string];
 }>();
+
+const boostOpen = ref(false);
+const boostDraft = ref("");
+const currentParticipantId = computed(
+  () => props.session.participants.find((participant) => participant.userId === props.currentUserId)?.id ?? null
+);
+const canAddBoost = computed(() => props.session.boosts.length < 3);
+const pendingBoosts = computed(() =>
+  props.session.boosts.filter(
+    (boost) =>
+      currentParticipantId.value &&
+      !boost.confirmedBy.includes(currentParticipantId.value) &&
+      boost.confirmedBy.length < props.session.participants.length
+  )
+);
+
+function submitBoost() {
+  const label = boostDraft.value.trim();
+  if (!label) {
+    return;
+  }
+  emit("addBoost", label);
+  boostDraft.value = "";
+  boostOpen.value = false;
+}
 </script>
 
 <template>
@@ -48,15 +78,34 @@ const emit = defineEmits<{
       <section class="life-panel">
         <h2 class="life-section-title">{{ copy.session.enhancementTitle }}</h2>
         <div class="session-enhancement-grid">
-          <button type="button" class="session-option-button">
+          <button
+            type="button"
+            class="session-option-button"
+            :disabled="!canAddBoost"
+            @click="boostOpen = !boostOpen"
+          >
             <strong><BadgePlus :size="16" />{{ copy.session.boost }}</strong>
-            <span>{{ copy.session.boostHint }}</span>
-          </button>
-          <button type="button" class="session-option-button">
-            <strong><ShieldCheck :size="16" />{{ copy.session.silverBullet }}</strong>
-            <span>{{ copy.session.silverHint }}</span>
+            <span>{{ props.session.boosts.length }}/3 · {{ canAddBoost ? copy.session.boostHint : copy.session.boostLimit }}</span>
           </button>
         </div>
+        <div v-if="boostOpen" class="session-boost-editor">
+          <BaseField v-model="boostDraft" :placeholder="copy.session.boostPlaceholder" :label="copy.session.boost" />
+          <BaseButton size="md" :disabled="!boostDraft.trim()" @click="submitBoost">
+            {{ copy.session.boostSubmit }}
+          </BaseButton>
+        </div>
+        <div v-if="pendingBoosts.length" class="session-pending-boosts">
+          <article v-for="boost in pendingBoosts" :key="boost.id" class="session-pending-boost">
+            <span>{{ boost.label }}</span>
+            <BaseButton size="sm" variant="outline" @click="emit('confirmBoost', boost.id)">
+              {{ copy.session.boostConfirm }}
+            </BaseButton>
+          </article>
+        </div>
+        <p v-if="props.session.boosts.length" class="life-section-caption">
+          {{ props.session.boosts.filter((boost) => boost.confirmedBy.length === props.session.participants.length).length }}
+          {{ copy.session.boostConfirmed }}
+        </p>
       </section>
     </div>
 
@@ -65,7 +114,7 @@ const emit = defineEmits<{
         v-for="participant in props.session.participants"
         :key="participant.id"
         size="lg"
-        @click="emit('settle', participant.id, false)"
+        @click="emit('settle', participant.id)"
       >
         <Trophy :size="18" />
         {{ copy.session.chooseWinnerPrefix }} {{ participant.nickname }} {{ copy.session.chooseWinnerSuffix }}

@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { createBetSession, settleBetSession, signCounterparty } from "./index";
+import { addBoost, confirmBoost, createBetSession, settleBetSession, signCounterparty } from "./index";
 
 const session = createBetSession(
   {
@@ -30,14 +30,32 @@ assert.equal(signed.participants[1].role, "counterparty");
 assert.equal(signed.participants[1].confirmed, true);
 assert.equal(signed.participants[1].signatureDataUrl, "data:image/png;base64,counterparty-signature");
 
-const settled = settleBetSession(signed, signed.participants[1].id, false);
+const boosted = addBoost(signed, signed.participants[0].id, "增加一张洗碗券");
+assert.equal(boosted.boosts.length, 1);
+assert.equal(boosted.boosts[0].confirmedBy.length, 1);
+const confirmedBoost = confirmBoost(boosted, boosted.boosts[0].id, signed.participants[1].id);
+assert.equal(confirmedBoost.boosts[0].confirmedBy.length, 2);
+
+const settled = settleBetSession(confirmedBoost, signed.participants[1].id);
 assert.equal(settled.status, "settling");
 assert.equal(settled.winnerId, signed.participants[1].id);
 assert.equal(settled.loserId, signed.participants[0].id);
 assert.equal(settled.stake.fulfilled, false);
 
-const fulfilled = settleBetSession(signed, signed.participants[0].id, true);
-assert.equal(fulfilled.status, "fulfilled");
-assert.equal(fulfilled.stake.fulfilled, true);
-
-assert.throws(() => settleBetSession(signed, "missing", false), /WINNER_NOT_IN_SESSION/);
+assert.throws(() => settleBetSession(signed, "missing"), /WINNER_NOT_IN_SESSION/);
+const boostFixture = (id: string) => ({
+  id,
+  label: "已确认权益",
+  proposerId: signed.participants[0].id,
+  confirmedBy: [signed.participants[0].id, signed.participants[1].id],
+  createdAt: new Date().toISOString()
+});
+assert.throws(
+  () =>
+    addBoost(
+      { ...signed, boosts: [boostFixture("one"), boostFixture("two"), boostFixture("three")] },
+      signed.participants[0].id,
+      "第四次加码"
+    ),
+  /BOOST_LIMIT_REACHED/
+);

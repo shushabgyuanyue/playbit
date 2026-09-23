@@ -1,15 +1,9 @@
 import type { AuthRepository } from "../authRepository.js";
 import { getCurrentUser } from "../http/auth.js";
-import { guestAuthSchema, loginSchema, registerSchema } from "@playbit/shared";
+import { loginSchema, registerSchema } from "@playbit/shared";
 import type { Hono } from "hono";
 
 export function registerAuthRoutes(app: Hono, auth: AuthRepository) {
-  app.post("/auth/guest", async (context) => {
-    const payload = guestAuthSchema.parse(await context.req.json().catch(() => ({})));
-    const result = await auth.createGuest(payload.nickname);
-    return context.json(result, 201);
-  });
-
   app.post("/auth/register", async (context) => {
     const currentUser = await getCurrentUser(context, auth);
     const payload = registerSchema.parse(await context.req.json());

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { LoginInput, RegisterInput, User } from "@playbit/shared";
-import { LogIn, ShieldCheck } from "lucide-vue-next";
+import { LogIn, LogOut, ShieldCheck } from "lucide-vue-next";
 import { reactive, ref } from "vue";
 import BaseBadge from "./ui/BaseBadge.vue";
 import BaseButton from "./ui/BaseButton.vue";
@@ -18,9 +18,10 @@ const emit = defineEmits<{
   back: [];
   register: [payload: RegisterInput];
   login: [payload: LoginInput];
+  logout: [];
 }>();
 
-const mode = ref<"register" | "login">("register");
+const mode = ref<"register" | "login">("login");
 const form = reactive({
   nickname: copy.common.me,
   email: "",
@@ -40,26 +41,34 @@ const form = reactive({
     />
 
     <div class="life-page-content service-flow-content">
-      <section class="life-panel">
-        <BaseBadge :tone="user?.authLevel === 'registered' ? 'success' : 'contract'">
-          {{ user?.authLevel === "registered" ? copy.auth.registered : copy.auth.guest }}
+      <section class="life-panel account-identity-panel">
+        <BaseBadge :tone="user ? 'success' : 'contract'">
+          {{ user ? copy.auth.accountReady : copy.auth.guest }}
         </BaseBadge>
-        <h2 class="life-section-title">{{ user?.nickname ?? copy.auth.requiredTitle }}</h2>
-        <p class="life-section-caption">{{ copy.auth.saveHint }}</p>
+        <h2 class="life-section-title">{{ user?.nickname ?? copy.auth.loginTitle }}</h2>
+        <p class="life-section-caption">
+          {{ user ? copy.auth.saveHint : copy.auth.requiredHint }}
+        </p>
+        <dl v-if="user" class="account-identity-list">
+          <div>
+            <dt>{{ copy.auth.accountEmail }}</dt>
+            <dd>{{ user.email }}</dd>
+          </div>
+        </dl>
       </section>
 
-      <div class="life-status-tabs" :aria-label="copy.auth.account">
+      <div v-if="!user" class="life-status-tabs" :aria-label="copy.auth.account">
         <button type="button" :class="{ active: mode === 'register' }" @click="mode = 'register'">
-          {{ copy.auth.saveAccount }}
+          {{ copy.auth.registerTitle }}
         </button>
         <button type="button" :class="{ active: mode === 'login' }" @click="mode = 'login'">
-          {{ copy.auth.login }}
+          {{ copy.auth.loginTitle }}
         </button>
       </div>
 
-      <section class="life-panel">
+      <section v-if="!user" class="life-panel">
         <div class="life-field-group">
-          <BaseField v-if="mode === 'register'" v-model="form.nickname" :label="copy.auth.nickname" />
+        <BaseField v-if="mode === 'register'" v-model="form.nickname" :label="copy.auth.nickname" />
           <BaseField
             v-model="form.email"
             type="email"
@@ -78,7 +87,7 @@ const form = reactive({
 
     <LifeActionBar>
       <BaseButton
-        v-if="mode === 'register'"
+        v-if="!user && mode === 'register'"
         size="lg"
         :disabled="loading || !form.email.trim() || form.password.length < 8 || !form.nickname.trim()"
         @click="emit('register', { email: form.email.trim(), password: form.password, nickname: form.nickname.trim() })"
@@ -87,13 +96,17 @@ const form = reactive({
         {{ loading ? copy.common.loading : copy.auth.saveAccount }}
       </BaseButton>
       <BaseButton
-        v-else
+        v-else-if="!user"
         size="lg"
         :disabled="loading || !form.email.trim() || !form.password"
         @click="emit('login', { email: form.email.trim(), password: form.password })"
       >
         <LogIn :size="18" />
         {{ loading ? copy.common.loading : copy.auth.login }}
+      </BaseButton>
+      <BaseButton v-else variant="outline" size="lg" @click="emit('logout')">
+        <LogOut :size="18" />
+        {{ copy.auth.logout }}
       </BaseButton>
     </LifeActionBar>
   </section>

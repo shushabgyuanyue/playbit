@@ -34,12 +34,14 @@ const {
   createSession,
   drawCard,
   loginAccount,
+  logoutAccount,
+  addBoost,
+  confirmBoost,
   nativeShare,
   openCreate,
+  openAgreementById,
   openDraw,
   openHistory,
-  openSession,
-  openSessionById,
   openSessionFrom,
   openVoucherDetail,
   openVouchers,
@@ -52,7 +54,12 @@ const {
 } = usePlaybitFlow();
 
 const activeVoucher = computed(() =>
-  buildVoucherItems(sessions.value, coupons.value).find((voucher) => voucher.id === activeVoucherId.value) ?? null
+  buildVoucherItems(sessions.value, coupons.value, currentUser.value?.id ?? null).find(
+    (voucher) => voucher.id === activeVoucherId.value
+  ) ?? null
+);
+const settlementCoupon = computed(() =>
+  activeSession.value ? coupons.value.find((coupon) => coupon.sessionId === activeSession.value?.id) ?? null : null
 );
 const shareSheetOpen = ref(false);
 </script>
@@ -78,10 +85,12 @@ const shareSheetOpen = ref(false);
         @back="screen = 'home'"
         @register="registerAccount"
         @login="loginAccount"
+        @logout="logoutAccount"
       />
       <CreateBetScreen
         v-else-if="screen === 'create'"
         :draft="createDraft"
+        :user="currentUser"
         @back="screen = 'home'"
         @submit="createSession"
         @update-draft="updateCreateDraft"
@@ -98,24 +107,31 @@ const shareSheetOpen = ref(false);
       <DrawCardScreen
         v-else-if="screen === 'draw'"
         :card="activeCard"
+        :user="currentUser"
         :loading="cardLoading"
         @back="screen = 'home'"
         @draw="drawCard"
-        @accept="createSession"
+        @create-agreement="createSession"
       />
       <SessionScreen
         v-else-if="screen === 'session' && activeSession"
         :session="activeSession"
+        :current-user-id="currentUser?.id ?? null"
         @back="screen = 'home'"
         @settle="settleSession"
+        @add-boost="addBoost"
+        @confirm-boost="confirmBoost"
       />
       <SettlementScreen
         v-else-if="screen === 'settlement' && activeSession"
         :session="activeSession"
+        :coupon="settlementCoupon"
+        :current-user-id="currentUser?.id ?? null"
         :show-back="contractBackScreen === 'history' || contractBackScreen === 'vouchers' || contractBackScreen === 'voucherDetail'"
         @back="screen = contractBackScreen"
         @open-share="shareSheetOpen = true"
         @open-vouchers="openVouchers"
+        @open-agreement="openAgreementById(activeSession?.id ?? '', 'settlement')"
         @home="screen = 'home'"
       />
       <HistoryScreen
@@ -128,8 +144,9 @@ const shareSheetOpen = ref(false);
         v-else-if="screen === 'vouchers'"
         :sessions="sessions"
         :coupons="coupons"
+        :current-user-id="currentUser?.id ?? null"
         @back="screen = 'home'"
-        @open-session="(sessionId) => openSessionById(sessionId, 'vouchers')"
+        @open-agreement="(sessionId) => openAgreementById(sessionId, 'vouchers')"
         @open-voucher="openVoucherDetail"
       />
       <VoucherDetailScreen
@@ -138,7 +155,7 @@ const shareSheetOpen = ref(false);
         @back="screen = 'vouchers'"
         @open-agreement="
           (voucher) => {
-            if (voucher.sessionId) openSessionById(voucher.sessionId, 'voucherDetail');
+            if (voucher.sessionId) openAgreementById(voucher.sessionId, 'voucherDetail');
           }
         "
         @redeem="
@@ -150,6 +167,7 @@ const shareSheetOpen = ref(false);
       <SignScreen
         v-else-if="screen === 'sign'"
         :session="activeSession ?? null"
+        :user="currentUser"
         :loading="signLoading"
         @decline="screen = 'home'"
         @sign="signSession"

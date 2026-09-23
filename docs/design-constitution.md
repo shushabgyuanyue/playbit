@@ -54,7 +54,7 @@ The metaphor should stay light. It should make the experience clearer and more m
 - Any core action should be understandable in 3 seconds.
 - Bet creation should ask only for essential input: agreement, judging rule, stake.
 - The counterparty should be added by signing a shared link, not by being typed during creation.
-- Identity should be progressive: create a temporary identity by default, and ask users to register only when they need durable asset management or cross-device recovery.
+- Identity should be progressive in visibility, not temporary in ownership: public share pages can be viewed without an account, while creating, signing, settling, redeeming, and viewing personal records require a registered account.
 - Ritual comes from flow and language first, animation second.
 - The phone issues rules, records results, and produces artifacts; the real play happens offline.
 - In-session moments may be dramatic; out-of-session surfaces must stay light.

@@ -175,6 +175,26 @@
   background: linear-gradient(180deg, #ffffff 0%, #f4fbf8 100%);
 }
 
+.settlement-result-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.settlement-result-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settlement-result-heading .life-section-title {
+  margin: 0;
+}
+
+.settlement-issue-panel .voucher-ticket {
+  margin-top: 12px;
+}
+
 @media (max-width: 374px) {
   .contract-document,
   .settlement-document,

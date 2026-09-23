@@ -18,6 +18,7 @@ export type VoucherItem = {
   status: VoucherUiStatus;
   kind: VoucherKind;
   canRedeem: boolean;
+  role: "holder" | "issuer";
 };
 
 export type VoucherSection = {

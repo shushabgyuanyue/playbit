@@ -81,6 +81,28 @@ const initiatorAfterSign = await json<{ session: BetSession }>(`/sessions/${sign
 });
 assert.equal(initiatorAfterSign.session.status, "active");
 
+const initiatorMe = await json<{ user: User }>("/auth/me", {
+  headers: auth(initiator.token)
+});
+assert.equal(initiatorMe.user.signatureDataUrl, "data:image/png;base64,initiator-signature");
+
+const boost = await json<{ session: BetSession }>(`/sessions/${signed.session.id}/boost`, {
+  method: "POST",
+  headers: auth(initiator.token),
+  body: JSON.stringify({ label: "增加一次路线决定权" })
+});
+assert.equal(boost.session.boosts.length, 1);
+assert.equal(boost.session.boosts[0].confirmedBy.length, 1);
+
+const confirmedBoost = await json<{ session: BetSession }>(
+  `/sessions/${signed.session.id}/boost/${boost.session.boosts[0].id}/confirm`,
+  {
+    method: "POST",
+    headers: auth(counterparty.token)
+  }
+);
+assert.equal(confirmedBoost.session.boosts[0].confirmedBy.length, 2);
+
 const winnerId = signed.session.participants.find((participant) => participant.role === "counterparty")?.id;
 assert.ok(winnerId);
 
@@ -96,7 +118,7 @@ const outsiderSettle = await app.request(`/sessions/${signed.session.id}/settle`
     "Content-Type": "application/json",
     ...auth(outsider.token)
   },
-  body: JSON.stringify({ winnerId, fulfilled: false })
+  body: JSON.stringify({ winnerId })
 });
 assert.equal(outsiderSettle.status, 403);
 
@@ -106,7 +128,7 @@ assert.equal(anonymousCouponList.status, 401);
 const settled = await json<{ session: BetSession }>(`/sessions/${signed.session.id}/settle`, {
   method: "PATCH",
   headers: auth(counterparty.token),
-  body: JSON.stringify({ winnerId, fulfilled: false })
+  body: JSON.stringify({ winnerId })
 });
 
 assert.equal(settled.session.status, "settling");
@@ -117,8 +139,20 @@ const couponList = await json<{ coupons: Coupon[] }>("/coupons", {
 });
 
 assert.equal(couponList.coupons.length, 1);
-assert.equal(couponList.coupons[0].name, "洗碗一次");
+assert.equal(couponList.coupons[0].name, "洗碗一次；增加一次路线决定权");
 assert.equal(couponList.coupons[0].status, "available");
+
+const issuerCouponList = await json<{ coupons: Coupon[] }>("/coupons", {
+  headers: auth(initiator.token)
+});
+assert.equal(issuerCouponList.coupons.length, 1);
+assert.equal(issuerCouponList.coupons[0].status, "available");
+
+const issuerUseCoupon = await app.request(`/coupons/${couponList.coupons[0].id}/use`, {
+  method: "PATCH",
+  headers: auth(initiator.token)
+});
+assert.equal(issuerUseCoupon.status, 403);
 
 const outsiderUseCoupon = await app.request(`/coupons/${couponList.coupons[0].id}/use`, {
   method: "PATCH",
@@ -139,3 +173,9 @@ const fulfilled = await json<{ session: BetSession }>(`/sessions/${signed.sessio
 
 assert.equal(fulfilled.session.status, "fulfilled");
 assert.equal(fulfilled.session.stake.fulfilled, true);
+
+const secondUse = await app.request(`/coupons/${couponList.coupons[0].id}/use`, {
+  method: "PATCH",
+  headers: auth(counterparty.token)
+});
+assert.equal(secondUse.status, 409);

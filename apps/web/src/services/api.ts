@@ -103,10 +103,21 @@ export const api = {
       body: JSON.stringify(payload)
     });
   },
-  settleSession(id: string, winnerId: string, fulfilled: boolean) {
+  settleSession(id: string, winnerId: string) {
     return request<{ session: BetSession }>(`/sessions/${id}/settle`, {
       method: "PATCH",
-      body: JSON.stringify({ winnerId, fulfilled })
+      body: JSON.stringify({ winnerId })
+    });
+  },
+  addBoost(id: string, label: string) {
+    return request<{ session: BetSession }>(`/sessions/${id}/boost`, {
+      method: "POST",
+      body: JSON.stringify({ label })
+    });
+  },
+  confirmBoost(id: string, boostId: string) {
+    return request<{ session: BetSession }>(`/sessions/${id}/boost/${boostId}/confirm`, {
+      method: "POST"
     });
   },
   listCoupons() {

@@ -10,11 +10,12 @@ import VoucherSection from "./VoucherSection.vue";
 const props = defineProps<{
   sessions: BetSession[];
   coupons: Coupon[];
+  currentUserId: string | null;
 }>();
 
 const emit = defineEmits<{
   back: [];
-  openSession: [sessionId: string];
+  openAgreement: [sessionId: string];
   openVoucher: [voucherId: string];
 }>();
 
@@ -28,7 +29,8 @@ const visibleCounts = ref<Record<VoucherStatusFilter, number>>({
 const { statusCounts, totalCount, voucherSections } = useVoucherAssets(
   () => props.sessions,
   () => props.coupons,
-  activeView
+  activeView,
+  () => props.currentUserId
 );
 
 const statusOptions = computed(() => [
@@ -40,7 +42,7 @@ const statusOptions = computed(() => [
 
 function openAgreement(voucher: VoucherItem) {
   if (voucher.sessionId) {
-    emit("openSession", voucher.sessionId);
+    emit("openAgreement", voucher.sessionId);
     return;
   }
   emit("openVoucher", voucher.id);

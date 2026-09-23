@@ -4,7 +4,7 @@
 
 ## 核心原则
 
-- 首页只保留两个主入口：立个赌约、开一局。
+- 首页只保留两个主入口：发起约定、开一局。
 - 合约、签署、结算、卡券必须可通过链接独立打开。
 - 登录只在需要保存、签署、核销、查看个人资产时触发。
 - 分享页优先服务签约和结算传播，不做复杂关系空间。
@@ -14,27 +14,27 @@
 | 路由 | 页面 | 说明 |
 | --- | --- | --- |
 | `/` | 首页 | 两个主入口和轻账户入口 |
-| `/agreements/new` | 创建合约 | 录入赌约、判定、赌注 |
+| `/agreements/new` | 创建合约 | 录入约定事项、判定规则、权益 |
 | `/agreements/:id` | 合约详情 | 合同、双方签署状态、进入进行中 |
 | `/s/:shareCode` | 分享签署 | 对方通过链接签约 |
-| `/draw` | 抽卡开局 | 无现成赌约时抽一张现实挑战 |
+| `/draw` | 抽卡开局 | 没有现成约定时抽一张现实挑战 |
 | `/sessions/:id` | 进行中 | 当前挑战、参与者、结束并判定 |
-| `/sessions/:id/settlement` | 结算书 | 胜负、赌注、履约/结案、分享 |
+| `/sessions/:id/settlement` | 结算书 | 达成方、权益发放、核销状态、分享 |
 | `/vouchers` | 我的卡券 | 全部总览、待履约、待核销、已结案三类履约凭证 |
 | `/vouchers/:id` | 卡券详情 | 关联合约、判定规则、核销记录 |
-| `/history` | 我的赌约 | 历史合约列表 |
+| `/history` | 我的约定 | 历史合约列表 |
 | `/account` | 账号与凭证 | 保存账号、登录、当前身份 |
 
 ## 页面职责
 
 | 页面 | 主要对象 | 主操作 | 进入条件 |
 | --- | --- | --- | --- |
-| 首页 | 无 | 立个赌约 / 开一局 | 默认进入 |
-| 创建合约 | BetSession 草稿 | 生成签约链接 | 不强制登录，自动临时身份 |
-| 签署页 | ShareCode + BetSession | 确认签约 | 链接进入，必要时创建临时身份 |
+| 首页 | 无 | 发起约定 / 开一局 | 默认进入；查看分享链接不强制登录 |
+| 创建合约 | BetSession 草稿 | 生成签约链接 | 创建前要求注册或登录 |
+| 签署页 | ShareCode + BetSession | 确认签约 | 查看可免登录；签署前要求注册或登录 |
 | 合约详情 | BetSession + Contract | 分享 / 开始 / 查看状态 | 创建后、签署后、历史进入 |
 | 进行中 | BetSession active | 结束并判定结果 | 双方签约后 |
-| 结算书 | Settlement | 履约核销 / 分享 | 判定胜负后 |
+| 结算书 | Settlement | 查看权益发放 / 分享 | 判定达成方后 |
 | 我的卡券 | Coupon + BetSession | 去核销 / 查看合约 | 涉及个人履约凭证，需要身份 |
 | 卡券详情 | Coupon | 核销 / 查看关联合约 | 从卡券页进入 |
 | 历史 | BetSession 列表 | 查看合约 | 需要身份 |
@@ -57,7 +57,7 @@ flowchart TD
   Home["/ 首页"] --> NewAgreement["/agreements/new 创建合约"]
   Home --> Draw["/draw 开一局"]
   Home --> Vouchers["/vouchers 我的卡券"]
-  Home --> History["/history 我的赌约"]
+  Home --> History["/history 我的约定"]
   Home --> Account["/account 账号与凭证"]
   NewAgreement --> Agreement["/agreements/:id 合约详情"]
   Agreement --> ShareSign["/s/:shareCode 分享签署"]

@@ -31,8 +31,11 @@ export function registerCouponRoutes(
     if (!coupon) {
       return context.json({ message: "Coupon not found" }, 404);
     }
-    if (coupon.holderUserId !== currentUser.id && coupon.issuerUserId !== currentUser.id) {
+    if (coupon.holderUserId !== currentUser.id) {
       return context.json({ message: "Forbidden" }, 403);
+    }
+    if (coupon.status === "used") {
+      return context.json({ message: "Coupon already used" }, 409);
     }
 
     const used = await coupons.markUsed(coupon.id);

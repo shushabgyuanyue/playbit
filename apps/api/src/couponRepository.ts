@@ -57,12 +57,16 @@ export function couponFromSettledSession(session: BetSession): Coupon | null {
     return null;
   }
 
+  const confirmedBoosts = (session.boosts ?? []).filter(
+    (boost) => boost.confirmedBy.length >= session.participants.length
+  );
+  const effectiveName = [session.stake.label, ...confirmedBoosts.map((boost) => boost.label)].join("；");
   const usedAt = session.stake.fulfilled ? session.settledAt ?? new Date().toISOString() : null;
 
   return {
     id: makeId("coupon"),
     sessionId: session.id,
-    name: session.stake.label,
+    name: effectiveName,
     description: session.title,
     issuerUserId: loser.userId,
     issuerNickname: loser.nickname,

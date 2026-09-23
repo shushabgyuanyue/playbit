@@ -1,5 +1,5 @@
 import { boolean, index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import type { Participant, Stake } from "@playbit/shared";
+import type { Boost, Participant, Stake } from "@playbit/shared";
 
 export const sessionSource = pgEnum("session_source", ["custom", "card"]);
 export const sessionStatus = pgEnum("session_status", [
@@ -18,6 +18,7 @@ export const users = pgTable("users", {
   nickname: text("nickname").notNull(),
   email: text("email").unique(),
   passwordHash: text("password_hash"),
+  signatureDataUrl: text("signature_data_url"),
   authLevel: authLevel("auth_level").default("guest").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });
@@ -44,6 +45,7 @@ export const betSessions = pgTable("bet_sessions", {
   title: text("title").notNull(),
   source: sessionSource("source").notNull(),
   participants: jsonb("participants").$type<Participant[]>().notNull(),
+  boosts: jsonb("boosts").$type<Boost[]>().default([]).notNull(),
   challenge: text("challenge").notNull(),
   judgmentRule: text("judgment_rule").notNull(),
   stake: jsonb("stake").$type<Stake>().notNull(),

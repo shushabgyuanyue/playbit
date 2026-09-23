@@ -14,6 +14,15 @@ export const userSchema = z.object({
   nickname: z.string().min(1).max(24),
   email: z.string().email().nullable(),
   authLevel: z.enum(["guest", "registered"]),
+  signatureDataUrl: z.string().max(50000).nullable().default(null),
+  createdAt: z.string()
+});
+
+export const boostSchema = z.object({
+  id: z.string(),
+  label: z.string().min(1).max(80),
+  proposerId: z.string(),
+  confirmedBy: z.array(z.string()).min(1),
   createdAt: z.string()
 });
 
@@ -75,6 +84,7 @@ export const betSessionSchema = z.object({
   status: sessionStatusSchema,
   winnerId: z.string().nullable(),
   loserId: z.string().nullable(),
+  boosts: z.array(boostSchema).default([]),
   createdAt: z.string(),
   settledAt: z.string().nullable(),
   shareCode: z.string()
@@ -96,8 +106,8 @@ export const signSessionSchema = z.object({
   signatureDataUrl: z.string().min(1).max(50000)
 });
 
-export const guestAuthSchema = z.object({
-  nickname: z.string().min(1).max(24).optional()
+export const createBoostSchema = z.object({
+  label: z.string().min(1).max(80)
 });
 
 export const registerSchema = z.object({
@@ -112,12 +122,12 @@ export const loginSchema = z.object({
 });
 
 export const settleSessionSchema = z.object({
-  winnerId: z.string().min(1),
-  fulfilled: z.boolean().default(false)
+  winnerId: z.string().min(1)
 });
 
 export type Participant = z.infer<typeof participantSchema>;
 export type User = z.infer<typeof userSchema>;
+export type Boost = z.infer<typeof boostSchema>;
 export type Stake = z.infer<typeof stakeSchema>;
 export type Coupon = z.infer<typeof couponSchema>;
 export type CardCategory = z.infer<typeof cardCategorySchema>;
@@ -126,7 +136,7 @@ export type SessionStatus = z.infer<typeof sessionStatusSchema>;
 export type BetSession = z.infer<typeof betSessionSchema>;
 export type CreateSessionInput = z.infer<typeof createSessionSchema>;
 export type SignSessionInput = z.infer<typeof signSessionSchema>;
-export type GuestAuthInput = z.infer<typeof guestAuthSchema>;
+export type CreateBoostInput = z.infer<typeof createBoostSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SettleSessionInput = z.infer<typeof settleSessionSchema>;

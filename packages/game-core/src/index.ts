@@ -1,4 +1,4 @@
-import type { BetSession, CreateSessionInput, Participant } from "@playbit/shared";
+import type { BetSession, Boost, CreateSessionInput, Participant } from "@playbit/shared";
 
 function makeId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -29,6 +29,7 @@ export function createBetSession(input: CreateSessionInput, creatorUserId: strin
     status: "pending_confirmation",
     winnerId: null,
     loserId: null,
+    boosts: [],
     createdAt: new Date().toISOString(),
     settledAt: null,
     shareCode: makeId("share")
@@ -76,8 +77,7 @@ export function signCounterparty(
 
 export function settleBetSession(
   session: BetSession,
-  winnerId: string,
-  fulfilled = false
+  winnerId: string
 ): BetSession {
   const winner = session.participants.find((participant) => participant.id === winnerId);
   const loser = session.participants.find((participant) => participant.id !== winnerId);
@@ -90,19 +90,59 @@ export function settleBetSession(
     ...session,
     winnerId,
     loserId: loser?.id ?? null,
-    status: fulfilled ? "fulfilled" : "settling",
-    stake: {
-      ...session.stake,
-      fulfilled
-    },
+    status: "settling",
     settledAt: new Date().toISOString()
   };
 }
 
-export function generateContractTitle(session: BetSession): string {
-  return `关于${session.title}之友好约定`;
+export function addBoost(session: BetSession, proposerId: string, label: string): BetSession {
+  if (session.status !== "active") {
+    throw new Error("BOOST_REQUIRES_ACTIVE_SESSION");
+  }
+  if (session.boosts.length >= 3) {
+    throw new Error("BOOST_LIMIT_REACHED");
+  }
+  if (!session.participants.some((participant) => participant.id === proposerId)) {
+    throw new Error("BOOST_PROPOSER_NOT_IN_SESSION");
+  }
+
+  const boost: Boost = {
+    id: makeId("boost"),
+    label: label.trim(),
+    proposerId,
+    confirmedBy: [proposerId],
+    createdAt: new Date().toISOString()
+  };
+
+  if (!boost.label) {
+    throw new Error("BOOST_LABEL_REQUIRED");
+  }
+
+  return {
+    ...session,
+    boosts: [...session.boosts, boost]
+  };
 }
 
-export function generateSettlementTitle(session: BetSession): string {
-  return session.stake.fulfilled ? "本案正式结案" : "本次已结案";
+export function confirmBoost(session: BetSession, boostId: string, participantId: string): BetSession {
+  if (session.status !== "active") {
+    throw new Error("BOOST_REQUIRES_ACTIVE_SESSION");
+  }
+  if (!session.participants.some((participant) => participant.id === participantId)) {
+    throw new Error("BOOST_CONFIRMER_NOT_IN_SESSION");
+  }
+
+  const boost = session.boosts.find((candidate) => candidate.id === boostId);
+  if (!boost) {
+    throw new Error("BOOST_NOT_FOUND");
+  }
+
+  return {
+    ...session,
+    boosts: session.boosts.map((candidate) =>
+      candidate.id === boostId && !candidate.confirmedBy.includes(participantId)
+        ? { ...candidate, confirmedBy: [...candidate.confirmedBy, participantId] }
+        : candidate
+    )
+  };
 }

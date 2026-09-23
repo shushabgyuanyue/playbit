@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { BetSession } from "@playbit/shared";
+import type { BetSession, User } from "@playbit/shared";
 import { FileSignature } from "lucide-vue-next";
 import ContractDocument from "./ContractDocument.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
@@ -13,6 +13,7 @@ import { ref } from "vue";
 const props = defineProps<{
   session: BetSession | null;
   loading: boolean;
+  user: User | null;
 }>();
 
 const emit = defineEmits<{
@@ -20,8 +21,8 @@ const emit = defineEmits<{
   sign: [payload: { nickname: string; signatureDataUrl: string }];
 }>();
 
-const nickname = ref("");
-const signatureDataUrl = ref("");
+const nickname = ref(props.user?.nickname ?? "");
+const signatureDataUrl = ref(props.user?.signatureDataUrl ?? "");
 </script>
 
 <template>
@@ -52,7 +53,11 @@ const signatureDataUrl = ref("");
         </ul>
       </section>
       <BaseField v-model="nickname" :label="copy.sign.nameLabel" :placeholder="copy.sign.namePlaceholder" />
-      <SignaturePad :label="copy.contract.confirmB" @change="signatureDataUrl = $event" />
+      <SignaturePad
+        :label="copy.contract.confirmB"
+        :model-value="signatureDataUrl"
+        @change="signatureDataUrl = $event"
+      />
     </div>
 
     <div v-else class="life-page-content service-flow-content">

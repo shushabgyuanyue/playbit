@@ -30,7 +30,7 @@ function drawValue(value?: string) {
 
   const image = new Image();
   image.onload = () => {
-    context?.clearRect(0, 0, canvas.width, canvas.height);
+    context?.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
     context?.drawImage(image, 0, 0, canvas.clientWidth, canvas.clientHeight);
     hasInk.value = true;
   };
@@ -45,18 +45,19 @@ function setupCanvas() {
 
   const rect = canvas.getBoundingClientRect();
   const scale = window.devicePixelRatio || 1;
+  const previousValue = hasInk.value ? canvas.toDataURL("image/png") : props.modelValue;
   canvas.width = Math.max(1, Math.floor(rect.width * scale));
   canvas.height = Math.max(1, Math.floor(rect.height * scale));
   context = canvas.getContext("2d");
   if (!context) {
     return;
   }
-  context.scale(scale, scale);
+  context.setTransform(scale, 0, 0, scale, 0, 0);
   context.lineCap = "round";
   context.lineJoin = "round";
   context.lineWidth = 2.4;
   context.strokeStyle = "#1f2329";
-  drawValue(props.modelValue);
+  drawValue(previousValue);
 }
 
 function point(event: PointerEvent) {
@@ -95,7 +96,6 @@ function move(event: PointerEvent) {
   context.lineTo(nextPoint.x, nextPoint.y);
   context.stroke();
   hasInk.value = true;
-  emitSignature();
 }
 
 function end(event: PointerEvent) {
@@ -122,6 +122,9 @@ onMounted(() => {
 watch(
   () => props.modelValue,
   async (value) => {
+    if (drawing.value) {
+      return;
+    }
     await nextTick();
     drawValue(value);
   }

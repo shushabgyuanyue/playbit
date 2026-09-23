@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { Card, CreateSessionInput, Stake } from "@playbit/shared";
+import type { Card, CreateSessionInput, Stake, User } from "@playbit/shared";
 import { Check, RefreshCcw } from "lucide-vue-next";
 import { reactive } from "vue";
 import BaseBadge from "./ui/BaseBadge.vue";
@@ -9,16 +9,18 @@ import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import StakePicker from "./StakePicker.vue";
 import SignaturePad from "./ui/SignaturePad.vue";
+import { ref, watch } from "vue";
 
 const props = defineProps<{
   card: Card | null;
   loading: boolean;
+  user: User | null;
 }>();
 
 const emit = defineEmits<{
   back: [];
   draw: [];
-  accept: [payload: CreateSessionInput];
+  createAgreement: [payload: CreateSessionInput];
 }>();
 
 const form = reactive({
@@ -27,15 +29,25 @@ const form = reactive({
     label: copy.stakes.presets[1]?.label ?? copy.stakes.presets[0].label,
     fulfilled: false
   } as Stake,
-  creatorSignatureDataUrl: ""
+  creatorSignatureDataUrl: props.user?.signatureDataUrl ?? ""
 });
+const accepted = ref(Boolean(props.card));
+const agreementOpen = ref(false);
 
-function accept() {
+watch(
+  () => props.card?.id,
+  (cardId) => {
+    accepted.value = Boolean(cardId);
+    agreementOpen.value = false;
+  }
+);
+
+function createAgreement() {
   if (!props.card) {
     return;
   }
 
-  emit("accept", {
+  emit("createAgreement", {
     source: "card",
     creatorNickname: copy.common.initiator,
     creatorSignatureDataUrl: form.creatorSignatureDataUrl,
@@ -79,21 +91,52 @@ function accept() {
         </template>
       </section>
 
-      <StakePicker @change="form.stake = $event" />
-      <SignaturePad
-        :label="copy.create.signature"
-        :model-value="form.creatorSignatureDataUrl"
-        @change="form.creatorSignatureDataUrl = $event"
-      />
+      <section v-if="accepted" class="life-panel challenge-accepted-panel">
+        <BaseBadge tone="success">{{ copy.draw.accepted }}</BaseBadge>
+        <h2 class="life-section-title">{{ copy.draw.accepted }}</h2>
+        <p class="life-section-caption">{{ copy.draw.acceptedHint }}</p>
+      </section>
+
+      <section v-if="agreementOpen" class="draw-agreement-upgrade">
+        <section class="life-panel">
+          <h2 class="life-section-title">{{ copy.draw.addAgreement }}</h2>
+          <p class="life-section-caption">{{ copy.draw.agreementHint }}</p>
+        </section>
+        <StakePicker @change="form.stake = $event" />
+        <SignaturePad
+          :label="copy.create.signature"
+          :model-value="form.creatorSignatureDataUrl"
+          @change="form.creatorSignatureDataUrl = $event"
+        />
+      </section>
     </div>
 
     <LifeActionBar>
       <div class="life-inline-actions">
-        <BaseButton variant="outline" size="lg" :disabled="props.loading" @click="emit('draw')">
+        <BaseButton
+          variant="outline"
+          size="lg"
+          :disabled="props.loading || !props.card"
+          @click="emit('draw')"
+        >
           <RefreshCcw :size="18" />
           {{ copy.draw.reroll }}
         </BaseButton>
-        <BaseButton size="lg" :disabled="!props.card || !form.creatorSignatureDataUrl" @click="accept">
+        <BaseButton
+          v-if="accepted && !agreementOpen"
+          size="lg"
+          variant="secondary"
+          @click="agreementOpen = true"
+        >
+          <Check :size="18" />
+          {{ copy.draw.addAgreement }}
+        </BaseButton>
+        <BaseButton
+          v-else-if="accepted && agreementOpen"
+          size="lg"
+          :disabled="!props.card || !form.creatorSignatureDataUrl"
+          @click="createAgreement"
+        >
           <Check :size="18" />
           {{ copy.draw.createSession }}
         </BaseButton>

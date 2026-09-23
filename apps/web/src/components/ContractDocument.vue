@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import { generateContractTitle } from "@playbit/game-core";
 import type { BetSession } from "@playbit/shared";
 import { computed } from "vue";
 import {
@@ -52,7 +51,9 @@ const articles = computed(() => [
       <BaseBadge :tone="statusTone">{{ getSessionStatusLabel(props.session.status) }}</BaseBadge>
     </div>
 
-    <h2 class="contract-document-title">{{ generateContractTitle(props.session) }}</h2>
+    <h2 class="contract-document-title">
+      {{ copy.contract.titlePrefix }}{{ props.session.title }}{{ copy.contract.titleSuffix }}
+    </h2>
 
     <div class="contract-party-grid">
       <span>{{ copy.contract.partyA }}：{{ initiator }}</span>
