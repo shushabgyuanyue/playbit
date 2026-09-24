@@ -54,18 +54,36 @@ export const couponSchema = z.object({
 });
 
 export const cardCategorySchema = z.enum(["challenge", "rule", "hidden", "magic"]);
+export const playTimeSchema = z.enum(["instant", "standard", "extended"]);
+export const cardIntensitySchema = z.enum(["low", "medium"]);
+export const relationTagSchema = z.enum([
+  "couple",
+  "friends",
+  "family",
+  "colleagues",
+  "new_friends",
+  "solo"
+]);
 
 export const cardSchema = z.object({
   id: z.string(),
   name: z.string(),
   category: cardCategorySchema,
+  motifId: z.string(),
+  motifName: z.string(),
   sceneTags: z.array(z.string()),
+  relationTags: z.array(relationTagSchema),
   participantMin: z.number().int().positive(),
   participantMax: z.number().int().positive(),
   durationMinutes: z.number().int().positive().nullable(),
+  playTime: playTimeSchema,
+  intensity: cardIntensitySchema,
+  setupSeconds: z.number().int().nonnegative(),
   content: z.string(),
   winCondition: z.string(),
   mechanism: z.string(),
+  lifeHook: z.string(),
+  aiRewriteHint: z.string(),
   enabled: z.boolean()
 });
 
@@ -147,6 +165,9 @@ export type StakeAddition = z.infer<typeof stakeAdditionSchema>;
 export type Stake = z.infer<typeof stakeSchema>;
 export type Coupon = z.infer<typeof couponSchema>;
 export type CardCategory = z.infer<typeof cardCategorySchema>;
+export type PlayTime = z.infer<typeof playTimeSchema>;
+export type CardIntensity = z.infer<typeof cardIntensitySchema>;
+export type RelationTag = z.infer<typeof relationTagSchema>;
 export type Card = z.infer<typeof cardSchema>;
 export type SessionStatus = z.infer<typeof sessionStatusSchema>;
 export type BetSession = z.infer<typeof betSessionSchema>;

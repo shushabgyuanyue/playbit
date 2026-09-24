@@ -5,9 +5,10 @@ import { BadgePlus, Trophy } from "lucide-vue-next";
 import AgreementProgress from "./AgreementProgress.vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseBadge from "./ui/BaseBadge.vue";
-import BaseField from "./ui/BaseField.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
+import StakePicker from "./StakePicker.vue";
+import type { Stake } from "@playbit/shared";
 import { getEffectiveStakeLabel } from "../utils/sessionDisplay";
 import { computed, ref } from "vue";
 
@@ -24,7 +25,12 @@ const emit = defineEmits<{
 }>();
 
 const boostOpen = ref(false);
-const boostDraft = ref("");
+const boostStake = ref<Stake>({
+  type: "custom",
+  label: "",
+  fulfilled: false,
+  additions: []
+});
 const currentParticipantId = computed(
   () => props.session.participants.find((participant) => participant.userId === props.currentUserId)?.id ?? null
 );
@@ -43,12 +49,12 @@ const confirmedBoosts = computed(() =>
 );
 
 function submitBoost() {
-  const label = boostDraft.value.trim();
+  const label = boostStake.value.label.trim();
   if (!label) {
     return;
   }
   emit("addBoost", label);
-  boostDraft.value = "";
+  boostStake.value = { type: "custom", label: "", fulfilled: false, additions: [] };
   boostOpen.value = false;
 }
 </script>
@@ -96,8 +102,8 @@ function submitBoost() {
           </button>
         </div>
         <div v-if="boostOpen" class="session-boost-editor">
-          <BaseField v-model="boostDraft" :placeholder="copy.session.boostPlaceholder" :label="copy.session.boost" />
-          <BaseButton size="md" :disabled="!boostDraft.trim()" @click="submitBoost">
+          <StakePicker :title="copy.session.boost" compact @change="boostStake = $event" />
+          <BaseButton size="md" :disabled="!boostStake.label.trim()" @click="submitBoost">
             {{ copy.session.boostSubmit }}
           </BaseButton>
         </div>

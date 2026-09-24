@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { BetSession } from "@playbit/shared";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import {
   getParticipantName,
   getEffectiveStakeLabel,
@@ -34,6 +34,7 @@ const counterparty = computed(() =>
   getParticipantName(props.session, "counterparty", copy.contract.fallbackCounterparty)
 );
 const signed = computed(() => isCounterpartySigned(props.session));
+const stamping = ref(false);
 const statusTone = computed(() => getSessionStatusTone(props.session.status));
 const statusLabel = computed(() => getSessionStatusLabel(props.session.status));
 const effectiveStakeLabel = computed(() => getEffectiveStakeLabel(props.session));
@@ -44,6 +45,15 @@ const agreementDate = computed(() => {
   }
   return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
 });
+
+watch(signed, (value, previous) => {
+  if (value && !previous) {
+    stamping.value = false;
+    requestAnimationFrame(() => {
+      stamping.value = true;
+    });
+  }
+}, { immediate: true });
 </script>
 
 <template>
@@ -168,7 +178,7 @@ const agreementDate = computed(() => {
       </section>
     </div>
 
-    <div v-if="showSeal" class="contract-seal" :class="{ pending: !signed }">
+    <div v-if="showSeal" class="contract-seal" :class="{ pending: !signed, 'is-stamping': stamping }">
       {{ signed ? copy.contract.seal : copy.contract.pendingSeal }}
     </div>
   </article>

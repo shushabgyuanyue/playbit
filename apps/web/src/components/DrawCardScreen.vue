@@ -117,7 +117,8 @@ function createAgreement() {
         <BaseButton
           variant="outline"
           size="lg"
-          :disabled="props.loading || !props.card"
+          :loading="props.loading"
+          :disabled="!props.card"
           @click="emit('draw')"
         >
           <RefreshCcw :size="18" />

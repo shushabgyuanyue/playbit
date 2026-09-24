@@ -308,6 +308,31 @@
   color: var(--pb-theme-archive);
 }
 
+.contract-seal.is-stamping {
+  animation: contract-stamp-in 0.42s cubic-bezier(0.2, 0.85, 0.25, 1.2);
+}
+
+@keyframes contract-stamp-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.45) rotate(-13deg);
+  }
+  68% {
+    opacity: 1;
+    transform: scale(0.96) rotate(-7deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-9deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contract-seal.is-stamping {
+    animation: none;
+  }
+}
+
 .challenge-document {
   display: grid;
   gap: 10px;

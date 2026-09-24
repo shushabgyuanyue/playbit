@@ -1,6 +1,6 @@
 import type { AuthRepository } from "../authRepository.js";
 import type { CouponRepository } from "../couponRepository.js";
-import { isParticipant, participantIds, requireCurrentUser } from "../http/auth.js";
+import { canViewSession, isParticipant, participantIds, requireCurrentUser, requireSessionParticipant } from "../http/auth.js";
 import { SessionRevisionConflict, type SessionRepository } from "../sessionRepository.js";
 import type { SessionRealtimeHub } from "../sessionRealtime.js";
 import {
@@ -71,8 +71,9 @@ export function registerSessionRoutes(
     if (!session) {
       return context.json({ message: "Session not found" }, 404);
     }
-    if (!isParticipant(session, currentUser.id)) {
-      return context.json({ message: "Forbidden" }, 403);
+    const accessError = requireSessionParticipant(context, session, currentUser);
+    if (accessError) {
+      return accessError;
     }
 
     return context.json({ session });
@@ -89,8 +90,9 @@ export function registerSessionRoutes(
     if (!session) {
       return context.json({ message: "Session not found" }, 404);
     }
-    if (!isParticipant(session, currentUser.id)) {
-      return context.json({ message: "Forbidden" }, 403);
+    const accessError = requireSessionParticipant(context, session, currentUser);
+    if (accessError) {
+      return accessError;
     }
 
     return context.json({ session });
@@ -107,8 +109,9 @@ export function registerSessionRoutes(
     if (!session) {
       return context.json({ message: "Session not found" }, 404);
     }
-    if (!isParticipant(session, currentUser.id)) {
-      return context.json({ message: "Forbidden" }, 403);
+    const accessError = requireSessionParticipant(context, session, currentUser);
+    if (accessError) {
+      return accessError;
     }
 
     const encoder = new TextEncoder();
@@ -173,6 +176,11 @@ export function registerSessionRoutes(
     if (!session) {
       return context.json({ message: "Share page not found" }, 404);
     }
+    const token = context.req.header("Authorization")?.replace(/^Bearer /, "");
+    const currentUser = token ? await auth.findUserByToken(token) : null;
+    if (!canViewSession(session, currentUser?.id ?? null)) {
+      return context.json({ message: "Forbidden" }, 403);
+    }
     return context.json({ session });
   });
 
@@ -228,8 +236,9 @@ export function registerSessionRoutes(
     if (!session) {
       return context.json({ message: "Session not found" }, 404);
     }
-    if (!isParticipant(session, currentUser.id)) {
-      return context.json({ message: "Forbidden" }, 403);
+    const accessError = requireSessionParticipant(context, session, currentUser);
+    if (accessError) {
+      return accessError;
     }
     if (session.status !== "active") {
       return context.json({ message: "Only active agreements can be settled" }, 409);
@@ -265,8 +274,9 @@ export function registerSessionRoutes(
     if (!session) {
       return context.json({ message: "Session not found" }, 404);
     }
-    if (!isParticipant(session, currentUser.id)) {
-      return context.json({ message: "Forbidden" }, 403);
+    const accessError = requireSessionParticipant(context, session, currentUser);
+    if (accessError) {
+      return accessError;
     }
     const participant = session.participants.find((candidate) => candidate.userId === currentUser.id);
     if (!participant) {

@@ -1,5 +1,5 @@
 import type { AuthRepository } from "../authRepository.js";
-import type { User } from "@playbit/shared";
+import type { BetSession, User } from "@playbit/shared";
 import type { Context } from "hono";
 
 export async function getCurrentUser(context: Context, auth: AuthRepository): Promise<User | null> {
@@ -28,4 +28,19 @@ export function isParticipant(
 
 export function participantIds(session: { participants: Array<{ id: string }> }): string[] {
   return session.participants.map((participant) => participant.id);
+}
+
+export function canViewSession(session: BetSession, userId: string | null): boolean {
+  if (session.status === "pending_confirmation") {
+    return true;
+  }
+  return userId !== null && isParticipant(session, userId);
+}
+
+export function requireSessionParticipant(
+  context: Context,
+  session: BetSession,
+  user: User
+): Response | null {
+  return isParticipant(session, user.id) ? null : context.json({ message: "Forbidden" }, 403);
 }

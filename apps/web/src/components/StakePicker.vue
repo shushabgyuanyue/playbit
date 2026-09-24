@@ -21,9 +21,14 @@ const emit = defineEmits<{
 
 const props = defineProps<{
   modelValue?: Stake;
+  title?: string;
+  compact?: boolean;
 }>();
 
-const presets = copy.stakes.presets as readonly StakePreset[];
+const presets = [
+  ...(copy.stakes.presets as readonly StakePreset[]).filter((preset) => preset.type === "custom"),
+  ...(copy.stakes.presets as readonly StakePreset[]).filter((preset) => preset.type !== "custom")
+];
 const customPreset = presets.find((preset) => preset.type === "custom") ?? presets[presets.length - 1];
 const initialPreset = props.modelValue
   ? presets.find((item) => item.label === props.modelValue?.label && item.type === props.modelValue.type)
@@ -77,7 +82,7 @@ function kindForPreset(preset: StakePreset) {
 <template>
   <section class="stake-picker">
     <div class="stake-picker-heading">
-      <h3 class="life-section-title">{{ copy.stakes.selected }}</h3>
+      <h3 class="life-section-title">{{ props.title ?? copy.stakes.selected }}</h3>
       <button type="button" class="stake-change-button" @click="pickerOpen = true">
         {{ copy.common.change }}
         <ChevronRight :size="14" />

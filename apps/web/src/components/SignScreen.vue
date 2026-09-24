@@ -90,11 +90,12 @@ watch(
       </BaseButton>
       <BaseButton
         size="lg"
-        :disabled="!nickname.trim() || !signatureDataUrl || props.loading"
+        :loading="props.loading"
+        :disabled="!nickname.trim() || !signatureDataUrl"
         @click="emit('sign', { nickname: nickname.trim(), signatureDataUrl })"
       >
         <FileSignature :size="18" />
-        {{ props.loading ? copy.common.loading : copy.sign.action }}
+        {{ copy.sign.action }}
       </BaseButton>
     </LifeActionBar>
   </section>
