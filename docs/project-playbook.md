@@ -103,24 +103,25 @@ one record. Its display value is the base equity plus confirmed amendments.
 
 ## Collaboration Loop
 
-For any non-trivial change:
+Keep collaboration lightweight. Do not create a form, checklist, or approval
+step for every small change. For a meaningful change, use four short moves:
 
-1. Read the repository patterns, routes, domain types, copy, and current git
-   state.
-2. Search for an existing component or mature external pattern before building.
-3. Write the smallest domain state and permission matrix needed for the change.
-4. Define observable acceptance checks before editing.
-5. Implement the new path and remove obsolete paths in the same change.
-6. Run type checks, focused tests, production build, and a mobile browser smoke
-   check for user-facing work.
-7. Review copy, responsive layout, loading/error states, route return behavior,
-   and old terminology.
-8. Convert repeated decisions into tokens, shared components, tests, or this
-   playbook.
+1. State the goal and the observable result in one or two sentences.
+2. Read the current code and reuse a local or mature pattern before deciding.
+3. Implement autonomously, including edge cases, copy, loading, permissions,
+   responsive behavior, and removal of obsolete paths.
+4. Verify the affected user path, run the appropriate checks, and record only
+   decisions that will matter again.
 
-The user should provide product direction and constraints; implementation
-details, mature patterns, edge cases, and verification belong to the coding
-agent unless a product decision is genuinely ambiguous.
+The user owns product direction, taste, scope, and irreversible tradeoffs. The
+coding agent owns decomposition, implementation details, mature solution
+selection, edge cases, and verification. Ask only when a choice would change
+the product or create a meaningful long-term cost.
+
+For larger work, keep one primary objective and at most a few directly related
+fixes. Do not turn unrelated polish into hidden scope. The final update should
+briefly say what changed, what was verified, and what remains known; it does
+not need a formal report.
 
 ## Definition Of Done
 
