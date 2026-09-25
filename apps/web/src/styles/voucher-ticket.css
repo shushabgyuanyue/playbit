@@ -175,7 +175,7 @@
   min-width: 64px;
   min-height: 30px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--pb-radius-sm);
   background: var(--pb-theme-redeem);
   color: #ffffff;
   padding: 0 13px;

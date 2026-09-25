@@ -1,0 +1,1 @@
+ALTER TABLE "agreements" RENAME COLUMN "settled_at" TO "result_recorded_at";

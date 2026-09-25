@@ -21,7 +21,6 @@ const emit = defineEmits<{
   <section class="life-page service-flow-page">
     <LifeServiceHero
       class="service-flow-hero"
-      :eyebrow="copy.home.heroSubtitle"
       :title="copy.auth.account"
       :show-back="true"
       :back-label="copy.common.back"

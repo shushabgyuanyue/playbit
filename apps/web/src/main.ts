@@ -7,6 +7,7 @@ import "./styles/life-service.css";
 import "./styles/life-navigation.css";
 import "./styles/life-controls.css";
 import "./styles/home.css";
+import "./styles/notices.css";
 import "./styles/agreements.css";
 import "./styles/history.css";
 import "./styles/vouchers.css";

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { BetSession } from "@playbit/shared";
+import type { Agreement } from "@playbit/shared";
 import { BadgePlus, Trophy } from "lucide-vue-next";
 import AgreementProgress from "./AgreementProgress.vue";
 import BaseButton from "./ui/BaseButton.vue";
@@ -13,7 +13,7 @@ import { getEffectiveStakeLabel } from "../utils/sessionDisplay";
 import { computed, ref } from "vue";
 
 const props = defineProps<{
-  session: BetSession;
+  agreement: Agreement;
   currentUserId: string | null;
 }>();
 
@@ -32,20 +32,20 @@ const boostStake = ref<Stake>({
   additions: []
 });
 const currentParticipantId = computed(
-  () => props.session.participants.find((participant) => participant.userId === props.currentUserId)?.id ?? null
+  () => props.agreement.participants.find((participant) => participant.userId === props.currentUserId)?.id ?? null
 );
-const canAddBoost = computed(() => props.session.boosts.length < 3);
+const canAddBoost = computed(() => props.agreement.boosts.length < 3);
 const pendingBoosts = computed(() =>
-  props.session.boosts.filter(
+  props.agreement.boosts.filter(
     (boost) =>
       currentParticipantId.value &&
       !boost.confirmedBy.includes(currentParticipantId.value) &&
-      boost.confirmedBy.length < props.session.participants.length
+      boost.confirmedBy.length < props.agreement.participants.length
   )
 );
-const effectiveStake = computed(() => getEffectiveStakeLabel(props.session));
+const effectiveStake = computed(() => getEffectiveStakeLabel(props.agreement));
 const confirmedBoosts = computed(() =>
-  props.session.boosts.filter((boost) => boost.confirmedBy.length === props.session.participants.length)
+  props.agreement.boosts.filter((boost) => boost.confirmedBy.length === props.agreement.participants.length)
 );
 
 function submitBoost() {
@@ -63,7 +63,6 @@ function submitBoost() {
   <section class="life-page service-flow-page">
     <LifeServiceHero
       class="service-flow-hero"
-      :eyebrow="copy.home.docketLabel"
       :title="copy.session.navTitle"
       :show-back="true"
       :back-label="copy.common.back"
@@ -71,21 +70,18 @@ function submitBoost() {
     />
 
     <div class="life-page-content service-flow-content">
-      <AgreementProgress :session="props.session" />
+      <AgreementProgress :agreement="props.agreement" />
       <section class="challenge-document">
         <BaseBadge tone="success">{{ copy.session.active }}</BaseBadge>
-        <h2 class="challenge-title">{{ props.session.title }}</h2>
-        <p class="challenge-content">{{ props.session.challenge }}</p>
+        <h2 class="challenge-title">{{ props.agreement.title }}</h2>
+        <p class="challenge-content">{{ props.agreement.challenge }}</p>
         <ul class="life-info-list">
-          <li>
-            <span>{{ copy.session.judgment }}</span>
-            <strong>{{ props.session.judgmentRule }}</strong>
-          </li>
           <li>
             <span>{{ copy.session.stake }}</span>
             <strong>{{ effectiveStake }}</strong>
           </li>
         </ul>
+        <p class="life-section-caption">{{ copy.session.resultDisclaimer }}</p>
       </section>
 
       <section class="life-panel">
@@ -98,7 +94,7 @@ function submitBoost() {
             @click="boostOpen = !boostOpen"
           >
             <strong><BadgePlus :size="16" />{{ copy.session.boost }}</strong>
-            <span>{{ props.session.boosts.length }}/3 · {{ canAddBoost ? copy.session.boostHint : copy.session.boostLimit }}</span>
+            <span>{{ props.agreement.boosts.length }}/3 · {{ canAddBoost ? copy.session.boostHint : copy.session.boostLimit }}</span>
           </button>
         </div>
         <div v-if="boostOpen" class="session-boost-editor">
@@ -115,8 +111,8 @@ function submitBoost() {
             </BaseButton>
           </article>
         </div>
-        <ul v-if="props.session.stake.additions?.length || pendingBoosts.length" class="life-info-list">
-          <li v-for="addition in props.session.stake.additions" :key="addition.boostId">
+        <ul v-if="props.agreement.stake.additions?.length || pendingBoosts.length" class="life-info-list">
+          <li v-for="addition in props.agreement.stake.additions" :key="addition.boostId">
             <span>{{ copy.session.boostConfirmed }}</span>
             <strong>{{ addition.label }}</strong>
           </li>
@@ -133,7 +129,7 @@ function submitBoost() {
 
     <LifeActionBar>
       <BaseButton
-        v-for="participant in props.session.participants"
+        v-for="participant in props.agreement.participants"
         :key="participant.id"
         size="lg"
         @click="emit('settle', participant.id)"

@@ -1,12 +1,15 @@
 import type {
-  BetSession,
+  Agreement,
   Card,
   Coupon,
-  CreateSessionInput,
+  CreateAgreementInput,
   LoginInput,
   RegisterInput,
-  SessionRealtimeEvent,
-  SignSessionInput,
+  AgreementRealtimeEvent,
+  SignAgreementInput,
+  Flip,
+  GraceTicket,
+  GraceWaiver,
   User
 } from "@playbit/shared";
 
@@ -104,24 +107,24 @@ export const api = {
       body: JSON.stringify({ previousIds })
     });
   },
-  createSession(payload: CreateSessionInput) {
-    return request<{ session: BetSession }>("/sessions", {
+  createAgreement(payload: CreateAgreementInput) {
+    return request<{ agreement: Agreement }>("/agreements", {
       method: "POST",
       body: JSON.stringify(payload)
     });
   },
-  listSessions() {
-    return request<{ sessions: BetSession[] }>("/sessions");
+  listAgreements() {
+    return request<{ agreements: Agreement[] }>("/agreements");
   },
-  getSession(id: string) {
-    return request<{ session: BetSession }>(`/sessions/${id}`);
+  getAgreement(id: string) {
+    return request<{ agreement: Agreement }>(`/agreements/${id}`);
   },
-  syncSession(id: string) {
-    return request<{ session: BetSession }>(`/sessions/${id}/sync`);
+  syncAgreement(id: string) {
+    return request<{ agreement: Agreement }>(`/agreements/${id}/sync`);
   },
-  subscribeSessionEvents(
+  subscribeAgreementEvents(
     id: string,
-    onEvent: (event: SessionRealtimeEvent) => void,
+    onEvent: (event: AgreementRealtimeEvent) => void,
     onError?: () => void
   ) {
     const token = getAuthToken();
@@ -130,46 +133,46 @@ export const api = {
     }
 
     const source = new EventSource(
-      `${apiBaseUrl}/sessions/${id}/events?token=${encodeURIComponent(token)}`
+      `${apiBaseUrl}/agreements/${id}/events?token=${encodeURIComponent(token)}`
     );
     const handleEvent = (event: Event) => {
       const message = event as MessageEvent<string>;
-      onEvent(JSON.parse(message.data) as SessionRealtimeEvent);
+      onEvent(JSON.parse(message.data) as AgreementRealtimeEvent);
     };
-    source.addEventListener("session.updated", handleEvent);
+    source.addEventListener("agreement.updated", handleEvent);
     source.onerror = () => {
       onError?.();
     };
 
     return () => {
-      source.removeEventListener("session.updated", handleEvent);
+      source.removeEventListener("agreement.updated", handleEvent);
       source.onerror = null;
       source.close();
     };
   },
   getShare(shareCode: string) {
-    return request<{ session: BetSession }>(`/share/${shareCode}`);
+    return request<{ agreement: Agreement }>(`/share/${shareCode}`);
   },
-  signShare(shareCode: string, payload: SignSessionInput) {
-    return request<{ session: BetSession }>(`/share/${shareCode}/sign`, {
+  signShare(shareCode: string, payload: SignAgreementInput) {
+    return request<{ agreement: Agreement }>(`/share/${shareCode}/sign`, {
       method: "POST",
       body: JSON.stringify(payload)
     });
   },
-  settleSession(id: string, winnerId: string) {
-    return request<{ session: BetSession }>(`/sessions/${id}/settle`, {
+  recordAgreementResult(id: string, winnerId: string) {
+    return request<{ agreement: Agreement }>(`/agreements/${id}/result`, {
       method: "PATCH",
       body: JSON.stringify({ winnerId })
     });
   },
   addBoost(id: string, label: string) {
-    return request<{ session: BetSession }>(`/sessions/${id}/boost`, {
+    return request<{ agreement: Agreement }>(`/agreements/${id}/boost`, {
       method: "POST",
       body: JSON.stringify({ label })
     });
   },
   confirmBoost(id: string, boostId: string) {
-    return request<{ session: BetSession }>(`/sessions/${id}/boost/${boostId}/confirm`, {
+    return request<{ agreement: Agreement }>(`/agreements/${id}/boost/${boostId}/confirm`, {
       method: "POST"
     });
   },
@@ -179,6 +182,50 @@ export const api = {
   useCoupon(id: string) {
     return request<{ coupon: Coupon }>(`/coupons/${id}/use`, {
       method: "PATCH"
+    });
+  },
+  listGrace() {
+    return request<{ tickets: GraceTicket[]; waivers: GraceWaiver[] }>("/grace");
+  },
+  fulfillAgreement(id: string) {
+    return request<{ agreement: Agreement; graceTickets: GraceTicket[] }>(`/agreements/${id}/fulfill`, {
+      method: "POST"
+    });
+  },
+  requestWaiver(ticketId: string, couponId: string) {
+    return request<{ waiver: GraceWaiver }>(`/grace/${ticketId}/waivers`, {
+      method: "POST",
+      body: JSON.stringify({ couponId })
+    });
+  },
+  respondWaiver(id: string, accept: boolean) {
+    return request<{ waiver: GraceWaiver; agreement: Agreement | null }>(`/grace/waivers/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ accept })
+    });
+  },
+  listFlips(agreementId: string) {
+    return request<{ flips: Flip[] }>(`/agreements/${agreementId}/flips`);
+  },
+  getFlip(id: string) {
+    return request<{ flip: Flip }>(`/flips/${id}`);
+  },
+  createFlip(agreementId: string, couponId: string) {
+    return request<{ flip: Flip }>(`/agreements/${agreementId}/flips`, {
+      method: "POST",
+      body: JSON.stringify({ couponId })
+    });
+  },
+  respondFlip(id: string, accept: boolean) {
+    return request<{ flip: Flip }>(`/flips/${id}/response`, {
+      method: "PATCH",
+      body: JSON.stringify({ accept })
+    });
+  },
+  recordFlipResult(id: string, winnerUserId: string) {
+    return request<{ flip: Flip; agreement: Agreement | null; coupon: Coupon | null; issuedCoupon: Coupon | null }>(`/flips/${id}/result`, {
+      method: "PATCH",
+      body: JSON.stringify({ winnerUserId })
     });
   }
 };

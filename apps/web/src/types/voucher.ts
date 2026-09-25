@@ -6,7 +6,8 @@ export type VoucherKind = "housework" | "treat" | "decision" | "service" | "cust
 export type VoucherItem = {
   id: string;
   couponId: string | null;
-  sessionId: string | null;
+  sourceFlipId: string | null;
+  agreementId: string | null;
   benefitTitle: string;
   benefitSubtitle: string;
   agreementTitle: string;
@@ -16,6 +17,7 @@ export type VoucherItem = {
   holderName: string;
   timeText: string;
   status: VoucherUiStatus;
+  sourceStatus: "available" | "reserved" | "used" | "waived" | null;
   kind: VoucherKind;
   canRedeem: boolean;
   role: "holder" | "issuer";

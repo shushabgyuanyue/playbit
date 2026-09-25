@@ -17,7 +17,7 @@
   justify-content: center;
   gap: 2px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--pb-radius-sm);
   background: var(--pb-blue-soft);
   color: var(--pb-theme-contract);
   padding: 0 10px;
@@ -35,7 +35,7 @@
 .stake-ticket-action {
   justify-self: end;
   min-width: 54px;
-  border-radius: 999px;
+  border-radius: var(--pb-radius-sm);
   background: #ffffff;
   color: var(--pb-theme-contract);
   padding: 7px 10px;
@@ -83,7 +83,7 @@
 .stake-sheet-check {
   justify-self: end;
   min-width: 48px;
-  border-radius: 999px;
+  border-radius: var(--pb-radius-sm);
   background: rgba(255, 255, 255, 0.84);
   color: var(--pb-theme-contract);
   padding: 7px 8px;
@@ -95,5 +95,5 @@
 
 .stake-sheet-option.voucher-ticket.active {
   border-color: rgba(22, 119, 255, 0.42);
-  box-shadow: 0 6px 18px rgba(22, 119, 255, 0.1);
+  box-shadow: 0 0 0 1px rgba(22, 119, 255, 0.12);
 }

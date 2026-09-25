@@ -1,41 +1,41 @@
 import { copy } from "@playbit/content";
-import type { BetSession, Participant, SessionStatus } from "@playbit/shared";
+import type { Agreement, Participant, AgreementStatus } from "@playbit/shared";
 
-export function getParticipantName(session: BetSession, role: Participant["role"], fallback: string) {
-  return session.participants.find((participant) => participant.role === role)?.nickname ?? fallback;
+export function getParticipantName(agreement: Agreement, role: Participant["role"], fallback: string) {
+  return agreement.participants.find((participant) => participant.role === role)?.nickname ?? fallback;
 }
 
-export function getWinnerName(session: BetSession, fallback = copy.common.pending) {
-  return session.participants.find((participant) => participant.id === session.winnerId)?.nickname ?? fallback;
+export function getWinnerName(agreement: Agreement, fallback = copy.common.pending) {
+  return agreement.participants.find((participant) => participant.id === agreement.winnerId)?.nickname ?? fallback;
 }
 
-export function getLoserName(session: BetSession, fallback = copy.common.pending) {
-  return session.participants.find((participant) => participant.id === session.loserId)?.nickname ?? fallback;
+export function getLoserName(agreement: Agreement, fallback = copy.common.pending) {
+  return agreement.participants.find((participant) => participant.id === agreement.loserId)?.nickname ?? fallback;
 }
 
-export function getCounterpartyName(session: BetSession, fallback = copy.contract.fallbackCounterparty) {
-  return getParticipantName(session, "counterparty", fallback);
+export function getCounterpartyName(agreement: Agreement, fallback = copy.contract.fallbackCounterparty) {
+  return getParticipantName(agreement, "counterparty", fallback);
 }
 
-export function getEffectiveStakeLabel(session: Pick<BetSession, "stake">) {
-  return [session.stake.label, ...(session.stake.additions ?? []).map((addition) => addition.label)]
+export function getEffectiveStakeLabel(agreement: Pick<Agreement, "stake">) {
+  return [agreement.stake.label, ...(agreement.stake.additions ?? []).map((addition) => addition.label)]
     .filter(Boolean)
     .join("；");
 }
 
-export function isCounterpartySigned(session: BetSession) {
-  return session.participants.some((participant) => participant.role === "counterparty" && participant.confirmed);
+export function isCounterpartySigned(agreement: Agreement) {
+  return agreement.participants.some((participant) => participant.role === "counterparty" && participant.confirmed);
 }
 
-export function getSessionStatusLabel(status: SessionStatus) {
+export function getAgreementStatusLabel(status: AgreementStatus) {
   return copy.session.statuses[status];
 }
 
-export function getSessionStatusTone(status: SessionStatus) {
-  if (status === "fulfilled" || status === "finished") {
+export function getAgreementStatusTone(status: AgreementStatus) {
+  if (status === "fulfilled") {
     return "archive";
   }
-  if (status === "settling") {
+  if (status === "result_recorded") {
     return "pending";
   }
   if (status === "active") {

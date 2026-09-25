@@ -45,7 +45,6 @@ function fromUserRow(row: UserRow): User {
     id: row.id,
     nickname: row.nickname,
     email: row.email,
-    authLevel: row.authLevel,
     signatureDataUrl: row.signatureDataUrl,
     createdAt: row.createdAt.toISOString()
   };
@@ -66,24 +65,22 @@ class MemoryAuthRepository {
   private users = new Map<string, UserRow>();
   private sessions = new Map<string, AuthSessionRow>();
 
-  async register(input: RegisterInput, currentUserId: string | null): Promise<AuthResult> {
+  async register(input: RegisterInput): Promise<AuthResult> {
     const existing = Array.from(this.users.values()).find((user) => user.email === input.email);
-    if (existing && existing.id !== currentUserId) {
+    if (existing) {
       throw new Error("EMAIL_TAKEN");
     }
 
-    const user = currentUserId ? this.users.get(currentUserId) : null;
     const nextUser: UserRow = {
-      id: user?.id ?? makeId("user"),
+      id: makeId("user"),
       nickname: input.nickname,
       email: input.email,
       passwordHash: hashPassword(input.password),
-      signatureDataUrl: user?.signatureDataUrl ?? null,
-      authLevel: "registered",
-      createdAt: user?.createdAt ?? new Date()
+      signatureDataUrl: null,
+      createdAt: new Date()
     };
     this.users.set(nextUser.id, nextUser);
-    return this.createSessionForUser(nextUser);
+    return this.createAuthSessionForUser(nextUser);
   }
 
   async login(input: LoginInput): Promise<AuthResult | null> {
@@ -94,7 +91,7 @@ class MemoryAuthRepository {
     if (!user.passwordHash || !verifyPassword(input.password, user.passwordHash)) {
       return null;
     }
-    return this.createSessionForUser(user);
+    return this.createAuthSessionForUser(user);
   }
 
   async findUserByToken(token: string): Promise<User | null> {
@@ -113,7 +110,7 @@ class MemoryAuthRepository {
     }
   }
 
-  private async createSessionForUser(user: UserRow): Promise<AuthResult> {
+  private async createAuthSessionForUser(user: UserRow): Promise<AuthResult> {
     const token = `pb_${randomBytes(32).toString("base64url")}`;
     this.sessions.set(tokenHash(token), {
       id: makeId("sess"),
@@ -129,38 +126,25 @@ class MemoryAuthRepository {
 class PostgresAuthRepository {
   constructor(private readonly db: PostgresJsDatabase) {}
 
-  async register(input: RegisterInput, currentUserId: string | null): Promise<AuthResult> {
+  async register(input: RegisterInput): Promise<AuthResult> {
     const [existing] = await this.db.select().from(users).where(eq(users.email, input.email)).limit(1);
-    if (existing && existing.id !== currentUserId) {
+    if (existing) {
       throw new Error("EMAIL_TAKEN");
     }
 
     const passwordHash = hashPassword(input.password);
-    const [user] = currentUserId
-      ? await this.db
-          .update(users)
-          .set({
-            nickname: input.nickname,
-            email: input.email,
-            passwordHash,
-            signatureDataUrl: existing?.signatureDataUrl ?? null,
-            authLevel: "registered"
-          })
-          .where(eq(users.id, currentUserId))
-          .returning()
-      : await this.db
-          .insert(users)
-          .values({
-            id: makeId("user"),
-            nickname: input.nickname,
-            email: input.email,
-            passwordHash,
-            signatureDataUrl: null,
-            authLevel: "registered"
-          })
-          .returning();
+    const [user] = await this.db
+      .insert(users)
+      .values({
+        id: makeId("user"),
+        nickname: input.nickname,
+        email: input.email,
+        passwordHash,
+        signatureDataUrl: null
+      })
+      .returning();
 
-    return this.createSessionForUser(user);
+    return this.createAuthSessionForUser(user);
   }
 
   async login(input: LoginInput): Promise<AuthResult | null> {
@@ -171,7 +155,7 @@ class PostgresAuthRepository {
     if (!user.passwordHash || !verifyPassword(input.password, user.passwordHash)) {
       return null;
     }
-    return this.createSessionForUser(user);
+    return this.createAuthSessionForUser(user);
   }
 
   async findUserByToken(token: string): Promise<User | null> {
@@ -193,7 +177,7 @@ class PostgresAuthRepository {
     await this.db.update(users).set({ signatureDataUrl }).where(eq(users.id, userId));
   }
 
-  private async createSessionForUser(user: UserRow): Promise<AuthResult> {
+  private async createAuthSessionForUser(user: UserRow): Promise<AuthResult> {
     const token = `pb_${randomBytes(32).toString("base64url")}`;
     await this.db.insert(authSessions).values({
       id: makeId("sess"),

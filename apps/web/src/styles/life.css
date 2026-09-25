@@ -1,17 +1,40 @@
 .life-page {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - env(safe-area-inset-top, 0px));
+  min-height: calc(100dvh - env(safe-area-inset-top, 0px));
   background: var(--pb-fill-page);
   color: var(--pb-text-1);
+  animation: life-page-enter 180ms ease-out both;
 }
 
 .life-page-content {
   display: grid;
-  gap: 12px;
-  padding: 8px var(--pb-page-x) 28px;
+  flex: 1 0 auto;
+  align-content: start;
+  gap: 14px;
+  padding: 14px var(--pb-page-x) 28px;
 }
 
 .life-muted {
   color: var(--pb-text-3);
+}
+
+@keyframes life-page-enter {
+  from {
+    opacity: 0.72;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .life-page {
+    animation: none;
+  }
 }
 
 .account-identity-panel {

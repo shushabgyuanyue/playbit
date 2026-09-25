@@ -1,0 +1,15 @@
+export type Screen =
+  | "home"
+  | "notices"
+  | "create"
+  | "contract"
+  | "draw"
+  | "agreement"
+  | "settlement"
+  | "certificate"
+  | "flip"
+  | "history"
+  | "sign"
+  | "account"
+  | "vouchers"
+  | "voucherDetail";

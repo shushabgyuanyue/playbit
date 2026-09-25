@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { BetSession } from "@playbit/shared";
-import { Play, RefreshCw, Share2 } from "lucide-vue-next";
+import type { Agreement } from "@playbit/shared";
+import { BadgeCheck, Play, RefreshCw, Share2 } from "lucide-vue-next";
 import { computed } from "vue";
 import AgreementProgress from "./AgreementProgress.vue";
 import ContractDocument from "./ContractDocument.vue";
@@ -11,7 +11,7 @@ import BaseButton from "./ui/BaseButton.vue";
 import { isCounterpartySigned } from "../utils/sessionDisplay";
 
 const props = defineProps<{
-  session: BetSession;
+  agreement: Agreement;
   refreshing?: boolean;
 }>();
 
@@ -20,16 +20,16 @@ const emit = defineEmits<{
   start: [];
   refresh: [];
   openShare: [];
+  openCertificate: [];
 }>();
 
-const signed = computed(() => isCounterpartySigned(props.session));
+const signed = computed(() => isCounterpartySigned(props.agreement));
 </script>
 
 <template>
   <section class="life-page service-flow-page">
     <LifeServiceHero
       class="service-flow-hero"
-      :eyebrow="copy.home.docketLabel"
       :title="copy.contract.navTitle"
       :show-back="true"
       :back-label="copy.common.back"
@@ -39,7 +39,9 @@ const signed = computed(() => isCounterpartySigned(props.session));
         <button
           type="button"
           class="life-service-action"
-          :aria-label="copy.contract.refreshing"
+          :aria-label="props.refreshing ? copy.contract.refreshing : copy.contract.refreshAction"
+          :aria-busy="props.refreshing"
+          :disabled="props.refreshing"
           @click="emit('refresh')"
         >
           <RefreshCw :size="19" :class="{ spinning: props.refreshing }" />
@@ -48,8 +50,12 @@ const signed = computed(() => isCounterpartySigned(props.session));
     </LifeServiceHero>
 
     <div class="life-page-content service-flow-content">
-      <AgreementProgress :session="props.session" />
-      <ContractDocument :session="props.session" />
+      <AgreementProgress :agreement="props.agreement" />
+      <ContractDocument :agreement="props.agreement" />
+      <BaseButton v-if="signed" variant="outline" @click="emit('openCertificate')">
+        <BadgeCheck :size="17" />
+        {{ copy.certificate.agreementTitle }}
+      </BaseButton>
       <p class="life-section-caption">
         {{ signed ? copy.contract.enterSession : props.refreshing ? copy.contract.refreshing : copy.contract.waiting }}
       </p>

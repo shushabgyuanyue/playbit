@@ -1,43 +1,47 @@
 import type { AuthRepository } from "../authRepository.js";
+import { dailyCards } from "@playbit/cards";
 import type { CouponRepository } from "../couponRepository.js";
-import { canViewSession, isParticipant, participantIds, requireCurrentUser, requireSessionParticipant } from "../http/auth.js";
-import { SessionRevisionConflict, type SessionRepository } from "../sessionRepository.js";
-import type { SessionRealtimeHub } from "../sessionRealtime.js";
+import { canViewAgreement, isParticipant, agreementParticipantIds, requireCurrentUser, requireAgreementParticipant } from "../http/auth.js";
+import { AgreementRevisionConflict, type AgreementRepository } from "../agreementRepository.js";
+import type { AgreementRealtimeHub } from "../agreementRealtime.js";
 import {
   addBoost,
   confirmBoost,
-  createBetSession,
-  settleBetSession,
+  createAgreement,
+  recordAgreementResult,
   signCounterparty
 } from "@playbit/game-core";
 import {
-  betSessionSchema,
+  agreementSchema,
   createBoostSchema,
-  createSessionSchema,
-  signSessionSchema,
-  settleSessionSchema
+  createAgreementSchema,
+  signAgreementSchema,
+  recordResultSchema
 } from "@playbit/shared";
-import type { SessionRealtimeEvent } from "@playbit/shared";
+import type { AgreementRealtimeEvent } from "@playbit/shared";
 import type { Context, Hono } from "hono";
 
-export function registerSessionRoutes(
+export function registerAgreementRoutes(
   app: Hono,
   auth: AuthRepository,
-  sessions: SessionRepository,
+  agreements: AgreementRepository,
   coupons: CouponRepository,
-  realtime: SessionRealtimeHub
+  realtime: AgreementRealtimeHub
 ) {
   const noStore = (context: Context) => {
     context.header("Cache-Control", "no-store, max-age=0");
   };
 
-  app.post("/sessions", async (context) => {
+  app.post("/agreements", async (context) => {
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
     }
-    const payload = createSessionSchema.parse(await context.req.json());
-    const session = createBetSession(
+    const payload = createAgreementSchema.parse(await context.req.json());
+    if (payload.source === "card" && !dailyCards.some((card) => card.id === payload.cardId && card.mode === "versus")) {
+      return context.json({ message: "This card cannot be used for an agreement" }, 422);
+    }
+    const agreement = createAgreement(
       {
         ...payload,
         creatorNickname: payload.creatorNickname ?? currentUser.nickname
@@ -45,71 +49,71 @@ export function registerSessionRoutes(
       currentUser.id
     );
     await auth.updateSignature(currentUser.id, payload.creatorSignatureDataUrl);
-    const created = await sessions.create(session);
-    return context.json({ session: betSessionSchema.parse(created) }, 201);
+    const created = await agreements.create(agreement);
+    return context.json({ agreement: agreementSchema.parse(created) }, 201);
   });
 
-  app.get("/sessions", async (context) => {
+  app.get("/agreements", async (context) => {
     noStore(context);
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
     }
 
-    const items = await sessions.list(currentUser.id);
-    return context.json({ sessions: items });
+    const items = await agreements.list(currentUser.id);
+    return context.json({ agreements: items });
   });
 
-  app.get("/sessions/:id", async (context) => {
+  app.get("/agreements/:id", async (context) => {
     noStore(context);
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
     }
 
-    const session = await sessions.findById(context.req.param("id"));
-    if (!session) {
+    const agreement = await agreements.findById(context.req.param("id"));
+    if (!agreement) {
       return context.json({ message: "Session not found" }, 404);
     }
-    const accessError = requireSessionParticipant(context, session, currentUser);
+    const accessError = requireAgreementParticipant(context, agreement, currentUser);
     if (accessError) {
       return accessError;
     }
 
-    return context.json({ session });
+    return context.json({ agreement });
   });
 
-  app.get("/sessions/:id/sync", async (context) => {
+  app.get("/agreements/:id/sync", async (context) => {
     noStore(context);
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
     }
 
-    const session = await sessions.findById(context.req.param("id"));
-    if (!session) {
+    const agreement = await agreements.findById(context.req.param("id"));
+    if (!agreement) {
       return context.json({ message: "Session not found" }, 404);
     }
-    const accessError = requireSessionParticipant(context, session, currentUser);
+    const accessError = requireAgreementParticipant(context, agreement, currentUser);
     if (accessError) {
       return accessError;
     }
 
-    return context.json({ session });
+    return context.json({ agreement });
   });
 
-  app.get("/sessions/:id/events", async (context) => {
+  app.get("/agreements/:id/events", async (context) => {
     const token = context.req.query("token");
     const currentUser = token ? await auth.findUserByToken(token) : null;
     if (!currentUser) {
       return context.json({ message: "Authentication required" }, 401);
     }
 
-    const session = await sessions.findById(context.req.param("id"));
-    if (!session) {
+    const agreement = await agreements.findById(context.req.param("id"));
+    if (!agreement) {
       return context.json({ message: "Session not found" }, 404);
     }
-    const accessError = requireSessionParticipant(context, session, currentUser);
+    const accessError = requireAgreementParticipant(context, agreement, currentUser);
     if (accessError) {
       return accessError;
     }
@@ -139,7 +143,7 @@ export function registerSessionRoutes(
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         controllerRef = controller;
-        const send = (event: SessionRealtimeEvent) => {
+        const send = (event: AgreementRealtimeEvent) => {
           if (closed) {
             return;
           }
@@ -147,7 +151,7 @@ export function registerSessionRoutes(
             encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`)
           );
         };
-        unsubscribe = realtime.subscribe(session, send);
+        unsubscribe = realtime.subscribe(agreement, send);
         keepAlive = setInterval(() => {
           if (!closed) {
             controller.enqueue(encoder.encode(": keep-alive\n\n"));
@@ -172,16 +176,16 @@ export function registerSessionRoutes(
 
   app.get("/share/:shareCode", async (context) => {
     noStore(context);
-    const session = await sessions.findByShareCode(context.req.param("shareCode"));
-    if (!session) {
+    const agreement = await agreements.findByShareCode(context.req.param("shareCode"));
+    if (!agreement) {
       return context.json({ message: "Share page not found" }, 404);
     }
     const token = context.req.header("Authorization")?.replace(/^Bearer /, "");
     const currentUser = token ? await auth.findUserByToken(token) : null;
-    if (!canViewSession(session, currentUser?.id ?? null)) {
+    if (!canViewAgreement(agreement, currentUser?.id ?? null)) {
       return context.json({ message: "Forbidden" }, 403);
     }
-    return context.json({ session });
+    return context.json({ agreement });
   });
 
   app.post("/share/:shareCode/sign", async (context) => {
@@ -190,144 +194,144 @@ export function registerSessionRoutes(
       return currentUser;
     }
 
-    const session = await sessions.findByShareCode(context.req.param("shareCode"));
-    if (!session) {
+    const agreement = await agreements.findByShareCode(context.req.param("shareCode"));
+    if (!agreement) {
       return context.json({ message: "Share page not found" }, 404);
     }
 
-    const payload = signSessionSchema.parse(await context.req.json());
-    const initiator = session.participants.find((participant) => participant.role === "initiator");
-    const counterparty = session.participants.find((participant) => participant.role === "counterparty");
+    const payload = signAgreementSchema.parse(await context.req.json());
+    const initiator = agreement.participants.find((participant) => participant.role === "initiator");
+    const counterparty = agreement.participants.find((participant) => participant.role === "counterparty");
     if (initiator?.userId === currentUser.id) {
       return context.json({ message: "Initiator cannot sign as counterparty" }, 409);
     }
     if (counterparty) {
       if (counterparty.userId === currentUser.id) {
-        return context.json({ session });
+        return context.json({ agreement });
       }
       return context.json({ message: "Agreement already signed" }, 409);
     }
-    if (session.status !== "pending_confirmation") {
+    if (agreement.status !== "pending_signature") {
       return context.json({ message: "Agreement is not open for signing" }, 409);
     }
 
-    const signed = signCounterparty(session, payload.nickname, currentUser.id, payload.signatureDataUrl);
+    const signed = signCounterparty(agreement, currentUser.nickname, currentUser.id, payload.signatureDataUrl);
     await auth.updateSignature(currentUser.id, payload.signatureDataUrl);
     try {
-      const updated = await sessions.update(signed, session.revision);
-      realtime.publishSession(updated);
-      return context.json({ session: updated });
+      const updated = await agreements.update(signed, agreement.revision);
+      realtime.publishAgreement(updated);
+      return context.json({ agreement: updated });
     } catch (error) {
-      if (error instanceof SessionRevisionConflict) {
-        const latest = await sessions.findByShareCode(context.req.param("shareCode"));
-      return context.json({ message: "Agreement changed, please refresh", session: latest }, 409);
+      if (error instanceof AgreementRevisionConflict) {
+        const latest = await agreements.findByShareCode(context.req.param("shareCode"));
+      return context.json({ message: "Agreement changed, please refresh", agreement: latest }, 409);
       }
       throw error;
     }
   });
 
-  app.patch("/sessions/:id/settle", async (context) => {
+  app.patch("/agreements/:id/result", async (context) => {
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
     }
 
-    const session = await sessions.findById(context.req.param("id"));
-    if (!session) {
+    const agreement = await agreements.findById(context.req.param("id"));
+    if (!agreement) {
       return context.json({ message: "Session not found" }, 404);
     }
-    const accessError = requireSessionParticipant(context, session, currentUser);
+    const accessError = requireAgreementParticipant(context, agreement, currentUser);
     if (accessError) {
       return accessError;
     }
-    if (session.status !== "active") {
+    if (agreement.status !== "active") {
       return context.json({ message: "Only active agreements can be settled" }, 409);
     }
 
-    const payload = settleSessionSchema.parse(await context.req.json());
-    if (!participantIds(session).includes(payload.winnerId)) {
+    const payload = recordResultSchema.parse(await context.req.json());
+    if (!agreementParticipantIds(agreement).includes(payload.winnerId)) {
       return context.json({ message: "Winner must be a participant" }, 422);
     }
 
-    const settled = settleBetSession(session, payload.winnerId);
+    const settled = recordAgreementResult(agreement, payload.winnerId, currentUser.id);
     try {
-      const updated = await sessions.update(settled, session.revision);
-      await coupons.upsertForSession(updated);
-      realtime.publishSession(updated);
-      return context.json({ session: updated });
+      const updated = await agreements.update(settled, agreement.revision);
+      await coupons.upsertForAgreement(updated);
+      realtime.publishAgreement(updated);
+      return context.json({ agreement: updated });
     } catch (error) {
-      if (error instanceof SessionRevisionConflict) {
-        const latest = await sessions.findById(session.id);
-        return context.json({ message: "Agreement changed, please refresh", session: latest }, 409);
+      if (error instanceof AgreementRevisionConflict) {
+        const latest = await agreements.findById(agreement.id);
+        return context.json({ message: "Agreement changed, please refresh", agreement: latest }, 409);
       }
       throw error;
     }
   });
 
-  app.post("/sessions/:id/boost", async (context) => {
+  app.post("/agreements/:id/boost", async (context) => {
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
     }
 
-    const session = await sessions.findById(context.req.param("id"));
-    if (!session) {
+    const agreement = await agreements.findById(context.req.param("id"));
+    if (!agreement) {
       return context.json({ message: "Session not found" }, 404);
     }
-    const accessError = requireSessionParticipant(context, session, currentUser);
+    const accessError = requireAgreementParticipant(context, agreement, currentUser);
     if (accessError) {
       return accessError;
     }
-    const participant = session.participants.find((candidate) => candidate.userId === currentUser.id);
+    const participant = agreement.participants.find((candidate) => candidate.userId === currentUser.id);
     if (!participant) {
       return context.json({ message: "Forbidden" }, 403);
     }
 
     const payload = createBoostSchema.parse(await context.req.json());
     try {
-      const boosted = addBoost(session, participant.id, payload.label);
-      const updated = await sessions.update(boosted, session.revision);
-      realtime.publishSession(updated);
-      return context.json({ session: betSessionSchema.parse(updated) }, 201);
+      const boosted = addBoost(agreement, participant.id, payload.label);
+      const updated = await agreements.update(boosted, agreement.revision);
+      realtime.publishAgreement(updated);
+      return context.json({ agreement: agreementSchema.parse(updated) }, 201);
     } catch (error) {
       if (error instanceof Error && error.message === "BOOST_LIMIT_REACHED") {
         return context.json({ message: "Boost limit reached" }, 409);
       }
-      if (error instanceof SessionRevisionConflict) {
-        const latest = await sessions.findById(session.id);
-        return context.json({ message: "Agreement changed, please refresh", session: latest }, 409);
+      if (error instanceof AgreementRevisionConflict) {
+        const latest = await agreements.findById(agreement.id);
+        return context.json({ message: "Agreement changed, please refresh", agreement: latest }, 409);
       }
       throw error;
     }
   });
 
-  app.post("/sessions/:id/boost/:boostId/confirm", async (context) => {
+  app.post("/agreements/:id/boost/:boostId/confirm", async (context) => {
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) {
       return currentUser;
     }
 
-    const session = await sessions.findById(context.req.param("id"));
-    if (!session) {
+    const agreement = await agreements.findById(context.req.param("id"));
+    if (!agreement) {
       return context.json({ message: "Session not found" }, 404);
     }
-    const participant = session.participants.find((candidate) => candidate.userId === currentUser.id);
+    const participant = agreement.participants.find((candidate) => candidate.userId === currentUser.id);
     if (!participant) {
       return context.json({ message: "Forbidden" }, 403);
     }
 
     try {
-      const confirmed = confirmBoost(session, context.req.param("boostId"), participant.id);
-      const updated = await sessions.update(confirmed, session.revision);
-      realtime.publishSession(updated);
-      return context.json({ session: betSessionSchema.parse(updated) });
+      const confirmed = confirmBoost(agreement, context.req.param("boostId"), participant.id);
+      const updated = await agreements.update(confirmed, agreement.revision);
+      realtime.publishAgreement(updated);
+      return context.json({ agreement: agreementSchema.parse(updated) });
     } catch (error) {
       if (error instanceof Error && error.message === "BOOST_NOT_FOUND") {
         return context.json({ message: "Boost not found" }, 404);
       }
-      if (error instanceof SessionRevisionConflict) {
-        const latest = await sessions.findById(session.id);
-        return context.json({ message: "Agreement changed, please refresh", session: latest }, 409);
+      if (error instanceof AgreementRevisionConflict) {
+        const latest = await agreements.findById(agreement.id);
+        return context.json({ message: "Agreement changed, please refresh", agreement: latest }, 409);
       }
       throw error;
     }

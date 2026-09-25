@@ -53,19 +53,16 @@
 .life-button-primary {
   background: var(--pb-theme-contract);
   color: #ffffff;
-  box-shadow: 0 6px 14px rgba(22, 119, 255, 0.16);
 }
 
 .life-button-secondary {
   background: var(--pb-theme-success);
   color: #ffffff;
-  box-shadow: 0 6px 14px rgba(0, 168, 112, 0.14);
 }
 
 .life-button-danger {
   background: var(--pb-theme-redeem);
   color: #ffffff;
-  box-shadow: 0 6px 14px rgba(240, 68, 56, 0.14);
 }
 
 .life-button-outline {
@@ -77,6 +74,11 @@
 .life-button-ghost {
   background: transparent;
   color: var(--pb-text-2);
+}
+
+.life-button:focus-visible {
+  outline: 2px solid rgba(22, 119, 255, 0.58);
+  outline-offset: 2px;
 }
 
 .life-field {
@@ -133,7 +135,7 @@
   align-items: center;
   justify-content: center;
   min-height: 22px;
-  border-radius: 999px;
+  border-radius: 3px;
   padding: 0 8px;
   font-size: var(--pb-font-xs);
   font-weight: var(--pb-weight-semibold);
@@ -172,10 +174,10 @@
 }
 
 .life-panel {
+  border: 1px solid var(--pb-line);
   border-radius: var(--pb-radius-lg);
   background: var(--pb-fill-card);
   padding: 14px;
-  box-shadow: 0 1px 2px rgba(31, 35, 41, 0.03);
 }
 
 .life-section-title {
@@ -245,7 +247,7 @@
 
 .auth-sheet-popup {
   overflow: hidden;
-  background: #fffdf8;
+  background: var(--pb-fill-card);
 }
 
 .auth-sheet-popup.van-popup--bottom {
@@ -265,7 +267,7 @@
   height: 4px;
   justify-self: center;
   border-radius: 999px;
-  background: #d8d2c7;
+  background: var(--pb-line);
 }
 
 .auth-sheet-header {

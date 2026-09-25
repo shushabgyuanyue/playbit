@@ -1,5 +1,5 @@
 import { copy } from "@playbit/content";
-import type { BetSession, Stake } from "@playbit/shared";
+import type { Agreement, Stake } from "@playbit/shared";
 import { getEffectiveStakeLabel } from "../utils/sessionDisplay";
 
 export type SharePayload = {
@@ -15,15 +15,15 @@ export const defaultStake: Stake = {
   additions: []
 };
 
-export function buildSharePayload(session: BetSession): SharePayload {
-  const winner = session.participants.find((participant) => participant.id === session.winnerId)?.nickname;
-  const url = `${window.location.origin}${window.location.pathname}?share=${session.shareCode}`;
+export function buildSharePayload(agreement: Agreement): SharePayload {
+  const winner = agreement.participants.find((participant) => participant.id === agreement.winnerId)?.nickname;
+  const url = `${window.location.origin}${window.location.pathname}?share=${agreement.shareCode}`;
   const text = winner
-    ? `《${copy.share.settlementTitle}》\n${copy.share.labels.agreement}：${session.title}\n${copy.share.labels.winner}：${winner}\n${copy.share.labels.stake}：${getEffectiveStakeLabel(session)}`
-    : `《${session.title}》${copy.share.labels.pending}\n${copy.share.labels.challenge}：${session.challenge}\n${copy.share.labels.judgment}：${session.judgmentRule}\n${copy.share.labels.stake}：${getEffectiveStakeLabel(session)}\n${copy.share.labels.signLink}：${url}`;
+    ? `《${copy.share.settlementTitle}》\n${copy.share.labels.agreement}：${agreement.title}\n${copy.share.labels.winner}：${winner}\n${copy.share.labels.stake}：${getEffectiveStakeLabel(agreement)}`
+    : `《${agreement.title}》${copy.share.labels.pending}\n${copy.share.labels.challenge}：${agreement.challenge}\n${copy.share.labels.stake}：${getEffectiveStakeLabel(agreement)}\n${copy.share.labels.signLink}：${url}`;
 
   return {
-    title: session.winnerId ? copy.share.settlementTitle : session.title,
+    title: agreement.winnerId ? copy.share.settlementTitle : agreement.title,
     text,
     url
   };

@@ -2,10 +2,9 @@
   display: grid;
   gap: 10px;
   border-radius: var(--pb-radius-lg);
-  border: 1px solid rgba(31, 35, 41, 0.08);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  border: 1px solid var(--pb-line);
+  background: var(--pb-fill-card);
   padding: 12px 12px 14px;
-  box-shadow: 0 8px 20px rgba(31, 35, 41, 0.05);
 }
 
 .signature-pad-header {
@@ -50,15 +49,15 @@
   position: relative;
   overflow: hidden;
   min-height: 132px;
-  border: 1px solid rgba(31, 35, 41, 0.14);
+  border: 1px solid rgba(23, 43, 77, 0.18);
   border-radius: var(--pb-radius-md);
-  background: linear-gradient(180deg, #fffefa 0%, #ffffff 44%, #fbfaf7 100%);
+  background: #ffffff;
 }
 
 .signature-pad-paper::before {
   position: absolute;
   inset: 10px;
-  border: 1px solid rgba(31, 35, 41, 0.05);
+  border: 1px solid rgba(23, 43, 77, 0.045);
   content: "";
   pointer-events: none;
 }
@@ -78,7 +77,7 @@
   bottom: 38px;
   left: 18px;
   height: 1px;
-  background: rgba(31, 35, 41, 0.22);
+  background: rgba(23, 43, 77, 0.22);
 }
 
 .signature-pad-label {
@@ -102,9 +101,9 @@
   display: grid;
   gap: 6px;
   min-height: 88px;
-  border: 1px solid rgba(31, 35, 41, 0.14);
+  border: 1px solid rgba(23, 43, 77, 0.16);
   border-radius: var(--pb-radius-sm);
-  background: linear-gradient(180deg, #fffefa 0%, rgba(255, 255, 255, 0.9) 100%);
+  background: rgba(255, 255, 255, 0.72);
   padding: 9px 10px 11px;
 }
 
@@ -114,7 +113,7 @@
   bottom: 26px;
   left: 10px;
   height: 1px;
-  background: rgba(31, 35, 41, 0.16);
+  background: rgba(23, 43, 77, 0.16);
   content: "";
 }
 

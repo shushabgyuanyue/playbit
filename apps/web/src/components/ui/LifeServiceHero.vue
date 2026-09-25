@@ -2,21 +2,20 @@
 import { ChevronLeft } from "lucide-vue-next";
 
 defineProps<{
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
-  identity?: string;
   showBack?: boolean;
   backLabel?: string;
+  variant?: "page" | "home";
 }>();
 
 const emit = defineEmits<{
   back: [];
-  identityClick: [];
 }>();
 </script>
 
 <template>
-  <section class="life-service-hero">
+  <header class="life-service-hero" :class="`life-service-hero-${variant ?? 'page'}`">
     <div class="life-service-topline">
       <button
         v-if="showBack"
@@ -27,21 +26,15 @@ const emit = defineEmits<{
       >
         <ChevronLeft :size="24" :stroke-width="2" />
       </button>
-      <span v-else />
+      <div v-else class="life-service-back-spacer" />
 
-      <slot name="action" />
+      <div class="life-service-heading">
+        <p v-if="variant === 'home' && eyebrow">{{ eyebrow }}</p>
+        <h1>{{ title }}</h1>
+      </div>
+
+      <div class="life-service-actions"><slot name="action" /></div>
     </div>
-    <div>
-      <p>{{ eyebrow }}</p>
-      <h1>{{ title }}</h1>
-    </div>
-    <button
-      v-if="identity"
-      type="button"
-      class="life-hero-identity"
-      @click="emit('identityClick')"
-    >
-      {{ identity }}
-    </button>
-  </section>
+    <div v-if="$slots.default" class="life-service-hero-extra"><slot /></div>
+  </header>
 </template>

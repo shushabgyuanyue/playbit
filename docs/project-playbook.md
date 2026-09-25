@@ -1,136 +1,156 @@
 # Playbit Project Playbook
 
-This document records the reusable product and engineering patterns agreed during
-the project's discovery and implementation. It is a working constitution for
-future changes, not a list of page-specific requirements.
+This records the current product and engineering decisions for the Playbit
+repository. The customer-facing product name is **说好不许赖**.
 
 ## Product Core
 
-Playbit adds a small rule, challenge, or agreement to something already
-happening in real life. The phone provides the rule, signing, record, and
-settlement; the real interaction happens outside the phone.
+Playbit gives ordinary life a sharp little game, then treats any optional
+agreement with deliberately professional ceremony. The game is the emotional
+hook; the agreement is a way to remember a shared promise and its equity, not a
+claim that Playbit can enforce it.
 
-The smallest complete experience is:
+The two entry points are independent until the player chooses otherwise:
 
-`one challenge -> optional agreement upgrade -> shared signing -> result ->
-equity issuance -> redemption -> archive`
+- **立合约** records an agreement that already exists between people.
+- **开一盘** draws one curated game card. Players can start immediately,
+  without accepting a platform verdict, creating an account, or making an
+  agreement.
+- **添加权益** is an optional upgrade from a versus card into a persistent
+  Agreement: choose an equity, sign, and invite the other participant.
 
-The agreement domain is the common model for both manually created agreements
-and card-started challenges. A card is not a separate product; it is a
-lightweight way to start an agreement when the user has no existing one.
+The anonymous card is ephemeral client state. Do not create a guest account,
+fake agreement, or database record just to let someone play a card.
 
 ## Product Boundaries
 
-- Life first, game second.
-- In-session moments can include randomness, hidden information, and boosts.
-- Out-of-session surfaces keep only records, permissions, assets, and sharing.
-- No money custody, recharge, withdrawal, ranking, seasons, relationship spaces,
-  or permanent progression in the MVP.
-- Draw flow starts with the challenge. Signing is an optional upgrade when the
-  participants want a formal record or an equity.
-- Silver bullet is intentionally out of the current scope.
-- A boost changes the current session only, requires the other participant's
-  confirmation, and is limited to three per session.
-- A confirmed boost is an amendment to the original equity, not a new asset.
-  Store it under `stake.additions` for display and keep `boosts` as the
-  in-session operation record.
+- Real life stays the setting; the phone supplies a short rule and records only
+  what the players choose to bring back.
+- Playbit does not observe, adjudicate, verify, or enforce results. An
+  authenticated participant may register the result; store who registered it.
+  The product must say plainly that Playbit was not there.
+- A person may choose not to fulfill an equity. The product records the
+  agreement and usage; it does not shame or penalize anyone for declining.
+- “不服翻盘” is an invitation to play again and extend the emotion, not an
+  appeal or dispute-resolution workflow.
+- A 赖皮券 is a rare, earned permission to mutually waive one ordinary
+  fulfillment. It is not sold, not an ordinary prize, and does not erase the
+  original agreement or use record.
+- In-session play may have hidden information, reversals, and mutually
+  confirmed boosts. Out-of-session product surfaces stay small: agreements,
+  equity, records, and user-initiated proof/share.
+- No real-money custody, recharge, withdrawal, commerce, ranking, seasons,
+  relationship spaces, AI, map API, or permanent progression in the current
+  release.
+- Boosting is a change to the same equity, requires both participants, and is
+  limited to three times per Agreement. Store confirmed amendments under
+  `stake.additions`; never mint an extra coupon for a boost.
 
 ## Domain Rules
 
 ### Identity
 
-- A public share link can be viewed without an account.
-- Creating an agreement, signing, settling, redeeming, and viewing personal
-  history require a registered account.
-- Do not create temporary accounts in the product flow.
-- The logged-in nickname is the default signing name, and the user may override
-  it per agreement.
-- A hand-written signature is a call-sign credential, not a request for a legal
-  real name. Persist the last signature and preload it next time.
+- Drawing and playing a card require no account.
+- Persistence actions (creating/signing an Agreement, recording its result,
+  managing equity, and viewing personal history) require a registered account.
+- No guest or temporary user records. Login/register uses the same email and
+  password entry; an unknown email continues into registration.
+- A share link can show a pending Agreement. Only the invited counterparty can
+  sign it; an initiator cannot sign their own link. After signature, only
+  participants can view the private Agreement.
+- The account nickname is the default signing name. Signature is a chosen
+  display mark, not a request for a legal name; preload the last saved signature.
 
-### Participants
+### Agreements And Results
 
-- The creator is the initiator and signs immediately.
-- A share-link visitor becomes the counterparty only after signing.
-- The initiator cannot sign their own counterparty link.
-- After the counterparty signs, both sides must read the same `active` session
-  state from the API.
+- `Agreement` is the sole persisted agreement aggregate. `PlayCard` is a
+  curated prompt, not an agreement and not a database session.
+- Agreement states are `pending_signature -> active -> result_recorded ->
+  fulfilled`, with `waived` for an equity mutually waived through a 赖皮券.
+  A result is a participant-submitted record, never a platform judgment.
+- The initiator signs at creation; the share-link visitor becomes the
+  counterparty only when signing.
+- Opening a share link as its initiator or an existing signatory resumes the
+  Agreement instead of asking for another signature. A new signatory uses the
+  account nickname; the signing request contains only the saved or drawn mark.
+- Each equity coupon links to one Agreement. Provider/holder actions derive
+  from explicit user IDs, not array position or display text.
+- A coupon is issued only after a participant records a result. For point or
+  custom equity, retain the Agreement record without inventing a coupon.
+- The result reporter, winner, provider, and holder are explicit fields. Do not
+  infer them from who opened a screen.
 
-### Equity Ownership
+### Flip, Waiver, And Proof
 
-| Event | Provider | Holder | UI state |
-| --- | --- | --- | --- |
-| Before result | No asset | No asset | No coupon |
-| Result settled with coupon | Participant who must provide it | Participant who earned it | Provider: pending fulfillment; holder: available for redemption |
-| Holder redeems | Fulfillment completed | Redemption completed | Both sides: archived/closed |
+- A flip is a replay invitation attached to an unfulfilled coupon, not an
+  appeal. The provider invites the holder; the holder may decline. Accepting
+  reuses the original equity and draws one card, with no second stake.
+- If the provider wins, waive only the coupon being flipped. If the provider
+  loses, keep that coupon and issue one independent coupon with identical
+  terms. Never collapse or deduplicate coupons by Agreement ID.
+- Flip eligibility follows each available coupon, including a bonus coupon
+  after the original Agreement equity has been fulfilled or waived. The
+  Agreement status describes the original equity, not every later coupon.
+- Award one 赖皮券 for every completed 10-fulfillment milestone. Store the
+  milestone as the idempotency key so retries and concurrent requests cannot
+  award it twice. A waiver request reserves one ticket and one available
+  coupon; decline restores both, approval consumes the ticket and waives only
+  that coupon. Keep the Agreement and every waiver decision in history.
+- Certificates are derived from existing Agreement/Flip facts. They are
+  generated only by explicit user action, never required to settle, sign, or
+  redeem. They record participant submissions and do not imply Playbit verified
+  the event or enforces the promise.
 
-The API stores one coupon per agreement. The client derives the user's
-perspective from `holderUserId` and `issuerUserId`; it must not infer ownership
-from array order or winner text.
+## Cards
 
-If the agreement is boosted before settlement, the final coupon still remains
-one record. Its display value is the base equity plus confirmed amendments.
+- Maintain a directly curated catalog of short games that are fun on their own.
+  Real life is the setting, not a required theme: a strong riddle or word game
+  is better than an awkward life challenge. Cards should take about five
+  minutes and work without location or special equipment.
+- Separate games with a natural, recordable winner from games that can end
+  without one. Only the former can be upgraded into an Agreement or used for a
+  flip.
+- Do not model or expose board-game motif taxonomies, AI rewrite prompts,
+  progression systems, or an accept-before-play step.
+- A card has its own play instructions and completion condition. If upgraded
+  into an Agreement, preserve both in the recorded challenge text.
+- Re-roll is available before choosing to play or upgrade. No silver-bullet
+  inventory or mandatory multi-round structure in the current release.
 
-## Frontend Patterns
+## Frontend And Copy
 
-- Mobile-first, mini-program-friendly composition.
-- Use `LifeServiceHero`, `LifeActionBar`, `BaseButton`, `BaseField`,
-  `BaseBadge`, `ContractDocument`, and `VoucherCard` before creating a new
-  visual primitive.
-- Keep page structure, tokens, controls, ticket styles, and service headers in
-  shared styles. A theme change should be possible by changing tokens and
-  shared primitives, not by rewriting every screen.
-- Use the Vant interaction vocabulary for mobile sheets, empty states, and
-  touch-friendly controls.
-- Use one clear primary action per screen. Remove decorative tabs, redundant
-  navigation, and feature descriptions that do not support the next action.
-- Contract, settlement, and voucher pages must share the same document,
-  typography, status colors, spacing, and action-bar language.
-- The visual metaphor is an electronic signing service: agreement number,
-  parties, signature, seal, status, equity credential, redemption, and archive.
-  Humor belongs in the wording and small details, not in a playful shell.
+- Mobile-first and mini-program-friendly. Reuse the shared service shell,
+  document, controls, design tokens, and voucher primitives before adding UI.
+- Agreements, settlement proofs, and equity cards share the electronic
+  signing visual language: formal hierarchy, clear status, restrained color,
+  and ritual in the sequence rather than decorative animation.
+- Cards may feel like a game, but keep their visual system coherent with the
+  professional shell. Humor belongs in precise copy and small details.
+- Customer-facing copy lives in `packages/content/src/index.ts`. Do not add
+  display text directly to Vue templates, API responses, or formatter output.
+- Avoid gambling, enforcement, arbitration, and legal-effect claims. Preferred
+  terms are agreement, equity, result record, provider, holder, and redemption.
+- Functional titles, buttons, statuses, errors, and proofs must state exactly
+  what happened or what the action will do. Use one term per state and action:
+  sign an Agreement, record a result, fulfill an equity, redeem a coupon, issue
+  a certificate. Never claim a link was shared or content copied before it was.
+- The product name carries most of the childlike contrast. Keep the shell and
+  documents professionally restrained; let one short line of personality
+  appear only where it adds warmth without changing a decision, such as the
+  home eyebrow, an empty state, or a flip invitation. Card rules may be playful.
 
-## Copy And Internationalization
+## Collaboration And Verification
 
-- User-facing text lives in `packages/content/src/index.ts`.
-- Do not add display Chinese directly to Vue templates, API responses, or
-  formatter output.
-- Prefer neutral terms such as agreement, equity, provider, holder, result,
-  redemption, and archive.
-- Avoid gambling-oriented language in customer-facing copy.
-- When a term changes, search the whole repository for the previous term,
-  including tests and docs.
-
-## Collaboration Loop
-
-Keep collaboration lightweight. Do not create a form, checklist, or approval
-step for every small change. For a meaningful change, use four short moves:
-
-1. State the goal and the observable result in one or two sentences.
-2. Read the current code and reuse a local or mature pattern before deciding.
-3. Implement autonomously, including edge cases, copy, loading, permissions,
-   responsive behavior, and removal of obsolete paths.
-4. Verify the affected user path, run the appropriate checks, and record only
-   decisions that will matter again.
-
-The user owns product direction, taste, scope, and irreversible tradeoffs. The
-coding agent owns decomposition, implementation details, mature solution
-selection, edge cases, and verification. Ask only when a choice would change
-the product or create a meaningful long-term cost.
-
-For larger work, keep one primary objective and at most a few directly related
-fixes. Do not turn unrelated polish into hidden scope. The final update should
-briefly say what changed, what was verified, and what remains known; it does
-not need a formal report.
-
-## Definition Of Done
-
-- The main path works from a fresh account.
-- Back navigation preserves entered data where the user expects it.
-- Refreshing a contract reflects the other participant's latest state.
-- Sharing provides Web Share where available and copy fallback everywhere.
-- Every asset links back to its agreement and rule.
-- Provider and holder see different actions for the same equity.
-- No stale local session fallback competes with the API as a second source of
-  truth.
-- `pnpm check`, `pnpm test`, and `pnpm build` pass.
+- Keep collaboration lightweight: clarify product boundaries first, inspect
+  local patterns, implement autonomously, then verify the affected path.
+- The user owns product direction and irreversible tradeoffs. The coding agent
+  owns decomposition, edge cases, permissions, copy placement, and tests.
+- Do not keep dead models, routes, database tables, guest-account fallbacks, or
+  dual-read compatibility when a new model replaces them. Development-stage
+  migrations may deliberately discard obsolete records; never apply them to a
+  deployed database without an explicit data-reset decision.
+- For meaningful changes, run `pnpm check`, `pnpm test`, and `pnpm build`.
+- A release path is complete when anonymous play works, upgrade/login preserves
+  the active card and form state, both parties see signed state, either party
+  can register the result, the reporter is recorded, and equity ownership and
+  redemption permissions are correct.

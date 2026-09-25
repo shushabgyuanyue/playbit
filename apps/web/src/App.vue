@@ -1,74 +1,142 @@
 <script setup lang="ts">
 import AccountScreen from "./components/AccountScreen.vue";
 import AuthSheet from "./components/AuthSheet.vue";
+import CertificateScreen from "./components/CertificateScreen.vue";
 import ContractScreen from "./components/ContractScreen.vue";
 import CreateBetScreen from "./components/CreateBetScreen.vue";
 import DrawCardScreen from "./components/DrawCardScreen.vue";
+import FlipScreen from "./components/FlipScreen.vue";
 import HistoryScreen from "./components/HistoryScreen.vue";
 import HomeScreen from "./components/HomeScreen.vue";
+import NoticesScreen from "./components/NoticesScreen.vue";
 import SessionScreen from "./components/SessionScreen.vue";
 import ShareSheet from "./components/ShareSheet.vue";
 import SignScreen from "./components/SignScreen.vue";
 import SettlementScreen from "./components/SettlementScreen.vue";
 import VoucherCenterScreen from "./components/VoucherCenterScreen.vue";
 import VoucherDetailScreen from "./components/VoucherDetailScreen.vue";
+import { dailyCards } from "@playbit/cards";
+import type { GraceWaiver } from "@playbit/shared";
 import { usePlaybitFlow } from "./composables/usePlaybitFlow";
 import { buildVoucherItems } from "./composables/useVoucherAssets";
 import { computed, ref } from "vue";
 
 const {
   activeCard,
-  activeSession,
+  activeAgreement,
   activeVoucherId,
+  voucherFlip,
+  voucherFlipLoading,
+  voucherFlipError,
+  flipBusy,
   authError,
   authLoading,
   authOpen,
   authStep,
   cardLoading,
   contractBackScreen,
+  certificateKind,
   coupons,
+  graceTickets,
+  graceWaivers,
   createDraft,
   currentUser,
-  sessionRefreshing,
-  sessions,
+  agreementRefreshing,
+  agreements,
   sharePayload,
   signLoading,
   screen,
   copyShareText,
   clearAuthError,
   closeAuthSheet,
-  createSession,
+  createAgreement,
   drawCard,
   loginAccount,
   logoutAccount,
   addBoost,
+  beginCardUpgrade,
   confirmBoost,
   nativeShare,
   openAccount,
   openCreate,
   openAgreementById,
   openDraw,
+  openFeaturedCard,
   openHistory,
-  openSessionFrom,
+  openAgreementFrom,
+  openCertificate,
+  openVoucherCertificate,
+  closeCertificate,
+  closeFlip,
+  openFlipCertificate,
   openVoucherDetail,
+  openVoucherFlip,
+  retryVoucherFlip,
   openVouchers,
   redeemCoupon,
-  refreshActiveSession,
+  startFlip,
+  activeFlip,
+  respondToFlip,
+  refreshFlip,
+  recordFlipOutcome,
+  shareFlip,
+  requestGraceWaiver,
+  respondGraceWaiver,
+  fulfillCustomAgreement,
+  refreshActiveAgreement,
   registerAccount,
-  settleSession,
+  recordAgreementResult,
   signSession,
   updateCreateDraft
 } = usePlaybitFlow();
 
 const activeVoucher = computed(() =>
-  buildVoucherItems(sessions.value, coupons.value, currentUser.value?.id ?? null).find(
+  buildVoucherItems(agreements.value, coupons.value, currentUser.value?.id ?? null).find(
     (voucher) => voucher.id === activeVoucherId.value
   ) ?? null
 );
 const settlementCoupon = computed(() =>
-  activeSession.value ? coupons.value.find((coupon) => coupon.sessionId === activeSession.value?.id) ?? null : null
+  activeAgreement.value ? coupons.value.find((coupon) => coupon.agreementId === activeAgreement.value?.id && !coupon.sourceFlipId) ?? null : null
 );
+const activeCoupon = computed(() =>
+  coupons.value.find((coupon) => coupon.id === activeVoucher.value?.couponId) ?? null
+);
+const voucherAgreement = computed(() =>
+  agreements.value.find((agreement) => agreement.id === activeVoucher.value?.agreementId) ?? null
+);
+const canFlipVoucher = computed(() => Boolean(
+  currentUser.value && activeCoupon.value?.issuerUserId === currentUser.value.id &&
+  activeCoupon.value.status === "available" && Boolean(voucherAgreement.value?.winnerId)
+));
+const hasAvailableGraceTicket = computed(() => graceTickets.value.some((ticket) => ticket.status === "available"));
+const activeGraceWaiver = computed<GraceWaiver | null>(() => {
+  const couponId = activeVoucher.value?.couponId;
+  if (!couponId) return null;
+  return graceWaivers.value
+    .filter((waiver) => waiver.couponId === couponId)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null;
+});
+const canRespondGraceWaiver = computed(() => Boolean(
+  currentUser.value && activeCoupon.value?.holderUserId === currentUser.value.id && activeGraceWaiver.value?.status === "pending"
+));
+const isGraceWaiverRequester = computed(() => Boolean(
+  currentUser.value && activeGraceWaiver.value?.requesterUserId === currentUser.value.id
+));
 const shareSheetOpen = ref(false);
+const activeNoticeIndex = ref(0);
+
+function openNotice(index: number) {
+  activeNoticeIndex.value = index;
+  screen.value = "notices";
+}
+
+const featuredCardIds = ["wrong-answers-only", "two-truths-one-lie", "turtle-soup-water"];
+const featuredCards = featuredCardIds
+  .map((id) => dailyCards.find((card) => card.id === id))
+  .filter((card): card is (typeof dailyCards)[number] => Boolean(card));
+const activeCouponCount = computed(() => buildVoucherItems(
+  agreements.value, coupons.value, currentUser.value?.id ?? null
+).filter((item) => item.role === "holder" && item.status !== "used").length);
 </script>
 
 <template>
@@ -77,14 +145,22 @@ const shareSheetOpen = ref(false);
       <HomeScreen
         v-if="screen === 'home'"
         :user="currentUser"
-        :sessions="sessions"
-        :coupons="coupons"
+        :agreements="agreements"
+        :featured-cards="featuredCards"
+        :coupon-count="activeCouponCount"
         @create="openCreate"
         @draw="openDraw"
+        @play-featured="openFeaturedCard"
         @history="openHistory"
+        @notice="openNotice"
         @account="openAccount"
         @vouchers="openVouchers"
-        @open="(session) => openSessionFrom(session, 'home')"
+      />
+      <NoticesScreen
+        v-else-if="screen === 'notices'"
+        :active-index="activeNoticeIndex"
+        @back="screen = 'home'"
+        @select="activeNoticeIndex = $event"
       />
       <AccountScreen
         v-else-if="screen === 'account' && currentUser"
@@ -97,17 +173,25 @@ const shareSheetOpen = ref(false);
         :draft="createDraft"
         :user="currentUser"
         @back="screen = 'home'"
-        @submit="createSession"
+        @submit="createAgreement"
         @update-draft="updateCreateDraft"
       />
       <ContractScreen
-        v-else-if="screen === 'contract' && activeSession"
-        :session="activeSession"
-        :refreshing="sessionRefreshing"
+        v-else-if="screen === 'contract' && activeAgreement"
+        :agreement="activeAgreement"
+        :refreshing="agreementRefreshing"
         @back="screen = contractBackScreen"
         @open-share="shareSheetOpen = true"
-        @refresh="refreshActiveSession"
-        @start="screen = 'session'"
+        @refresh="refreshActiveAgreement"
+        @start="screen = 'agreement'"
+        @open-certificate="openCertificate('agreement')"
+      />
+      <CertificateScreen
+        v-else-if="screen === 'certificate' && (activeAgreement || (certificateKind === 'flip' && activeFlip))"
+        :agreement="activeAgreement ?? null"
+        :flip="certificateKind === 'flip' ? activeFlip : null"
+        :kind="certificateKind"
+        @back="closeCertificate"
       />
       <DrawCardScreen
         v-else-if="screen === 'draw'"
@@ -116,51 +200,80 @@ const shareSheetOpen = ref(false);
         :loading="cardLoading"
         @back="screen = 'home'"
         @draw="drawCard"
-        @create-agreement="createSession"
+        @upgrade="beginCardUpgrade"
+        @create-agreement="createAgreement"
       />
       <SessionScreen
-        v-else-if="screen === 'session' && activeSession"
-        :session="activeSession"
+        v-else-if="screen === 'agreement' && activeAgreement"
+        :agreement="activeAgreement"
         :current-user-id="currentUser?.id ?? null"
         @back="screen = 'home'"
-        @settle="settleSession"
+        @settle="recordAgreementResult"
         @add-boost="addBoost"
         @confirm-boost="confirmBoost"
       />
       <SettlementScreen
-        v-else-if="screen === 'settlement' && activeSession"
-        :session="activeSession"
+        v-else-if="screen === 'settlement' && activeAgreement"
+        :agreement="activeAgreement"
         :coupon="settlementCoupon"
         :current-user-id="currentUser?.id ?? null"
         :show-back="contractBackScreen === 'history' || contractBackScreen === 'vouchers' || contractBackScreen === 'voucherDetail'"
         @back="screen = contractBackScreen"
         @open-share="shareSheetOpen = true"
+        @open-certificate="openCertificate"
         @open-vouchers="openVouchers"
-        @open-agreement="openAgreementById(activeSession?.id ?? '', 'settlement')"
+        @open-agreement="openAgreementById(activeAgreement?.id ?? '', 'settlement')"
+        @fulfill="fulfillCustomAgreement(activeAgreement?.id ?? '')"
         @home="screen = 'home'"
+      />
+      <FlipScreen
+        v-else-if="screen === 'flip' && activeFlip"
+        :flip="activeFlip"
+        :agreement="activeAgreement ?? null"
+        :coupon="coupons.find((coupon) => coupon.id === activeFlip?.couponId) ?? null"
+        :issued-coupon="coupons.find((coupon) => coupon.sourceFlipId === activeFlip?.id) ?? null"
+        :current-user-id="currentUser?.id ?? null"
+        :loading="flipBusy"
+        @back="closeFlip"
+        @accept="respondToFlip"
+        @refresh="refreshFlip"
+        @record-result="recordFlipOutcome"
+        @share="shareFlip"
+        @certificate="openFlipCertificate"
+        @view-vouchers="openVouchers"
       />
       <HistoryScreen
         v-else-if="screen === 'history'"
-        :sessions="sessions"
+        :agreements="agreements"
         @back="screen = 'home'"
-        @open="(session) => openSessionFrom(session, 'history')"
+        @open="(agreement) => openAgreementFrom(agreement, 'history')"
       />
       <VoucherCenterScreen
         v-else-if="screen === 'vouchers'"
-        :sessions="sessions"
+        :agreements="agreements"
         :coupons="coupons"
         :current-user-id="currentUser?.id ?? null"
+        :grace-tickets="graceTickets"
         @back="screen = 'home'"
-        @open-agreement="(sessionId) => openAgreementById(sessionId, 'vouchers')"
+        @open-agreement="(agreementId) => openAgreementById(agreementId, 'vouchers')"
         @open-voucher="openVoucherDetail"
       />
       <VoucherDetailScreen
         v-else-if="screen === 'voucherDetail' && activeVoucher"
         :voucher="activeVoucher"
+        :can-flip="canFlipVoucher"
+        :flip="voucherFlip"
+        :flip-loading="voucherFlipLoading"
+        :flip-error="voucherFlipError"
+        :flip-busy="flipBusy"
+        :has-available-grace-ticket="hasAvailableGraceTicket"
+        :waiver="activeGraceWaiver"
+        :can-respond-waiver="canRespondGraceWaiver"
+        :is-waiver-requester="isGraceWaiverRequester"
         @back="screen = 'vouchers'"
         @open-agreement="
           (voucher) => {
-            if (voucher.sessionId) openAgreementById(voucher.sessionId, 'voucherDetail');
+            if (voucher.agreementId) openAgreementById(voucher.agreementId, 'voucherDetail');
           }
         "
         @redeem="
@@ -168,10 +281,16 @@ const shareSheetOpen = ref(false);
             if (voucher.couponId) redeemCoupon(voucher.couponId);
           }
         "
+        @flip="startFlip"
+        @open-flip="openVoucherFlip"
+        @retry-flip="retryVoucherFlip"
+        @request-waiver="requestGraceWaiver"
+        @respond-waiver="respondGraceWaiver"
+        @open-certificate="openVoucherCertificate(activeVoucher?.agreementId ?? '')"
       />
       <SignScreen
         v-else-if="screen === 'sign'"
-        :session="activeSession ?? null"
+        :agreement="activeAgreement ?? null"
         :user="currentUser"
         :loading="signLoading"
         @decline="screen = 'home'"

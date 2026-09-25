@@ -1,113 +1,63 @@
-# Playbit 移动端视觉系统草案
+# Playbit Mobile Visual System
 
-## 参考来源
+## Reference Translation
 
-- Ant Design 的企业级清晰度：稳定字号、灰阶层级、明确反馈。
-- 支付宝/微信生活服务资产页：浅灰页面、白色分组、低饱和票据、一个主操作。
-- 电子签约语义：编号、签署、履约、结案、盖章。
-- Vant 的移动端组件范式：弹窗、空状态、触控尺寸和小程序友好的交互组件。
+The bank-app references feel like products because they keep a stable service hierarchy: a recognizable blue home surface, compact page navigation, white content groups, dark navy primary text, quiet metadata, clear separators, and state colors used consistently.
 
-## 参考图拆解
+Playbit adopts that hierarchy, not the banking content. Its home screen has only two primary actions: create an agreement and open a round. Contract, card, settlement, and history screens use the same restrained service-page structure. The product remains about play and shared moments, not financial management.
 
-参考图看起来像成熟产品，不是因为装饰多，而是因为它有稳定的业务页骨架：
+## Brand
 
-- 顶部整块蓝色服务头先建立可信身份，标题、服务说明、用户入口属于同一个业务上下文。
-- 白色概览卡压在蓝色头部下方，承担“当前服务状态”的总览，不用介绍文案撑页面。
-- 指标字号大但克制，标签小且灰，用户能一眼扫出状态。
-- 下方业务入口用统一白色网格卡片，每个入口都对应明确能力，不出现无关 tab。
-- 状态文案短、灰阶清楚，图标只是辅助识别，不抢业务信息。
+Playbit is a formal clerk with a quiet sense of humor. It records small promises with commercial-grade care; the contrast belongs in the agreement language and the small details, not in a playful skin.
 
-Playbit 复用的是这套生活服务结构：蓝色签约服务头、合约/卡券管理概览、状态分组、单一主操作。幽默和反差留给合同文案、结算书和小细节，不把主界面做成娱乐皮肤。
+- Formal, calm, trustworthy, concise, mobile-native.
+- A little surprising at meaningful moments: signing, recording a result, issuing an entitlement, closing a case.
+- No dashboard sprawl, casino styling, childish decoration, glassmorphism, oversized marketing copy, or unrelated financial-service patterns.
 
-服务型页面只能有一个蓝色服务头，不再叠加独立导航标题。返回、账号入口等动作归入 `LifeServiceHero` 顶部操作区；普通详情页才使用 `LifeAppBar`。
+## Tokens
 
-## 品牌人格
+All shared values live in `apps/web/src/styles/tokens.css`.
 
-Playbit 像一个专业的生活合约柜台：流程正式、信息可信、反馈明确，但在细节里保留一点反差。
-
-## 不做什么
-
-- 不做游戏卡牌视觉，不用大面积奇幻、霓虹、赛博朋克或强插画。
-- 不做会员中心式资产堆叠，不出现与合约履约无关的会员卡、票、证件入口。
-- 不用大圆角、大阴影和漂浮卡片制造“精致”，优先靠信息层级、灰阶、留白和稳定组件。
-- 不把仪式感做成装饰动画堆叠，签署、盖章、到账、核销、结案这些关键状态才需要明显反馈。
-
-## 字号
-
-| Token | 大小 | 用途 |
+| Role | Token | Value |
 | --- | --- | --- |
-| `--pb-font-xxl` | 22px | 首页主标题、合同/结算主标题 |
-| `--pb-font-xl` | 18px | 页面标题、顶部栏目 |
-| `--pb-font-lg` | 16px | 分组标题、票据强信息 |
-| `--pb-font-md` | 14px | 表单主信息、列表标题 |
-| `--pb-font-base` | 13px | 正文、时间、说明 |
-| `--pb-font-sm` | 12px | 次级操作、辅助信息 |
-| `--pb-font-xs` | 11px | 状态标签、微文案 |
+| Page background | `--pb-fill-page` | `#f4f6f8` |
+| Surface | `--pb-fill-card` | `#ffffff` |
+| Primary text | `--pb-text-1` | `#172b4d` |
+| Secondary text | `--pb-text-2` | `#4b5b73` |
+| Muted text | `--pb-text-3` | `#8491a3` |
+| Brand / agreement | `--pb-blue` | `#1677ff` |
+| Redeem / action | `--pb-red` | `#d94a4a` |
+| Pending | `--pb-orange` | `#d99122` |
+| Complete | `--pb-green` | `#008f6b` |
+| Divider | `--pb-line` | `#e2e7ee` |
 
-字号逻辑以移动生活服务应用为基准，不以桌游卡牌或营销页为基准。Playbit 的核心信息是合约、规则、履约状态，需要用户快速扫读；因此 13px 作为正文基准，14-16px 承担结构和重点，18px 以上只给页面标题、权益识别和少数仪式感时刻。字重不超过 600 作为常态，700 只在强仪式节点使用。
+Typography is compact by default: 13px body, 14px controls and list titles, 16px section titles, 18px page titles, and 22px only for the home brand or contract heading. Numeric counts use `--pb-font-numeric`. Cards and controls use 4-6px radii; shadows are reserved for genuine overlays and physical artifacts, not ordinary content groups.
 
-## 颜色
+## Page Patterns
 
-| Token | 色值 | 用途 |
-| --- | --- | --- |
-| `--pb-text-1` | `#1f2329` | 主标题和关键内容 |
-| `--pb-text-2` | `#4e5969` | 次级正文 |
-| `--pb-text-3` | `#86909c` | 辅助说明 |
-| `--pb-text-4` | `#c9cdd4` | 禁用、弱化信息 |
-| `--pb-fill-page` | `#fbf8f1` | 移动端页面背景 |
-| `--pb-fill-card` | `#ffffff` | 分组容器 |
-| `--pb-line` | `#e5e6eb` | 边界和分隔 |
-| `--pb-blue` | `#1677ff` | 品牌主色、签约、当前状态 |
-| `--pb-red` | `#f04438` | 待核销、需要执行的履约行动 |
-| `--pb-orange` | `#ff8f1f` | 待履约、提醒、轻加码 |
-| `--pb-green` | `#00a870` | 已完成、核销成功 |
+- Home: supplied hero artwork with account and agreement actions, four service shortcuts, a vertical announcement ticker, agreement counts, then three game recommendations (one tall left tile and two stacked right tiles). Keep these five sections compact and use soft surface colors instead of repeated outlined boxes.
+- Service detail: one white sticky page bar with back/action controls, a light-gray canvas, and clearly separated white content groups.
+- Agreement: a document-like paper surface with numbered clauses, bold/underlined user content, party signatures, and one restrained seal.
+- Challenge: a clean, high-contrast rule card. The game feeling comes from the challenge itself and its state, not decorative card art.
+- Entitlements: reuse the single-ticket component and status grouping. A ticket is one fulfillable item and links back to its agreement.
+- Bottom actions: one obvious next action, with secondary actions visually quieter and safe-area aware.
 
-主题色只保留少数几个业务语义色：蓝色负责可信和签署，红色负责行动，橙色负责待处理提醒，绿色负责完成。其它页面应复用这些语义，不按页面重新发明颜色。
+## Interaction Feedback
 
-## 语义主题色
+- Every network-backed action has a visible pending state on the control that initiated it; do not show global loading for background polling.
+- State changes are explicit and recoverable. Preserve current content while refreshing.
+- Signing and closing may use a short seal impact. Respect `prefers-reduced-motion`.
+- Press, focus, disabled, loading, empty, and error states use shared component styles.
+- Touch targets are at least 44px where practical; narrow screens must not introduce horizontal page overflow.
 
-| Token | 对应色 | 业务语义 |
-| --- | --- | --- |
-| `--pb-theme-contract` | `--pb-blue` | 合约、签署、当前入口 |
-| `--pb-theme-redeem` | `--pb-red` | 待核销、确认履约、关键行动 |
-| `--pb-theme-pending` | `--pb-orange` | 待履约、提醒、加码 |
-| `--pb-theme-success` | `--pb-green` | 已完成、核销成功 |
-| `--pb-theme-archive` | `#8f959e` | 已结案、历史归档 |
+## Maintenance Rules
 
-## 卡券母版
-
-- 页面背景用浅灰，业务内容放入白色分组容器。
-- 一级状态导航保留全部、待履约、待核销、已结案；全部页内部按状态分组，避免再加冗余筛选。
-- 卡券是单一履约凭证，不聚合数量；多次履约应生成多条凭证或写入自定义权益。
-- 票据左侧只放权益识别：例如洗碗一次、请奶茶一杯、电影选择权。
-- 票据右侧只放主标题、时间状态、规则和合约入口。
-- 主操作只有一个：去核销、待履约、查看。
-- 默认展示 3 张，更多通过展开继续显示 3 张，避免资产页首屏过长。
-- 待核销用红色，待履约用橙色，已结案降饱和。
-
-## 组件模式
-
-| 模式 | 用途 | 当前落点 |
-| --- | --- | --- |
-| `life-appbar` | 普通详情页返回、主栏目、更多操作 | 合约、进行中、结算、签署、卡券详情 |
-| `LifeServiceHero` / `life-service-hero` | 蓝色生活服务头部 | 首页、创建、抽卡、历史、账号、卡券 |
-| `life-summary-card` | 管理概览白卡 | 首页、创建、卡券 |
-| `life-status-tabs` | 资产状态一级分类 | 全部、待履约、待核销、已结案 |
-| `voucher-ticket` | 单张履约凭证 | 权益、规则、合约、核销 |
-
-这些模式后续应抽成更通用的 `AssetPage`、`StatusTabs`、`TicketItem` 或保持同名 CSS 复用，不在每个页面重新手搓。
-
-## 工程治理规则
-
-- 对客话术统一从 `packages/content/src/index.ts` 输出，不再新增分散的 copy 文件。
-- 用户可见中文不得直接写在 Vue 页面里；少量中文解析规则可以留在业务 formatter 中，但不能作为展示文案来源。
-- 页面公共结构放在 `life.css`、`life-service.css`、`life-navigation.css`、`life-controls.css`，业务样式只补页面差异。
-- 空状态只展示真实空态，不用假卡券、假合约伪装成真实数据。
-- 样式文件持续拆分，避免一个文件同时承载页面骨架、控件、业务对象和动效。
-
-## 后续推广
-
-- 合约页继承蓝色签署状态和红色盖章语义。
-- 结算页继承白色凭证容器和状态章。
-- 历史页继承分组列表和灰阶层级。
-- 首页减少营销感，保持生活服务入口的清晰和克制。
+- Customer-facing language is defined in `packages/content/src/index.ts`.
+- Shared color, type, spacing, and radius values come from tokens; public controls and page structures live in shared styles/components.
+- Add a shared component when multiple pages share behavior or structure. Keep genuinely one-off business details local, but do not copy a shared visual pattern into another page stylesheet.
+- Before adding a UI dependency, check whether Vant, lucide-vue-next, and existing components already cover the interaction.
+- Remove superseded components and styles after confirming they have no callers; do not retain a parallel legacy path for hypothetical compatibility.
+- Homepage service icons use user-supplied bitmap artwork, cropped and optically normalized to 38px with 144px WebP assets. Keep the touch area larger than the artwork. Future expressive icons follow this asset workflow; back, close and other standard controls remain library vectors. Keep labels, badges and actions in code.
+- Home uses blue, coral and restrained gold; no green accents. Prefer typography, useful numeric emphasis and softly graded surfaces over filler illustrations. Only the main game recommendation has a filled, light coral action; secondary game entries and quiet navigation use text with an arrow. Do not substitute generic decorative icons when suitable artwork is unavailable.
+- Agreement counts use compact register-like cells: a pale label band above a clear number, with zero and closed counts muted. The voucher shortcut uses a small speech-bubble count of the current holder's unfinished entitlements, including zero; guests see a sign-in hint instead of a fabricated count.
+- Announcements remain still for reading and move vertically over one second every 6.5 seconds. Pause while focused, hovered or the document is hidden; remove transition motion for reduced-motion preferences. Open the displayed article directly.

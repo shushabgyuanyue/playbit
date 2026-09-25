@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { BetSession } from "@playbit/shared";
+import type { Agreement } from "@playbit/shared";
 import { computed, ref, watch } from "vue";
 import {
   getParticipantName,
   getEffectiveStakeLabel,
-  getSessionStatusLabel,
-  getSessionStatusTone,
+  getAgreementStatusLabel,
+  getAgreementStatusTone,
   isCounterpartySigned
 } from "../utils/sessionDisplay";
 import BaseBadge from "./ui/BaseBadge.vue";
 
 const props = withDefaults(
   defineProps<{
-    session: BetSession;
+    agreement: Agreement;
     compact?: boolean;
     showSeal?: boolean;
   }>(),
@@ -24,30 +24,30 @@ const props = withDefaults(
 );
 
 const initiatorParticipant = computed(() =>
-  props.session.participants.find((participant) => participant.role === "initiator")
+  props.agreement.participants.find((participant) => participant.role === "initiator")
 );
 const counterpartyParticipant = computed(() =>
-  props.session.participants.find((participant) => participant.role === "counterparty")
+  props.agreement.participants.find((participant) => participant.role === "counterparty")
 );
-const initiator = computed(() => getParticipantName(props.session, "initiator", copy.contract.fallbackInitiator));
+const initiator = computed(() => getParticipantName(props.agreement, "initiator", copy.contract.fallbackInitiator));
 const counterparty = computed(() =>
-  getParticipantName(props.session, "counterparty", copy.contract.fallbackCounterparty)
+  getParticipantName(props.agreement, "counterparty", copy.contract.fallbackCounterparty)
 );
-const signed = computed(() => isCounterpartySigned(props.session));
+const signed = computed(() => isCounterpartySigned(props.agreement));
 const stamping = ref(false);
-const statusTone = computed(() => getSessionStatusTone(props.session.status));
-const statusLabel = computed(() => getSessionStatusLabel(props.session.status));
-const effectiveStakeLabel = computed(() => getEffectiveStakeLabel(props.session));
+const statusTone = computed(() => getAgreementStatusTone(props.agreement.status));
+const statusLabel = computed(() => getAgreementStatusLabel(props.agreement.status));
+const effectiveStakeLabel = computed(() => getEffectiveStakeLabel(props.agreement));
 const agreementDate = computed(() => {
-  const date = new Date(props.session.createdAt);
+  const date = new Date(props.agreement.createdAt);
   if (Number.isNaN(date.getTime())) {
-    return props.session.createdAt;
+    return props.agreement.createdAt;
   }
   return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
 });
 
 watch(signed, (value, previous) => {
-  if (value && !previous) {
+  if (value && previous === false) {
     stamping.value = false;
     requestAnimationFrame(() => {
       stamping.value = true;
@@ -57,16 +57,16 @@ watch(signed, (value, previous) => {
 </script>
 
 <template>
-  <article class="contract-document" :class="{ compact }">
+  <article class="contract-document" :class="{ compact, 'is-stamping': stamping }">
     <div class="contract-document-rule" />
 
     <div class="contract-document-meta">
-      <span>{{ copy.contract.agreementNo }} {{ props.session.shareCode }}</span>
+      <span>{{ copy.contract.agreementNo }} {{ props.agreement.shareCode }}</span>
       <BaseBadge :tone="statusTone">{{ statusLabel }}</BaseBadge>
     </div>
 
     <h2 class="contract-document-title">
-      {{ copy.contract.titlePrefix }}{{ props.session.title }}{{ copy.contract.titleSuffix }}
+      {{ copy.contract.titlePrefix }}{{ props.agreement.title }}{{ copy.contract.titleSuffix }}
     </h2>
 
     <dl class="contract-field-list">
@@ -90,7 +90,7 @@ watch(signed, (value, previous) => {
       <h3>{{ copy.contract.articleLabels.first }} {{ copy.contract.clauseTitles.subject }}</h3>
       <p>
         {{ copy.contract.clauseSentences.subjectPrefix }}
-        <strong class="contract-inline-value">{{ props.session.challenge }}</strong>
+        <strong class="contract-inline-value">{{ props.agreement.challenge }}</strong>
         {{ copy.contract.clauseSentences.subjectSuffix }}
       </p>
     </section>
@@ -99,7 +99,6 @@ watch(signed, (value, previous) => {
       <h3>{{ copy.contract.articleLabels.second }} {{ copy.contract.clauseTitles.judgment }}</h3>
       <p>
         {{ copy.contract.clauseSentences.judgmentPrefix }}
-        <strong class="contract-inline-value">{{ props.session.judgmentRule }}</strong>
         {{ copy.contract.clauseSentences.judgmentSuffix }}
       </p>
     </section>
@@ -112,38 +111,6 @@ watch(signed, (value, previous) => {
         {{ copy.contract.stakeSuffix }}
       </p>
     </section>
-
-    <table class="contract-summary-table">
-      <thead>
-        <tr>
-          <th>{{ copy.contract.summaryTable.item }}</th>
-          <th>{{ copy.contract.summaryTable.content }}</th>
-          <th>{{ copy.contract.summaryTable.note }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <th>{{ copy.contract.clauseTitles.subject }}</th>
-          <td>{{ props.session.challenge }}</td>
-          <td>{{ copy.contract.summaryTable.subjectNote }}</td>
-        </tr>
-        <tr>
-          <th>{{ copy.contract.clauseTitles.judgment }}</th>
-          <td>{{ props.session.judgmentRule }}</td>
-          <td>{{ copy.contract.summaryTable.judgmentNote }}</td>
-        </tr>
-        <tr>
-          <th>{{ copy.contract.clauseTitles.stake }}</th>
-          <td>{{ effectiveStakeLabel }}</td>
-          <td>{{ copy.contract.summaryTable.stakeNote }}</td>
-        </tr>
-        <tr>
-          <th>{{ copy.contract.summaryTable.status }}</th>
-          <td>{{ statusLabel }}</td>
-          <td>{{ copy.contract.summaryTable.statusNote }}</td>
-        </tr>
-      </tbody>
-    </table>
 
     <section class="contract-clause">
       <h3>{{ copy.contract.articleLabels.fourth }} {{ copy.contract.clauseTitles.exception }}</h3>

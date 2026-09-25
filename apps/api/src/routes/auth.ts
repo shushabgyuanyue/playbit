@@ -5,11 +5,10 @@ import type { Hono } from "hono";
 
 export function registerAuthRoutes(app: Hono, auth: AuthRepository) {
   app.post("/auth/register", async (context) => {
-    const currentUser = await getCurrentUser(context, auth);
     const payload = registerSchema.parse(await context.req.json());
 
     try {
-      const result = await auth.register(payload, currentUser?.id ?? null);
+      const result = await auth.register(payload);
       return context.json(result);
     } catch (error) {
       if (error instanceof Error && error.message === "EMAIL_TAKEN") {

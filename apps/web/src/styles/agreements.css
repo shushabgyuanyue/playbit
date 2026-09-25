@@ -3,21 +3,18 @@
 .challenge-document {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(31, 35, 41, 0.1);
+  border: 1px solid var(--pb-line);
   border-radius: var(--pb-radius-lg);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(253, 252, 248, 0.98) 100%),
-    #ffffff;
+  background: var(--pb-fill-card);
   padding: 16px;
-  box-shadow: 0 10px 26px rgba(31, 35, 41, 0.06);
 }
 
 .contract-document::before,
 .settlement-document::before,
 .challenge-document::before {
   position: absolute;
-  inset: 8px;
-  border: 1px solid rgba(31, 35, 41, 0.045);
+  inset: 7px;
+  border: 1px solid rgba(23, 43, 77, 0.045);
   content: "";
   pointer-events: none;
 }
@@ -127,7 +124,7 @@
 .contract-document-rule {
   height: 2px;
   margin: 4px 0 16px;
-  background: rgba(31, 35, 41, 0.72);
+  background: var(--pb-text-1);
 }
 
 .contract-document-meta {
@@ -250,39 +247,8 @@
   line-height: 1.72;
 }
 
-.contract-summary-table {
-  width: 100%;
-  margin: 14px 0 2px;
-  border-collapse: collapse;
-  table-layout: fixed;
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--pb-text-1);
-  font-size: var(--pb-font-sm);
-  line-height: 1.45;
-}
-
-.contract-summary-table th,
-.contract-summary-table td {
-  border: 1px solid rgba(31, 35, 41, 0.58);
-  padding: 8px 7px;
-  text-align: left;
-  vertical-align: top;
-  word-break: break-word;
-}
-
-.contract-summary-table thead th {
-  font-weight: var(--pb-weight-bold);
-  text-align: center;
-}
-
-.contract-summary-table tbody th {
-  width: 24%;
-  font-weight: var(--pb-weight-semibold);
-}
-
-.contract-summary-table td:nth-child(2) {
-  width: 47%;
-  font-weight: var(--pb-weight-medium);
+.contract-document.is-stamping {
+  animation: contract-paper-impact 0.48s ease-out;
 }
 
 .contract-seal {
@@ -309,7 +275,25 @@
 }
 
 .contract-seal.is-stamping {
-  animation: contract-stamp-in 0.42s cubic-bezier(0.2, 0.85, 0.25, 1.2);
+  animation: contract-stamp-in 0.48s cubic-bezier(0.2, 0.85, 0.25, 1.2);
+}
+
+@keyframes contract-paper-impact {
+  0% {
+    transform: translateX(0);
+  }
+  24% {
+    transform: translateX(-1px) rotate(-0.12deg);
+  }
+  48% {
+    transform: translateX(1px) rotate(0.12deg);
+  }
+  72% {
+    transform: translateX(-0.5px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 @keyframes contract-stamp-in {
@@ -328,6 +312,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .contract-document.is-stamping,
   .contract-seal.is-stamping {
     animation: none;
   }
@@ -336,6 +321,41 @@
 .challenge-document {
   display: grid;
   gap: 10px;
+  border-top: 2px solid var(--pb-blue);
+}
+
+.challenge-card-meta {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.challenge-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.challenge-card-meta > .challenge-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-sm);
+  white-space: nowrap;
+}
+
+.challenge-card-meta > .challenge-duration svg {
+  color: var(--pb-blue);
+}
+
+.draw-page .service-flow-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  justify-content: safe center;
 }
 
 .challenge-title {
@@ -394,8 +414,8 @@
   align-items: center;
   gap: 6px;
   margin: 2px auto 0;
-  border: 1px solid rgba(200, 59, 54, 0.24);
-  border-radius: 999px;
+  border: 1px solid rgba(182, 62, 66, 0.24);
+  border-radius: var(--pb-radius-sm);
   background: var(--pb-red-soft);
   color: var(--pb-seal);
   padding: 6px 10px;
@@ -404,8 +424,8 @@
 }
 
 .settlement-issue-panel {
-  border: 1px solid rgba(0, 168, 112, 0.14);
-  background: linear-gradient(180deg, #ffffff 0%, #f4fbf8 100%);
+  border-top: 2px solid var(--pb-green);
+  background: var(--pb-fill-card);
 }
 
 .settlement-result-panel {

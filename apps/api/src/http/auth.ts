@@ -1,5 +1,5 @@
 import type { AuthRepository } from "../authRepository.js";
-import type { BetSession, User } from "@playbit/shared";
+import type { Agreement, User } from "@playbit/shared";
 import type { Context } from "hono";
 
 export async function getCurrentUser(context: Context, auth: AuthRepository): Promise<User | null> {
@@ -20,27 +20,27 @@ export async function requireCurrentUser(
 }
 
 export function isParticipant(
-  session: { participants: Array<{ userId: string | null }> },
+  agreement: { participants: Array<{ userId: string | null }> },
   userId: string
 ): boolean {
-  return session.participants.some((participant) => participant.userId === userId);
+  return agreement.participants.some((participant) => participant.userId === userId);
 }
 
-export function participantIds(session: { participants: Array<{ id: string }> }): string[] {
-  return session.participants.map((participant) => participant.id);
+export function agreementParticipantIds(agreement: { participants: Array<{ id: string }> }): string[] {
+  return agreement.participants.map((participant) => participant.id);
 }
 
-export function canViewSession(session: BetSession, userId: string | null): boolean {
-  if (session.status === "pending_confirmation") {
+export function canViewAgreement(agreement: Agreement, userId: string | null): boolean {
+  if (agreement.status === "pending_signature") {
     return true;
   }
-  return userId !== null && isParticipant(session, userId);
+  return userId !== null && isParticipant(agreement, userId);
 }
 
-export function requireSessionParticipant(
+export function requireAgreementParticipant(
   context: Context,
-  session: BetSession,
+  agreement: Agreement,
   user: User
 ): Response | null {
-  return isParticipant(session, user.id) ? null : context.json({ message: "Forbidden" }, 403);
+  return isParticipant(agreement, user.id) ? null : context.json({ message: "Forbidden" }, 403);
 }

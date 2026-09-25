@@ -3,14 +3,25 @@ import { showToast } from "vant";
 import type { ComputedRef } from "vue";
 import type { SharePayload } from "./playbitFlowHelpers";
 
+export async function copyWithFeedback(text: string): Promise<boolean> {
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+    await navigator.clipboard.writeText(text);
+    showToast(copy.share.copied);
+    return true;
+  } catch {
+    showToast(copy.share.copyFailed);
+    return false;
+  }
+}
+
 export function useShareActions(sharePayload: ComputedRef<SharePayload | null>) {
   async function copyShareText() {
     if (!sharePayload.value) {
       return;
     }
 
-    await navigator.clipboard?.writeText(sharePayload.value.text);
-    showToast(copy.share.copied);
+    await copyWithFeedback(sharePayload.value.text);
   }
 
   async function nativeShare() {

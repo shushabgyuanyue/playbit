@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { BetSession } from "@playbit/shared";
+import type { Agreement } from "@playbit/shared";
 import { computed } from "vue";
 
 const props = defineProps<{
-  session: BetSession;
+  agreement: Agreement;
 }>();
 
 const steps = computed(() => [
@@ -15,13 +15,13 @@ const steps = computed(() => [
 ]);
 
 const activeIndex = computed(() => {
-  if (props.session.status === "pending_confirmation") {
+  if (props.agreement.status === "pending_signature") {
     return 0;
   }
-  if (props.session.status === "active") {
+  if (props.agreement.status === "active") {
     return 1;
   }
-  if (props.session.status === "settling") {
+  if (props.agreement.status === "result_recorded") {
     return 2;
   }
   return 3;

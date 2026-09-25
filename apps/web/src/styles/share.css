@@ -1,6 +1,6 @@
 .share-sheet-popup {
   overflow: hidden;
-  background: #fffdf8;
+  background: var(--pb-fill-card);
 }
 
 .share-sheet-popup.van-popup--bottom {
@@ -79,7 +79,7 @@
   margin: 0 auto;
   border-radius: 50%;
   color: #ffffff;
-  box-shadow: 0 6px 14px rgba(31, 35, 41, 0.08);
+  box-shadow: none;
 }
 
 .share-channel strong {
@@ -99,9 +99,9 @@
 }
 
 .share-channel.tone-weibo span {
-  background: #f04438;
+  background: var(--pb-red);
 }
 
 .share-channel.tone-copy span {
-  background: #4e5969;
+  background: var(--pb-text-2);
 }

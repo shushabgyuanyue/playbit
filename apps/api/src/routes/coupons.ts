@@ -1,17 +1,20 @@
 import type { AuthRepository } from "../authRepository.js";
-import type { CouponRepository } from "../couponRepository.js";
+import { CouponRedemptionConflict, type CouponRepository } from "../couponRepository.js";
 import { requireCurrentUser } from "../http/auth.js";
-import { SessionRevisionConflict, type SessionRepository } from "../sessionRepository.js";
-import type { SessionRealtimeHub } from "../sessionRealtime.js";
+import type { AgreementRepository } from "../agreementRepository.js";
+import type { AgreementRealtimeHub } from "../agreementRealtime.js";
+import type { GraceRepository } from "../graceRepository.js";
+import { grantGraceIfEligible } from "../graceRepository.js";
 import { couponSchema } from "@playbit/shared";
 import type { Hono } from "hono";
 
 export function registerCouponRoutes(
   app: Hono,
   auth: AuthRepository,
-  sessions: SessionRepository,
+  agreements: AgreementRepository,
   coupons: CouponRepository,
-  realtime: SessionRealtimeHub
+  realtime: AgreementRealtimeHub,
+  grace: GraceRepository
 ) {
   app.get("/coupons", async (context) => {
     const currentUser = await requireCurrentUser(context, auth);
@@ -36,38 +39,29 @@ export function registerCouponRoutes(
     if (coupon.holderUserId !== currentUser.id) {
       return context.json({ message: "Forbidden" }, 403);
     }
-    if (coupon.status === "used") {
-      return context.json({ message: "Coupon already used" }, 409);
+    if (coupon.status !== "available") {
+      return context.json({ message: "Coupon is not available" }, 409);
     }
 
-    const session = await sessions.findById(coupon.sessionId);
-    if (!session || session.status !== "settling") {
+    const agreement = await agreements.findById(coupon.agreementId);
+    if (!agreement || (!coupon.sourceFlipId && agreement.status !== "result_recorded")) {
       return context.json({ message: "Agreement is not awaiting redemption" }, 409);
     }
 
     try {
-      const updated = await sessions.update(
-        {
-          ...session,
-          status: "fulfilled",
-          stake: {
-            ...session.stake,
-            fulfilled: true
-          }
-        },
-        session.revision
-      );
-      const used = await coupons.markUsedIfAvailable(coupon.id);
+      const used = await coupons.redeem(coupon.id, currentUser.id, currentUser.id);
       if (!used) {
-        const latest = await sessions.findById(session.id);
-        return context.json({ message: "Coupon already used", session: latest }, 409);
+        return context.json({ message: "Coupon is no longer available" }, 409);
       }
-      realtime.publishSession(updated);
-      return context.json({ coupon: couponSchema.parse(used) });
+      const updated = await agreements.findById(agreement.id);
+      if (!coupon.sourceFlipId && updated) realtime.publishAgreement(updated);
+      const graceTicket = coupon.issuerUserId
+        ? await grantGraceIfEligible(grace, agreements, coupons, coupon.issuerUserId)
+        : null;
+      return context.json({ coupon: couponSchema.parse(used), graceTickets: graceTicket });
     } catch (error) {
-      if (error instanceof SessionRevisionConflict) {
-        const latest = await sessions.findById(session.id);
-        return context.json({ message: "Agreement changed, please refresh", session: latest }, 409);
+      if (error instanceof CouponRedemptionConflict) {
+        return context.json({ message: "Agreement changed; redemption was rolled back" }, 409);
       }
       throw error;
     }

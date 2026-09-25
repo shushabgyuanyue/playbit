@@ -2,20 +2,23 @@ import { strict as assert } from "node:assert";
 import {
   addBoost,
   confirmBoost,
-  createBetSession,
+  createAgreement,
   getEffectiveStakeLabel,
-  settleBetSession,
+  beginFlip,
+  recordFlipResult,
+  recordAgreementResult,
+  respondToFlip,
   signCounterparty
 } from "./index";
+import type { Card, Coupon } from "@playbit/shared";
 
-const session = createBetSession(
+const session = createAgreement(
   {
     source: "custom",
     creatorNickname: "甲方",
     creatorSignatureDataUrl: "data:image/png;base64,initiator-signature",
     title: "随便触发约定",
     challenge: "未来 10 分钟内第一个说随便的人承担本次权益",
-    judgmentRule: "第一个说出口的人承担本次权益",
     stake: {
       type: "coupon",
       label: "洗碗一次",
@@ -27,7 +30,7 @@ const session = createBetSession(
   "user_a"
 );
 
-assert.equal(session.status, "pending_confirmation");
+assert.equal(session.status, "pending_signature");
 assert.equal(session.participants.length, 1);
 assert.equal(session.participants[0].confirmed, true);
 
@@ -54,13 +57,50 @@ const confirmedSecondBoost = confirmBoost(
 assert.equal(confirmedSecondBoost.stake.additions.length, 2);
 assert.equal(getEffectiveStakeLabel(confirmedSecondBoost).includes("extra benefit"), true);
 
-const settled = settleBetSession(confirmedSecondBoost, signed.participants[1].id);
-assert.equal(settled.status, "settling");
+const settled = recordAgreementResult(confirmedSecondBoost, signed.participants[1].id, "user_a");
+assert.equal(settled.status, "result_recorded");
 assert.equal(settled.winnerId, signed.participants[1].id);
 assert.equal(settled.loserId, signed.participants[0].id);
 assert.equal(settled.stake.fulfilled, false);
 
-assert.throws(() => settleBetSession(signed, "missing"), /WINNER_NOT_IN_SESSION/);
+const flipCoupon: Coupon = {
+  id: "coupon_test",
+  agreementId: signed.id,
+  sourceFlipId: null,
+  name: "洗碗一次",
+  description: signed.title,
+  issuerUserId: "user_a",
+  issuerNickname: "甲方",
+  holderUserId: "user_b",
+  holderNickname: "乙方",
+  status: "available",
+  createdAt: new Date().toISOString(),
+  usedAt: null,
+  waivedAt: null
+};
+const flipCard: Card = {
+  id: "card_test",
+  name: "不许说随便",
+  category: "rule",
+  mode: "versus",
+  participantMin: 2,
+  participantMax: 2,
+  durationMinutes: 5,
+  content: "接下来的五分钟，谁先说随便谁输。",
+  winCondition: "第一个说出随便的人输。"
+};
+const pendingFlip = beginFlip({ ...settled, status: "result_recorded" }, flipCoupon, flipCard, "user_a", false);
+assert.throws(() => beginFlip(settled, flipCoupon, { ...flipCard, mode: "together" }, "user_a", false), /FLIP_REQUIRES_VERSUS_CARD/);
+assert.equal(pendingFlip.inviteeUserId, "user_b");
+assert.equal(pendingFlip.status, "pending_acceptance");
+const activeFlip = respondToFlip(pendingFlip, "user_b", true);
+assert.equal(activeFlip.status, "active");
+assert.equal(recordFlipResult(activeFlip, "user_a", "user_b").outcome, "applicant_won");
+assert.equal(recordFlipResult(activeFlip, "user_b", "user_a").outcome, "applicant_lost");
+assert.throws(() => respondToFlip(pendingFlip, "user_a", true), /FLIP_RESPONSE_FORBIDDEN/);
+
+assert.throws(() => recordAgreementResult(signed, "missing", "user_a"), /WINNER_NOT_IN_AGREEMENT/);
+assert.throws(() => recordAgreementResult(signed, signed.participants[0].id, "outsider"), /WINNER_NOT_IN_AGREEMENT/);
 const boostFixture = (id: string) => ({
   id,
   label: "已确认权益",

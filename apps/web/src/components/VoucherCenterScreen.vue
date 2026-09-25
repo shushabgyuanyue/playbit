@@ -1,21 +1,24 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { BetSession, Coupon } from "@playbit/shared";
+import type { Agreement, Coupon, GraceTicket } from "@playbit/shared";
+import { TicketCheck } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import { useVoucherAssets } from "../composables/useVoucherAssets";
 import type { VoucherItem, VoucherStatusFilter, VoucherViewFilter } from "../types/voucher";
 import VoucherSection from "./VoucherSection.vue";
+import BaseBadge from "./ui/BaseBadge.vue";
 
 const props = defineProps<{
-  sessions: BetSession[];
+  agreements: Agreement[];
   coupons: Coupon[];
   currentUserId: string | null;
+  graceTickets: GraceTicket[];
 }>();
 
 const emit = defineEmits<{
   back: [];
-  openAgreement: [sessionId: string];
+  openAgreement: [agreementId: string];
   openVoucher: [voucherId: string];
 }>();
 
@@ -27,7 +30,7 @@ const visibleCounts = ref<Record<VoucherStatusFilter, number>>({
 });
 
 const { statusCounts, totalCount, voucherSections } = useVoucherAssets(
-  () => props.sessions,
+  () => props.agreements,
   () => props.coupons,
   activeView,
   () => props.currentUserId
@@ -41,8 +44,8 @@ const statusOptions = computed(() => [
 ]);
 
 function openAgreement(voucher: VoucherItem) {
-  if (voucher.sessionId) {
-    emit("openAgreement", voucher.sessionId);
+  if (voucher.agreementId) {
+    emit("openAgreement", voucher.agreementId);
     return;
   }
   emit("openVoucher", voucher.id);
@@ -75,8 +78,7 @@ watch(activeView, () => {
 <template>
   <section class="life-page voucher-page">
     <LifeServiceHero
-      class="voucher-service-hero"
-      :eyebrow="copy.home.heroSubtitle"
+      class="service-flow-hero voucher-service-hero"
       :title="copy.vouchers.navTitle"
       :show-back="true"
       :back-label="copy.common.back"
@@ -104,6 +106,25 @@ watch(activeView, () => {
         </div>
       </section>
     </div>
+
+    <section class="grace-ticket-section" aria-labelledby="grace-ticket-heading">
+      <div class="grace-ticket-heading">
+        <div>
+          <p>{{ copy.vouchers.graceTitle }}</p>
+          <h2 id="grace-ticket-heading">{{ copy.vouchers.graceEarned }}</h2>
+        </div>
+        <TicketCheck :size="21" aria-hidden="true" />
+      </div>
+      <div v-if="props.graceTickets.length" class="grace-ticket-list">
+        <article v-for="ticket in props.graceTickets" :key="ticket.id" class="grace-ticket-row">
+          <span>{{ copy.vouchers.graceMilestonePrefix }}{{ ticket.earnedAtFulfillmentCount }}{{ copy.vouchers.graceMilestoneSuffix }}</span>
+          <BaseBadge :tone="ticket.status === 'available' ? 'success' : ticket.status === 'reserved' ? 'pending' : 'archive'">
+            {{ ticket.status === 'available' ? copy.vouchers.graceAvailable : ticket.status === 'reserved' ? copy.vouchers.graceReserved : copy.vouchers.graceUsed }}
+          </BaseBadge>
+        </article>
+      </div>
+      <p v-else class="grace-ticket-empty">{{ copy.vouchers.graceEmpty }}</p>
+    </section>
 
     <nav class="life-status-tabs" :aria-label="copy.vouchers.aria.categoryTabs">
       <button
@@ -136,3 +157,66 @@ watch(activeView, () => {
     </van-empty>
   </section>
 </template>
+
+<style scoped>
+.grace-ticket-section {
+  margin: 0 var(--pb-page-x) 14px;
+  padding: 13px 14px;
+  border: 1px solid var(--pb-line);
+  border-radius: var(--pb-radius-lg);
+  background: var(--pb-fill-card);
+}
+
+.grace-ticket-heading,
+.grace-ticket-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.grace-ticket-heading p,
+.grace-ticket-heading h2,
+.grace-ticket-empty {
+  margin: 0;
+}
+
+.grace-ticket-heading p {
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-sm);
+}
+
+.grace-ticket-heading h2 {
+  margin-top: 4px;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-md);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.grace-ticket-heading > svg {
+  flex: 0 0 auto;
+  color: var(--pb-blue);
+}
+
+.grace-ticket-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.grace-ticket-row {
+  min-height: 38px;
+  padding-top: 8px;
+  border-top: 1px solid var(--pb-line);
+}
+
+.grace-ticket-row > span,
+.grace-ticket-empty {
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-sm);
+}
+
+.grace-ticket-empty {
+  margin-top: 10px;
+}
+</style>

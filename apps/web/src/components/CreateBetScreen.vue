@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { CreateSessionInput, Stake, User } from "@playbit/shared";
+import type { CreateAgreementInput, Stake, User } from "@playbit/shared";
 import { FileCheck2 } from "lucide-vue-next";
 import { reactive, watch } from "vue";
 import type { CreateBetDraft } from "../composables/usePlaybitFlow";
@@ -18,13 +18,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   back: [];
-  submit: [payload: CreateSessionInput];
+  submit: [payload: CreateAgreementInput];
   updateDraft: [draft: CreateBetDraft];
 }>();
 
 const form = reactive({
   title: props.draft.title,
-  judgmentRule: props.draft.judgmentRule,
   stake: props.draft.stake as Stake,
   creatorSignatureDataUrl: props.draft.creatorSignatureDataUrl || props.user?.signatureDataUrl || ""
 });
@@ -34,7 +33,6 @@ watch(
   () => {
     emit("updateDraft", {
       title: form.title,
-      judgmentRule: form.judgmentRule,
       stake: form.stake,
       creatorSignatureDataUrl: form.creatorSignatureDataUrl
     });
@@ -49,7 +47,6 @@ function submit() {
     creatorSignatureDataUrl: form.creatorSignatureDataUrl,
     title: form.title,
     challenge: form.title,
-    judgmentRule: form.judgmentRule,
     stake: form.stake,
     cardId: null
   });
@@ -60,7 +57,6 @@ function submit() {
   <section class="life-page service-flow-page">
     <LifeServiceHero
       class="service-flow-hero"
-      :eyebrow="copy.home.docketLabel"
       :title="copy.create.title"
       :show-back="true"
       :back-label="copy.common.back"
@@ -82,12 +78,6 @@ function submit() {
             :label="copy.create.agreement"
             :placeholder="copy.create.agreementPlaceholder"
           />
-          <BaseField
-            v-model="form.judgmentRule"
-            :label="copy.create.judgment"
-            multiline
-            :placeholder="copy.create.judgmentPlaceholder"
-          />
         </div>
       </section>
 
@@ -102,7 +92,7 @@ function submit() {
     <LifeActionBar>
       <BaseButton
         size="lg"
-        :disabled="!form.title.trim() || !form.judgmentRule.trim() || !form.creatorSignatureDataUrl"
+        :disabled="!form.title.trim() || !form.creatorSignatureDataUrl"
         @click="submit"
       >
         <FileCheck2 :size="18" />

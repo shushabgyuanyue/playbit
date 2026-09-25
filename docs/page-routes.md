@@ -1,75 +1,95 @@
-# Playbit 页面与路由关系草案
+# Page And Route Map
 
-本草案用于约束 Web 版页面结构，后续迁移小程序时可映射为 page path。当前代码仍使用本地 screen state，等核心链路稳定后再迁到 `vue-router`。
+The web app currently uses a local screen state rather than `vue-router`. These
+paths describe the intended page boundary and can later map to mini-program
+pages without changing the domain model.
 
-## 核心原则
+## Page Map
 
-- 首页只保留两个主入口：发起约定、开一局。
-- 合约、签署、结算、卡券必须可通过链接独立打开。
-- 登录只在需要保存、签署、核销、查看个人资产时触发。
-- 分享页优先服务签约和结算传播，不做复杂关系空间。
-
-## 建议路由
-
-| 路由 | 页面 | 说明 |
+| Path | Page | Identity |
 | --- | --- | --- |
-| `/` | 首页 | 两个主入口和轻账户入口 |
-| `/agreements/new` | 创建合约 | 录入约定事项、判定规则、权益 |
-| `/agreements/:id` | 合约详情 | 合同、双方签署状态、进入进行中 |
-| `/s/:shareCode` | 分享签署 | 对方通过链接签约 |
-| `/draw` | 抽卡开局 | 没有现成约定时抽一张现实挑战 |
-| `/sessions/:id` | 进行中 | 当前挑战、参与者、结束并判定 |
-| `/sessions/:id/settlement` | 结算书 | 达成方、权益发放、核销状态、分享 |
-| `/vouchers` | 我的卡券 | 全部总览、待履约、待核销、已结案三类履约凭证 |
-| `/vouchers/:id` | 卡券详情 | 关联合约、判定规则、核销记录 |
-| `/history` | 我的约定 | 历史合约列表 |
-| `/account` | 账号与凭证 | 保存账号、登录、当前身份 |
+| `/` | Home: 立合约 / 开一局, plus history and equity shortcuts | Optional |
+| `/agreements/new` | Create an existing-life agreement and choose equity | Required at submit |
+| `/agreements/:id` | Agreement document, signatures, current state | Participant only |
+| `/s/:shareCode` | Read pending agreement and sign as counterparty | Read public; sign requires account |
+| `/draw` | Draw a curated card and play immediately | Not required |
+| `/agreements/:id/play` | Active signed agreement, boosts, participant result record | Participant only |
+| `/agreements/:id/proof` | User-issued agreement, result, fulfillment, or waiver certificate | Participant only |
+| `/flips/:id` | Shared replay invitation, card, and participant-submitted outcome | Flip participants |
+| `/vouchers` | Pending fulfillment, available/used equity, and earned waiver tickets | Required |
+| `/vouchers/:id` | Equity details, linked agreement, replay, waiver, and redemption actions | Holder/provider |
+| `/history` | Personal Agreement archive | Required |
+| `/account` | Account and saved signature | Required |
 
-## 页面职责
+The Draw page owns only the in-memory card currently being played. It does not
+create an Agreement. Choosing **加点权益** opens the existing equity/signature
+flow; authentication is requested there and must leave the selected card,
+stake choice, and signature draft intact.
 
-| 页面 | 主要对象 | 主操作 | 进入条件 |
-| --- | --- | --- | --- |
-| 首页 | 无 | 发起约定 / 开一局 | 默认进入；查看分享链接不强制登录 |
-| 创建合约 | BetSession 草稿 | 生成签约链接 | 创建前要求注册或登录 |
-| 签署页 | ShareCode + BetSession | 确认签约 | 查看可免登录；签署前要求注册或登录 |
-| 合约详情 | BetSession + Contract | 分享 / 开始 / 查看状态 | 创建后、签署后、历史进入 |
-| 进行中 | BetSession active | 结束并判定结果 | 双方签约后 |
-| 结算书 | Settlement | 查看权益发放 / 分享 | 判定达成方后 |
-| 我的卡券 | Coupon + BetSession | 去核销 / 查看合约 | 涉及个人履约凭证，需要身份 |
-| 卡券详情 | Coupon | 核销 / 查看关联合约 | 从卡券页进入 |
-| 历史 | BetSession 列表 | 查看合约 | 需要身份 |
-| 账号 | User | 保存账号 / 登录 | 用户主动进入或跨设备找回时 |
+## Agreement State
 
-## 状态与入口
-
-| 状态 | 主要页面 | 卡券表现 |
+| State | Meaning | Equity behavior |
 | --- | --- | --- |
-| `pending_confirmation` | 合约详情 / 签署页 | 暂不生成卡券 |
-| `active` | 进行中 | 卡券页显示待履约合约 |
-| `settling` | 结算书 | 卡券页显示待核销凭证 |
-| `fulfilled` | 结算书 / 卡券页 | 卡券降饱和，进入已结案 |
-| `finished` | 历史 | 只保留归档记录 |
+| `pending_signature` | Initiator signed; waiting for counterparty | No coupon |
+| `active` | Both participants signed | In-play boosts may be proposed |
+| `result_recorded` | A participant recorded the agreed result | Coupon is issued to holder; provider may fulfill it |
+| `fulfilled` | Holder and provider completed redemption | Agreement and coupon remain in history |
+| `waived` | Participants confirmed a waiver for the original equity | Agreement and waiver decision remain in history |
 
-## MVP 导航关系
+Result submission records the submitting participant. Playbit does not judge
+the event or enforce fulfillment. A play-again action is a new game entry, not
+an appeal or mutation of the old result.
+
+## Flip And Waiver
+
+- A flip starts from an available equity awaiting fulfillment. The provider
+  invites the holder; accepting starts a card game without choosing or adding
+  another stake.
+- If the provider is recorded as the winner, that coupon is waived. If the
+  provider loses, the original coupon remains and one new coupon with the same
+  terms is issued. Each coupon keeps its own identity under the same Agreement.
+- A 赖皮券 is issued for every 10-fulfillment milestone. Its holder may request
+  waiver of one available equity; the equity holder confirms or declines.
+  Declining restores both the coupon and ticket. Confirming waives only that
+  coupon and retains the Agreement and request history.
+- A proof image is derived from the current Agreement or Flip record and is
+  created only when a participant chooses to issue or share it.
+
+## API Boundary
+
+| API | Purpose | Identity |
+| --- | --- | --- |
+| `POST /cards/draw` | Draw one public card | None |
+| `POST /agreements`, `GET /agreements` | Create/list personal agreements | Account |
+| `GET /agreements/:id`, `GET /agreements/:id/events` | Read and synchronize an agreement | Participant |
+| `GET /share/:shareCode` | Read a pending shared agreement | Public while pending |
+| `POST /share/:shareCode/sign` | Sign as invited counterparty | Account, non-initiator |
+| `PATCH /agreements/:id/result` | Record a participant-selected result | Participant |
+| `POST /agreements/:id/fulfill` | Record fulfillment of point/custom equity | Participant |
+| `POST /agreements/:id/boost` and `/boost/:id/confirm` | Amend the existing equity | Participant; both confirm |
+| `GET /coupons`, `PATCH /coupons/:id/use` | Read or redeem equity | Account; holder redeems |
+| `POST /agreements/:id/flips`, `/flips/:id/*` | Invite, accept/decline, and record a replay | Agreement/Flip participants |
+| `GET /grace`, `POST /grace/:ticketId/waivers`, `PATCH /grace/waivers/:id` | Earn and mutually apply waiver tickets | Account; provider requests, holder responds |
 
 ```mermaid
 flowchart TD
-  Home["/ 首页"] --> NewAgreement["/agreements/new 创建合约"]
-  Home --> Draw["/draw 开一局"]
-  Home --> Vouchers["/vouchers 我的卡券"]
-  Home --> History["/history 我的约定"]
-  Home --> Account["/account 账号与凭证"]
-  NewAgreement --> Agreement["/agreements/:id 合约详情"]
-  Agreement --> ShareSign["/s/:shareCode 分享签署"]
-  ShareSign --> Agreement
-  Agreement --> Session["/sessions/:id 进行中"]
-  Session --> Settlement["/sessions/:id/settlement 结算书"]
-  Settlement --> Vouchers
-  Vouchers --> VoucherDetail["/vouchers/:id 卡券详情"]
-  VoucherDetail --> Agreement
-  History --> Agreement
+  Home --> Create[Create Agreement]
+  Home --> Draw[Draw one card]
+  Draw --> Play[Play immediately, no account]
+  Play -->|optional equity| Auth[Register or log in]
+  Auth --> Sign[Initiator signs]
+  Sign --> Share[Counterparty opens link and signs]
+  Share --> Active[Agreement active]
+  Active --> Result[Participant records result]
+  Result --> Proof[Issue proof and equity]
+  Proof --> Redeem[Optional mutual fulfillment]
+  Redeem --> Archive[Keep agreement and usage record]
+  Redeem -->|provider is not satisfied| Flip[Invite a no-extra-stake replay]
+  Flip -->|provider wins| Waive[Waive that equity]
+  Flip -->|provider loses| More[Keep original and issue one more]
+  More --> Archive
+  Waive --> Archive
+  Archive --> Grace[At each 10th fulfillment, earn one waiver ticket]
+  Create --> Sign
+  Archive --> History
 ```
-
-## 卡券页承担的视觉母版
-
-卡券页先沉淀移动端专业视觉标准：浅灰页面背景、单层状态导航、全部总览分组、低饱和票据、稳定字号层级、状态可视化、主操作按钮、规则/合约二级入口。卡券只表示单一履约凭证，不用数量聚合；每个状态默认展示 3 张，更多通过展开继续显示。合约页和结算页后续应继承这套 token，而不是重新生成另一套视觉语言。
