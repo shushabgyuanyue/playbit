@@ -1,9 +1,10 @@
 @import "./home-announcement.css";
+@import "./home-account.css";
 @import "./home-games.css";
 @import "./home-overview.css";
 
 .home-page {
-  background: var(--pb-fill-card);
+  background: var(--pb-canvas-product);
   color: var(--pb-text-1);
 }
 .home-hero {
@@ -22,58 +23,6 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
 }
-.home-account-action {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
-  width: 58px;
-  min-height: 62px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  border: 0;
-  border-radius: var(--pb-radius-md);
-  background: transparent;
-  color: #fff;
-  padding: 0;
-}
-.home-account-action:active { background: rgba(10, 45, 88, 0.18); }
-.home-account-avatar {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  background: rgba(12, 42, 79, 0.14);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-.home-account-avatar img {
-  display: block;
-  width: 40px;
-  height: 40px;
-  max-width: none;
-  object-fit: contain;
-  transform: translate(-1px, -4px) rotate(-6deg);
-  filter: drop-shadow(0 1px 1px rgba(8, 32, 66, 0.32))
-    drop-shadow(0 3px 4px rgba(8, 32, 66, 0.28));
-}
-.home-account-label {
-  display: block;
-  width: 58px;
-  overflow: hidden;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 14px;
-  text-align: center;
-  text-overflow: ellipsis;
-  text-shadow: 0 1px 3px rgba(8, 32, 66, 0.95);
-  white-space: nowrap;
-}
 .home-hero-cta {
   position: absolute;
   top: 82.5%;
@@ -88,13 +37,12 @@
   cursor: pointer;
 }
 .home-hero-cta:active { background: rgba(255, 255, 255, 0.12); }
-.home-account-action:focus-visible,
 .home-hero-cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .home-product-content {
   display: block;
   flex: 1 0 auto;
   padding: 0 0 calc(26px + env(safe-area-inset-bottom));
-  background: var(--pb-fill-card);
+  background: var(--pb-canvas-product);
 }
 .home-function-grid {
   display: grid;
@@ -122,7 +70,7 @@
   line-height: 1.4;
   white-space: nowrap;
 }
-.home-function-icon { position: relative; display: block; width: 38px; height: 38px; }
+.home-function-icon { position: relative; display: block; width: 32px; height: 32px; }
 .home-function-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .home-function-badge {
   position: absolute;
@@ -133,11 +81,11 @@
   height: 18px;
   place-items: center;
   border-radius: 7px 7px 7px 0;
-  background: linear-gradient(110deg, #df646e, #c84359);
-  color: #fff;
-  font-size: 10px;
+  background: var(--pb-surface-badge);
+  color: var(--primary-foreground);
+  font-size: var(--pb-font-caption);
   font-style: normal;
-  font-weight: 600;
+  font-weight: var(--pb-weight-semibold);
   padding: 0 5px;
   white-space: nowrap;
   box-shadow: 0 0 0 2px #fff;
@@ -147,38 +95,12 @@
   position: absolute;
   left: 8px;
   bottom: -3px;
-  border-top: 4px solid #df646e;
+  border-top: 4px solid var(--pb-badge-start);
   border-right: 4px solid transparent;
 }
 .home-overview-section,
 .home-games-section { padding: 12px var(--pb-page-x) 8px; }
 .home-overview-section { padding-top: 5px; padding-bottom: 2px; }
-.home-overview-section .home-section-heading { margin-bottom: 0; }
-.home-section-heading {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 5px;
-}
-.home-section-title {
-  margin: 0;
-  font-size: var(--pb-font-lg);
-  font-weight: var(--pb-weight-bold);
-  line-height: 1.4;
-}
-.home-section-link {
-  display: inline-flex;
-  flex: 0 0 auto;
-  min-height: var(--pb-touch);
-  align-items: center;
-  gap: 2px;
-  border: 0;
-  background: transparent;
-  color: var(--pb-text-2);
-  font-size: var(--pb-font-sm);
-  padding: 0;
-}
+.home-overview-section .pb-section-heading { margin-bottom: 0; }
 .home-page button:focus-visible { outline: 2px solid var(--pb-blue); outline-offset: 3px; }
 .home-page .home-hero button:focus-visible { outline-color: #fff; }

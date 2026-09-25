@@ -3,6 +3,8 @@ import { computed } from "vue";
 import { copy } from "@playbit/content";
 import type { Agreement } from "@playbit/shared";
 import { getAgreementStatusLabel } from "../../utils/sessionDisplay";
+import BrandSeal from "../ui/BrandSeal.vue";
+import SectionHeading from "../ui/SectionHeading.vue";
 
 const props = defineProps<{
   agreements: Agreement[];
@@ -43,14 +45,9 @@ const partnerName = computed(() => {
 
 <template>
   <section class="home-overview-section" aria-labelledby="home-overview-title">
-    <div class="home-section-heading">
-      <h2 id="home-overview-title" class="home-section-title">{{ copy.home.overviewTitle }}</h2>
-      <button type="button" class="home-section-link" @click="emit('history')">
-        {{ copy.home.viewAll }}
-      </button>
-    </div>
+    <SectionHeading :title="copy.home.overviewTitle" title-id="home-overview-title" :action-label="copy.home.viewAll" @action="emit('history')" />
     <div class="home-overview-content">
-      <span class="home-overview-watermark" aria-hidden="true">{{ copy.app.name }}</span>
+      <BrandSeal class="home-overview-watermark" />
       <dl class="home-overview-stats">
         <div v-for="item in overviewItems" :key="item.label" class="home-overview-stat">
           <dt>{{ item.label }}</dt>
@@ -60,7 +57,7 @@ const partnerName = computed(() => {
       <button
         v-if="latestAgreement"
         type="button"
-        class="home-overview-record"
+        class="home-overview-record pb-pressable"
         :data-status="latestAgreement.status"
         @click="emit('open', latestAgreement)"
       >
@@ -74,7 +71,7 @@ const partnerName = computed(() => {
           <span class="home-overview-action">{{ copy.home.viewAgreement }}</span>
         </span>
       </button>
-      <button v-else type="button" class="home-overview-record home-overview-empty" @click="emit('create')">
+      <button v-else type="button" class="home-overview-record home-overview-empty pb-pressable" @click="emit('create')">
         <strong class="home-overview-record-title">{{ copy.home.latestEmptyTitle }}</strong>
         <span class="home-overview-empty-note">{{ copy.app.tagline }}</span>
         <span class="home-overview-action">{{ copy.home.latestEmptyAction }}</span>

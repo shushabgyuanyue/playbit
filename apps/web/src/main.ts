@@ -1,6 +1,7 @@
 import "vant/lib/index.css";
 import "./styles/tokens.css";
 import "./styles/base.css";
+import "./styles/product-primitives.css";
 import "./styles/app-shell.css";
 import "./styles/life.css";
 import "./styles/life-service.css";

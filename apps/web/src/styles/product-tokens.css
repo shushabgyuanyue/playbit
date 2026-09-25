@@ -1,0 +1,33 @@
+:root {
+  --pb-canvas-product: var(--pb-fill-card);
+  --pb-ink-blue: #2565ae;
+  --pb-ink-coral: #ae453b;
+  --pb-ink-gold: #90601c;
+  --pb-ink-pending: #a66a22;
+  --pb-tint-coral: #ffe5df;
+  --pb-surface-ticket: linear-gradient(110deg, var(--pb-blue-soft), #f8fbff 70%, #fffaf4);
+  --pb-surface-action-soft: linear-gradient(110deg, #fffaf8, #fff0e9);
+  --pb-badge-start: #df646e;
+  --pb-badge-end: #c84359;
+  --pb-surface-badge: linear-gradient(110deg, var(--pb-badge-start), var(--pb-badge-end));
+  --pb-shadow-ticket: inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(22, 119, 255, 0.06),
+    0 2px 0 rgba(22, 119, 255, 0.045), 0 4px 8px rgba(23, 43, 77, 0.04);
+  --pb-perforation: rgba(22, 119, 255, 0.18);
+  --pb-shadow-image-bar: inset 0 -1px 0 rgba(255, 255, 255, 0.28),
+    0 2px 0 rgba(8, 32, 66, 0.08), 0 4px 9px rgba(8, 32, 66, 0.12);
+  --pb-watermark-seal-opacity: 0.1;
+  --pb-watermark-mascot-opacity: 0.16;
+  --pb-font-caption: 10px;
+  --pb-font-feature-number: 34px;
+  --pb-leading-meta: 16px;
+  --pb-leading-body: 1.45;
+  --pb-space-xs: 4px;
+  --pb-space-sm: 8px;
+  --pb-space-md: 12px;
+  --pb-space-lg: 16px;
+  --pb-space-xl: 20px;
+  --pb-motion-press: 160ms;
+  --pb-press-distance: 1px;
+  --pb-press-brightness: 0.97;
+}

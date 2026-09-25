@@ -1,95 +1,32 @@
-# Playbit Design Constitution
+# 说好不许赖：设计原则
 
-This is the product-level design constitution for Playbit. It is not a component spec. It describes the aesthetic judgment that should guide pages, components, copy, motion, and implementation details.
+产品提供情绪价值，不承诺生活便利、法律效力或结果仲裁。用银行、微信支付、支付宝等成熟生活类 App 的专业与熟悉感，一本正经地处理两个人的小事，这个反差才是产品气质。
 
-## Brand Persona
+## 体验与人格
 
-Playbit is a professional life-agreement service with a quiet sense of humor.
+- 专业而亲切：白底、紧凑、有主次、操作可信。专业不等于灰暗冷峻，不靠堆装饰体现。
+- 先好玩，再有余味：开一盘可以直接匿名玩；生活是背景世界，不以任务清单、鸡汤或完整桌游流程替代趣味。
+- 君子协定的松弛感：双方约定和登记，平台记录但不判输赢。翻盘延续情绪，赖皮券允许双方同意的小小例外。
+- 局内丰富，局外克制：不做关系社区、排名和长期养成，不让用户经营复杂系统。
+- 仪式感来自真实动作：签署、发放、核销、开票有准确反馈；只有真实发生的动作才有成功状态或正式盖章。
+- 分享自愿：凭证是主要传播载体，有趣时主动开一张，事后也可补开；链接负责邀请和继续任务。
 
-It treats tiny life moments with commercial-grade care: a late arrival, a small promise, a coupon for doing dishes, a settlement between two people. The surface should feel like WeChat Pay, Alipay, Apple Wallet, and a formal e-signature flow: credible, useful, restrained. The delight comes later, from serious systems handling ordinary life.
+像一位业务熟练的办事员处理“谁洗碗”的小事。按钮、标题、状态、错误准确专业；童真在少量空态、引导、玩法中自然出现，不改变操作含义。
 
-## Design Keywords
+熊猫与兔子是成对品牌形象，代表甲乙方，不代表性别、胜负和权限。复用首页原图派生素材；白兔账号入口不意味着用户就是乙方。可爱放在形象里，控件和合约保持专业。
 
-- Formal
-- Light
-- Trustworthy
-- Restrained
-- A little surprising
-- Mobile-native
-- Easy to share
-- Commercial-grade
-- Life-service-like
+## 视觉判断
 
-## What Playbit Is Not
+- 白色为基底，蓝、珊瑚和浅金少量变化；不全页灰、不大面积深色卡面、不把一个色系铺满所有区域。
+- 质感来自比例、对齐、字体层级、细边缘、浅渐变和轻实体层次。阴影不能补救糟糕布局。
+- 紧凑不等于拥挤：组内靠近、组间留白，可读可点；不为装饰拉长卡片。
+- 券、合同、凭证可以借用实体形态，不给每个页面和字段套卡片。
+- 业务图标优先用高质量图片；返回、关闭使用成熟图标库。没有好图就用排版解决，不强加廉价图标。
+- 水印属于气氛，状态属于事实。装饰章不写“已成立/已结案”。
+- 避免赛博、玻璃拟态、强光晕、营销大标题、后台仪表盘堆砌和玩具控件。
 
-- Not cyberpunk
-- Not toy-like controls or childish typography; brand mascots can add warmth.
-- Not glassmorphism-heavy
-- Not a casino
-- Not a game lobby
-- Not an entertainment skin
-- Not a social platform
-- Not a wellness journal
-- Not a dashboard
-- Not a marketing landing page
+## 执行方式
 
-## Visual Metaphor
+具体变量、组件 API、首页经验及逐页改造清单统一见 [visual-system.md](visual-system.md)，产品边界见 [project-playbook.md](project-playbook.md)。这里不再复制容易失效的 token 数值。
 
-### Brand Mascots
-
-- The panda and rabbit from the user-provided homepage artwork are Playbit's paired visual identities, representing the two parties to an agreement. They do not imply gender or winner/loser status.
-- Reuse the transparent `brand-panda.webp` and `brand-rabbit.webp` assets instead of introducing unrelated animal illustrations. `brand-rabbit-white.webp` is the monochrome account-entry variant for dark image backgrounds.
-- The rabbit on the account entry is a brand mark, not an indication that the logged-in user is party B. Actual agreement roles remain explicit in the record.
-- Preserve recognizable silhouettes at small sizes. Use subtle silhouette shadows for contrast; keep watermarks faint and separate from functional state labels.
-- Voucher depth comes from a fine top highlight and a shallow bottom edge, not grey fills or heavy shadows. Use the shared `--pb-shadow-ticket` token.
-- Source artwork: `apps/web/src/assets/home-hero.webp`. Run `python scripts/extract-brand-mascots.py` with Pillow installed to reproduce the cutouts.
-
-### Documents And Vouchers
-
-Playbit feels like a formal agreement and credential folder for ordinary life.
-
-- Pages can feel like contracts, certificates, receipts, or settlement letters.
-- Session IDs can feel like agreement numbers.
-- Confirmation can feel like signing.
-- Completion can feel like stamping.
-- Share pages can feel like a case-closing notice.
-- Coupons can feel like commercial vouchers.
-- Challenge cards can feel like temporary rule tickets.
-
-The metaphor should stay light. It should make the experience clearer and more memorable, not slow it down.
-
-## Experience Principles
-
-- The first screen is the product, not a pitch.
-- Every step should have one obvious next action.
-- Any core action should be understandable in 3 seconds.
-- Bet creation should ask only for essential input: agreement, judging rule, stake.
-- The counterparty should be added by signing a shared link, not by being typed during creation.
-- Identity should be progressive in visibility, not temporary in ownership: public share pages can be viewed without an account, while creating, signing, settling, redeeming, and viewing personal records require a registered account.
-- Ritual comes from flow and language first, animation second.
-- The phone issues rules, records results, and produces artifacts; the real play happens offline.
-- In-session moments may be dramatic; out-of-session surfaces must stay light.
-- Share artifacts should look worth remembering without becoming decorative posters.
-
-## Reference Objects
-
-- `shadcn/ui`: composable primitives, token discipline, restrained controls.
-- `Origin UI`: page-level block structure and practical interaction patterns.
-- `21st.dev`: component-search workflow before custom design.
-- `Apple Wallet`: credential-like clarity and shareable artifact feeling.
-- `WeChat Pay / Alipay`: life-service navigation, coupon list structure, practical trust.
-- `Notion`: paper-like rhythm, readable spacing, quiet hierarchy.
-- `Linear`: typographic restraint and low-noise interface density.
-
-## Critical Review Path
-
-Review polish most carefully at these moments:
-
-- First creation of a bet agreement.
-- Generated contract preview.
-- Sending or copying the confirmation/share artifact.
-- Settling the winner and loser.
-- Confirming fulfillment.
-- Final settlement/share page.
-
-Other screens may stay simpler if the core moments feel right.
+用户决定方向，开发者负责细节和真实流程。改一个页面验证一个页面；请用户定夺方向冲突，不把字号和间距逐项甩回用户。不增加只为显得完备的审批和文档流程。

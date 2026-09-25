@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Agreement, Card, User } from "@playbit/shared";
-import { ChevronRight } from "lucide-vue-next";
 import agreementIcon from "../assets/home-agreement.webp";
 import gameIcon from "../assets/home-game.webp";
 import historyIcon from "../assets/home-history.webp";
 import voucherIcon from "../assets/home-voucher.webp";
-import accountRabbit from "../assets/brand-rabbit-white.webp";
+import BrandMascot from "./ui/BrandMascot.vue";
+import SectionHeading from "./ui/SectionHeading.vue";
 import HomeAnnouncement from "./home/HomeAnnouncement.vue";
 import HomeAgreementOverview from "./home/HomeAgreementOverview.vue";
+import HomeAccountBar from "./home/HomeAccountBar.vue";
 
 const props = defineProps<{
   user: User | null;
@@ -32,14 +33,9 @@ const emit = defineEmits<{
 
 <template>
   <section class="life-page home-page">
+    <HomeAccountBar :nickname="props.user?.nickname" @account="emit('account')" />
     <header class="home-hero">
       <h1 class="home-visually-hidden">{{ copy.app.name }}</h1>
-      <button type="button" class="home-account-action" :aria-label="copy.home.accountAction" @click="emit('account')">
-        <span class="home-account-avatar">
-          <img :src="accountRabbit" width="40" height="40" alt="" draggable="false" />
-        </span>
-        <span class="home-account-label">{{ props.user?.nickname ?? copy.home.accountGuestLabel }}</span>
-      </button>
       <button type="button" class="home-hero-cta" :aria-label="copy.home.heroAction" @click="emit('create')">
         <span class="home-visually-hidden">{{ copy.home.heroAction }}</span>
       </button>
@@ -49,25 +45,25 @@ const emit = defineEmits<{
       <nav class="home-function-grid" :aria-label="copy.home.functionsLabel">
         <button type="button" class="home-function-item" @click="emit('create')">
           <span class="home-function-icon home-function-icon-contract">
-            <img :src="agreementIcon" width="38" height="38" alt="" />
+            <img :src="agreementIcon" width="32" height="32" alt="" />
           </span>
           <strong>{{ copy.home.functions.agreement }}</strong>
         </button>
         <button type="button" class="home-function-item" @click="emit('draw')">
           <span class="home-function-icon home-function-icon-game">
-            <img :src="gameIcon" width="38" height="38" alt="" />
+            <img :src="gameIcon" width="32" height="32" alt="" />
           </span>
           <strong>{{ copy.home.functions.game }}</strong>
         </button>
         <button type="button" class="home-function-item" @click="emit('history')">
           <span class="home-function-icon home-function-icon-history">
-            <img :src="historyIcon" width="38" height="38" alt="" />
+            <img :src="historyIcon" width="32" height="32" alt="" />
           </span>
           <strong>{{ copy.home.functions.records }}</strong>
         </button>
         <button type="button" class="home-function-item" @click="emit('vouchers')">
           <span class="home-function-icon home-function-icon-voucher">
-            <img :src="voucherIcon" width="38" height="38" alt="" />
+            <img :src="voucherIcon" width="32" height="32" alt="" />
             <span class="home-function-badge">{{ props.user ? copy.home.voucherCount(props.couponCount) : copy.home.voucherLogin }}</span>
           </span>
           <strong>{{ copy.home.functions.vouchers }}</strong>
@@ -85,21 +81,18 @@ const emit = defineEmits<{
       />
 
       <section class="home-games-section">
-        <div class="home-section-heading home-games-heading">
-          <h2 class="home-section-title">{{ copy.home.gamesTitle }}</h2>
-          <button type="button" class="home-section-link" @click="emit('draw')">
-            {{ copy.home.moreGames }}<ChevronRight :size="15" aria-hidden="true" />
-          </button>
-        </div>
+        <SectionHeading :title="copy.home.gamesTitle" :action-label="copy.home.moreGames" show-arrow @action="emit('draw')" />
         <div class="home-game-grid">
           <button
             v-for="(card, index) in props.featuredCards.slice(0, 3)"
             :key="card.id"
             type="button"
-            class="home-game-card"
+            class="home-game-card pb-tinted-surface pb-pressable"
+            :data-tone="index === 0 ? 'coral' : index === 2 ? 'gold' : 'blue'"
             :class="{ 'home-game-card-primary': index === 0 }"
             @click="emit('playFeatured', card)"
           >
+            <BrandMascot v-if="index === 0" variant="panda-watermark" class="home-game-watermark" width="108" height="115" />
             <span class="home-game-copy">
               <strong>{{ card.name }}</strong>
               <span class="home-game-rule">{{ copy.home.gameTeasers[card.id as keyof typeof copy.home.gameTeasers] ?? card.winCondition }}</span>

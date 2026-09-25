@@ -119,6 +119,11 @@ fake agreement, or database record just to let someone play a card.
 
 ## Frontend And Copy
 
+- Use `docs/design-constitution.md` for product tone and `docs/visual-system.md`
+  for homepage-validated rules, the component inventory and migration checklist.
+  Shared product tokens and primitives are consumed by the homepage; future
+  pages reuse them rather than copying homepage styles.
+
 - Mobile-first and mini-program-friendly. Reuse the shared service shell,
   document, controls, design tokens, and voucher primitives before adding UI.
 - Agreements, settlement proofs, and equity cards share the electronic

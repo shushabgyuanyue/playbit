@@ -13,9 +13,9 @@ Playbit turns tiny real-life bets, challenges, and rewards into lightweight sess
 
 ## Design
 
-Playbit follows the product-level design constitution in `docs/design-constitution.md`: a serious notary with a quiet sense of humor, using formal agreement metaphors for tiny real-life moments.
+Playbit uses a familiar, professional life-app surface to give small promises playful emotional value. Start with the [design principles](docs/design-constitution.md), then the [visual system and reuse guide](docs/visual-system.md). Product boundaries live in the [project playbook](docs/project-playbook.md).
 
-Identity is progressive: users get a temporary identity by default, then upgrade to an email account only when they need durable coupon, agreement, or history management.
+Playing a card requires no account. Persistent agreements, coupons and personal records require an account; no temporary user record is created for anonymous play.
 
 ## Commands
 

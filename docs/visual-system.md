@@ -1,63 +1,106 @@
-# Playbit Mobile Visual System
+# 首页验证后的前端视觉范式
 
-## Reference Translation
+产品气质见 [设计原则](design-constitution.md)，业务与协作边界见 [项目手册](project-playbook.md)。本文取代旧首页规范，记录可以直接复用的实现。
 
-The bank-app references feel like products because they keep a stable service hierarchy: a recognizable blue home surface, compact page navigation, white content groups, dark navy primary text, quiet metadata, clear separators, and state colors used consistently.
+## 对话中验证的经验
 
-Playbit adopts that hierarchy, not the banking content. Its home screen has only two primary actions: create an agreement and open a round. Contract, card, settlement, and history screens use the same restrained service-page structure. The product remains about play and shared moments, not financial management.
-
-## Brand
-
-Playbit is a formal clerk with a quiet sense of humor. It records small promises with commercial-grade care; the contrast belongs in the agreement language and the small details, not in a playful skin.
-
-- Formal, calm, trustworthy, concise, mobile-native.
-- A little surprising at meaningful moments: signing, recording a result, issuing an entitlement, closing a case.
-- No dashboard sprawl, casino styling, childish decoration, glassmorphism, oversized marketing copy, or unrelated financial-service patterns.
-
-## Tokens
-
-All shared values live in `apps/web/src/styles/tokens.css`.
-
-| Role | Token | Value |
+| 反复出现的问题 | 已确认原则 | 后续页面的做法 |
 | --- | --- | --- |
-| Page background | `--pb-fill-page` | `#f4f6f8` |
-| Surface | `--pb-fill-card` | `#ffffff` |
-| Primary text | `--pb-text-1` | `#172b4d` |
-| Secondary text | `--pb-text-2` | `#4b5b73` |
-| Muted text | `--pb-text-3` | `#8491a3` |
-| Brand / agreement | `--pb-blue` | `#1677ff` |
-| Redeem / action | `--pb-red` | `#d94a4a` |
-| Pending | `--pb-orange` | `#d99122` |
-| Complete | `--pb-green` | `#008f6b` |
-| Divider | `--pb-line` | `#e2e7ee` |
+| 干净却冷清，像后台工具 | 专业不等于冷峻，熟悉感很重要 | 明亮底色、紧凑信息、清楚动作，保留一点温度 |
+| 银灰渐变、厚阴影显得沉闷 | 质感来自比例和细节，不是厚重滤镜 | 白底、浅渐变、细边缘；实体券可有浅底边 |
+| 大字、大图标、大留白仍像 demo | 先确定必要信息，再组织层级 | 缩小展示不缩小触控区，避免把辅助信息做成主角 |
+| 统计与待办各自抢戏 | 一个业务容器承载一个完整意图 | 存根与内容组成一张券，不嵌套多层卡片 |
+| 所有入口都像深色按钮 | 操作权重必须有区别 | 一个主要动作，其余用文本；整卡点击不嵌套真按钮 |
+| 普通线图标、重复箭头廉价 | 图标必须有功能或有足够好的资产 | 业务图标用提供的图片，返回/关闭用库；缺好图宁缺毋滥 |
+| 卡面纵向太长 | 不为装饰拉长内容区 | 紧凑排版，长内容允许撑高，不写死高度裁字 |
+| 希望亲切又不幼稚 | 熊猫兔子负责温度，控件负责专业 | 统一形象、淡水印、小头像，避免玩具控件和鸡汤 |
 
-Typography is compact by default: 13px body, 14px controls and list titles, 16px section titles, 18px page titles, and 22px only for the home brand or contract heading. Numeric counts use `--pb-font-numeric`. Cards and controls use 4-6px radii; shadows are reserved for genuine overlays and physical artifacts, not ordinary content groups.
+## 公共入口与边界
 
-## Page Patterns
+| 层级 | 文件（前端路径基于 apps/web/src） | 职责 |
+| --- | --- | --- |
+| 基础变量 | styles/tokens.css | 基础色、字号、字重、字体栈、圆角、框架映射 |
+| 产品变量 | styles/product-tokens.css | 明亮画布、卡面色调、券层次、水印、间距、按压 |
+| 公共样式 | styles/product-primitives.css | 标题行、浅色卡面、按压、品牌图像和装饰章 |
+| 公共组件 | components/ui | 结构、语义、交互和可访问性 |
+| 业务组件 | HomeAgreementOverview、VoucherCard、ContractDocument 等 | 数据和业务结构，不能只因长得像就冒用 |
+| 页面样式 | home*.css 等 | 网格、位置、特殊尺寸；不复制公共皮肤 |
+| 对客文案 | packages/content/src/index.ts（仓库根目录） | 标题、按钮、状态、错误、空态和动态文案 |
 
-- Home: supplied hero artwork with account and agreement actions, four service shortcuts, a vertical announcement ticker, agreement counts, then three game recommendations (one tall left tile and two stacked right tiles). Keep these five sections compact and use soft surface colors instead of repeated outlined boxes.
-- Service detail: one white sticky page bar with back/action controls, a light-gray canvas, and clearly separated white content groups.
-- Agreement: a document-like paper surface with numbered clauses, bold/underlined user content, party signatures, and one restrained seal.
-- Challenge: a clean, high-contrast rule card. The game feeling comes from the challenge itself and its state, not decorative card art.
-- Entitlements: reuse the single-ticket component and status grouping. A ticket is one fulfillable item and links back to its agreement.
-- Bottom actions: one obvious next action, with secondary actions visually quieter and safe-area aware.
+公共样式只由 main.ts 加载一次，其他页面使用公共组件不需要引入 home.css。
 
-## Interaction Feedback
+## 颜色、层次与字体
 
-- Every network-backed action has a visible pending state on the control that initiated it; do not show global loading for background polling.
-- State changes are explicit and recoverable. Preserve current content while refreshing.
-- Signing and closing may use a short seal impact. Respect `prefers-reduced-motion`.
-- Press, focus, disabled, loading, empty, and error states use shared component styles.
-- Touch targets are at least 44px where practical; narrow screens must not introduce horizontal page overflow.
+| 用途 | 变量 | 当前值或意义 |
+| --- | --- | --- |
+| 产品画布 | --pb-canvas-product | 白色；首页已采用，旧页面灰底逐页替换 |
+| 主要/次要文字 | --pb-text-1 / --pb-text-2 | #172b4d / #4b5b73 |
+| 辅助文字 | --pb-text-3 | #8491a3，不用于关键规则、状态和主要动作 |
+| 操作与合约强调 | --pb-blue | #1677ff，不把所有文字染蓝 |
+| 卡面文字 | --pb-ink-blue/coral/gold | #2565ae / #ae453b / #90601c |
+| 卡面 | .pb-tinted-surface[data-tone] | blue / coral / gold，底色和深色文字成套使用 |
+| 合约券 | --pb-surface-ticket / --pb-shadow-ticket | 清透蓝到暖白，细高光和极浅底边 |
+| 水印透明度 | --pb-watermark-seal-opacity / --pb-watermark-mascot-opacity | 0.1 / 0.16 |
 
-## Maintenance Rules
+装饰色不是状态色。浅金不代表待履约，珊瑚不代表失败，状态由业务映射并配文字。首页不用绿色装饰，但合法成功状态仍可使用既有语义绿。不要全局替换旧页面状态色。
 
-- Customer-facing language is defined in `packages/content/src/index.ts`.
-- Shared color, type, spacing, and radius values come from tokens; public controls and page structures live in shared styles/components.
-- Add a shared component when multiple pages share behavior or structure. Keep genuinely one-off business details local, but do not copy a shared visual pattern into another page stylesheet.
-- Before adding a UI dependency, check whether Vant, lucide-vue-next, and existing components already cover the interaction.
-- Remove superseded components and styles after confirming they have no callers; do not retain a parallel legacy path for hypothetical compatibility.
-- Homepage service icons use user-supplied bitmap artwork, cropped and optically normalized to 38px with 144px WebP assets. Keep the touch area larger than the artwork. Future expressive icons follow this asset workflow; back, close and other standard controls remain library vectors. Keep labels, badges and actions in code.
-- Home uses blue, coral and restrained gold; no green accents. Prefer typography, useful numeric emphasis and softly graded surfaces over filler illustrations. Only the main game recommendation has a filled, light coral action; secondary game entries and quiet navigation use text with an arrow. Do not substitute generic decorative icons when suitable artwork is unavailable.
-- Agreement counts use compact register-like cells: a pale label band above a clear number, with zero and closed counts muted. The voucher shortcut uses a small speech-bubble count of the current holder's unfinished entitlements, including zero; guests see a sign-in hint instead of a fabricated count.
-- Announcements remain still for reading and move vertically over one second every 6.5 seconds. Pause while focused, hovered or the document is hidden; remove transition motion for reduced-motion preferences. Open the displayed article directly.
+正文使用 --font-sans 系统中文无衬线栈。当前未捆绑 MiSans 等字体，不承诺各操作系统像素一致。--font-serif 只用于确有书面感需求的合同内容。
+
+| 内容 | 变量 | 字号 |
+| --- | --- | --- |
+| 昵称、紧凑角标 | --pb-font-caption | 10px，仅极短辅助标签 |
+| 元信息/状态 | --pb-font-xs / --pb-font-sm | 11 / 12px |
+| 常规正文/入口名称 | --pb-font-base | 13px |
+| 卡片/列表标题 | --pb-font-md | 14px |
+| 分区标题 | --pb-font-lg | 16px |
+| 重点卡标题/统计 | --pb-font-xl | 18px |
+| 页面重点标题 | --pb-font-xxl | 22px，按需 |
+| 主推荐时长数字 | --pb-font-feature-number | 34px，特殊展示，不推广到表单和普通统计 |
+
+正文 400，次重点 500，标题/数字 600，少量标题 700。数字用 tabular-nums 保持稳定，不强制等宽字体。字距 0，不用 vw 缩放字号；长标题可两行，目标页面保留完整内容。
+
+常用间距 --pb-space-xs/sm/md/lg/xl 为 4/8/12/16/20px，页面边距 --pb-page-x 为 16px，圆角通常 4/6px。局部光学调整的 10/14px 可以留在页面，不逐像素制造 token。触控目标至少 44px；整卡按钮内的文字不是独立触控目标。
+
+## 可直接使用的组件
+
+- SectionHeading：title、可选 titleId、actionLabel、showArrow；发出 action。默认无箭头，不替代页面导航栏。
+- BrandMascot：variant 为 panda-logo、rabbit-logo（用户提供的成对品牌头像），以及 panda、rabbit、rabbit-white、panda-watermark（场景插画派生素材）。账号入口优先使用 rabbit-logo，不再从背景裁头像。统一资产入口，装饰图自动隐藏于读屏；父级操作要有文字或可访问名称。
+- BrandSeal：只显示品牌名的装饰水印，父容器需定位；页面只指定位置，可用 --pb-seal-size 调尺寸。不能用来表示已签署或已核销。
+- .pb-tinted-surface：只负责皮肤，data-tone 选择色调；调用方保留原生 button/article 语义，不造万能卡片组件。
+- .pb-pressable：轻微按压与亮度反馈，遵守减少动态效果；不负责权限、禁用和加载，表单仍用 BaseButton。
+- LifeServiceHero、LifeActionBar、BaseButton、BaseField、BaseBadge、SignaturePad：继续复用已有导航、操作、加载、表单与签名能力，不另建平行控件库。
+- VoucherCard/StakePicker：复用权益展示和选择；ContractDocument：复用条款、签名和真实状态章。先检查业务含义一致，再复用业务组件。
+
+示例：
+```vue
+<SectionHeading :title="copy.home.gamesTitle" :action-label="copy.home.moreGames" @action="openDraw" />
+<button type="button" class="pb-tinted-surface pb-pressable" data-tone="coral" @click="openCard">
+  <!-- 页面自己的玩法内容，不再嵌套 button -->
+</button>
+```
+
+## 首页独有结构
+
+HomeAccountBar 位于 hero 外，随页面滚动吸顶；顶部透明，滚动后截取首页背景上方的星空做底，保留白色昵称和单一账号入口，不切成白底。功能图片为 32px，触控区域不随图缩小。成对 logo 由 scripts/import-brand-logos.py 裁透明空白并导出 WebP，保持原图比例。
+
+吸顶图片栏使用 --pb-shadow-image-bar：细底边高光、2px 浅底边和短投影，产生轻微悬浮层次；只在吸顶状态出现，不加厚重外框。
+
+五段：原图背景与签约/账号、四个功能入口、纵向公告、合约总览券、热门游戏左一右二。双入口有价值的前提是都直达相同业务目标，不能复制成重复导航。
+
+总览左侧数字在上、状态在下的无分隔线四宫格，右侧优先最新未完成记录，没有则最新完成记录。约 1:3；窄屏统计区至少 90px，中间 12px 放虚线，上下切口组成整张券。筛选逻辑留在业务组件，公共层不内置合约状态。
+
+公告每 6.5 秒换一条、上下过渡 1 秒；悬停、聚焦、后台时暂停，点击直达当前文章。未来确有第二个使用场景再提取通用 ticker，不提前造公告平台。
+
+## 后续改造与复用流程
+
+1. 创建/签署：先复用表单、权益选择和签名，默认昵称、少必填，返回保留草稿，登录回到原任务。
+2. 合约/进行中：一处导航、一份文档、一个主要动作；后台刷新不闪空、不挡内容、不重复签署。
+3. 结算/开票：分清权益发放与待兑现；开票主动可补开，不成为主流程门槛。真实事件才盖章。
+4. 权益/翻盘：明确持有人与履约方，查看关联合约；接受翻盘复用玩法，不再选权益。
+5. 抽卡/历史/账号/公告：分别保留趣味、记录密度、登录简洁与正文可读性。
+
+一次改一个可验收页面/流程。先查组件和变量，再判断应抽取变量、皮肤、结构还是业务；改公共值前查所有消费者。重复结构/行为第二次出现就抽取，单页布局不强行泛化。文件过长时按责任边界拆分，不简单切成上下两半。
+
+验收看 320/390/430px 和桌面、真实字体回退、长标题、空态、登录前后、加载/错误、状态数量边界、键盘焦点和触控。确认无横向溢出、水印遮挡、缺图、循环 loading 和返回丢草稿；截图检查视觉，走通受影响入口。
+
+删除被替代实现，不堆覆盖、不留备用旧皮肤。换视觉应主要集中改变量与 primitives，而不重写业务/路由；布局改变和 H5 到小程序运行时迁移仍有独立成本，不承诺只改 CSS 即可完成。
