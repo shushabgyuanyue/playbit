@@ -23,7 +23,7 @@ It treats tiny life moments with commercial-grade care: a late arrival, a small 
 ## What Playbit Is Not
 
 - Not cyberpunk
-- Not cute or childish
+- Not toy-like controls or childish typography; brand mascots can add warmth.
 - Not glassmorphism-heavy
 - Not a casino
 - Not a game lobby
@@ -34,6 +34,17 @@ It treats tiny life moments with commercial-grade care: a late arrival, a small 
 - Not a marketing landing page
 
 ## Visual Metaphor
+
+### Brand Mascots
+
+- The panda and rabbit from the user-provided homepage artwork are Playbit's paired visual identities, representing the two parties to an agreement. They do not imply gender or winner/loser status.
+- Reuse the transparent `brand-panda.webp` and `brand-rabbit.webp` assets instead of introducing unrelated animal illustrations. `brand-rabbit-white.webp` is the monochrome account-entry variant for dark image backgrounds.
+- The rabbit on the account entry is a brand mark, not an indication that the logged-in user is party B. Actual agreement roles remain explicit in the record.
+- Preserve recognizable silhouettes at small sizes. Use subtle silhouette shadows for contrast; keep watermarks faint and separate from functional state labels.
+- Voucher depth comes from a fine top highlight and a shallow bottom edge, not grey fills or heavy shadows. Use the shared `--pb-shadow-ticket` token.
+- Source artwork: `apps/web/src/assets/home-hero.webp`. Run `python scripts/extract-brand-mascots.py` with Pillow installed to reproduce the cutouts.
+
+### Documents And Vouchers
 
 Playbit feels like a formal agreement and credential folder for ordinary life.
 

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Agreement, Card, User } from "@playbit/shared";
-import { ChevronRight, UserRound } from "lucide-vue-next";
-import { computed } from "vue";
+import { ChevronRight } from "lucide-vue-next";
 import agreementIcon from "../assets/home-agreement.webp";
 import gameIcon from "../assets/home-game.webp";
 import historyIcon from "../assets/home-history.webp";
 import voucherIcon from "../assets/home-voucher.webp";
+import accountRabbit from "../assets/brand-rabbit-white.webp";
 import HomeAnnouncement from "./home/HomeAnnouncement.vue";
+import HomeAgreementOverview from "./home/HomeAgreementOverview.vue";
 
 const props = defineProps<{
   user: User | null;
@@ -20,25 +21,13 @@ const emit = defineEmits<{
   create: [];
   draw: [];
   history: [];
+  openAgreement: [agreement: Agreement];
   notice: [index: number];
   account: [];
   vouchers: [];
   playFeatured: [card: Card];
 }>();
 
-const agreementCounts = computed(() => ({
-  pending: props.agreements.filter((agreement) => agreement.status === "pending_signature").length,
-  active: props.agreements.filter((agreement) => agreement.status === "active").length,
-  settling: props.agreements.filter((agreement) => agreement.status === "result_recorded").length,
-  finished: props.agreements.filter((agreement) => ["fulfilled", "waived"].includes(agreement.status)).length
-}));
-
-const overviewItems = computed(() => [
-  { key: "pending", label: copy.home.overview.pending, count: agreementCounts.value.pending },
-  { key: "active", label: copy.home.overview.active, count: agreementCounts.value.active },
-  { key: "settling", label: copy.home.overview.settling, count: agreementCounts.value.settling },
-  { key: "finished", label: copy.home.overview.finished, count: agreementCounts.value.finished }
-]);
 </script>
 
 <template>
@@ -47,7 +36,7 @@ const overviewItems = computed(() => [
       <h1 class="home-visually-hidden">{{ copy.app.name }}</h1>
       <button type="button" class="home-account-action" :aria-label="copy.home.accountAction" @click="emit('account')">
         <span class="home-account-avatar">
-          <UserRound :size="19" :stroke-width="2.25" fill="currentColor" aria-hidden="true" />
+          <img :src="accountRabbit" width="40" height="40" alt="" draggable="false" />
         </span>
         <span class="home-account-label">{{ props.user?.nickname ?? copy.home.accountGuestLabel }}</span>
       </button>
@@ -87,24 +76,13 @@ const overviewItems = computed(() => [
 
       <HomeAnnouncement @open="emit('notice', $event)" />
 
-      <section class="home-overview-section">
-        <div class="home-section-heading">
-          <h2 class="home-section-title">{{ copy.home.overviewTitle }}</h2>
-          <button type="button" class="home-section-link" @click="emit('history')">
-            {{ copy.home.viewAll }}<ChevronRight :size="15" aria-hidden="true" />
-          </button>
-        </div>
-        <div class="home-overview-card">
-          <div
-            v-for="item in overviewItems"
-            :key="item.key"
-            class="home-overview-item"
-          >
-            <span class="home-overview-label">{{ item.label }}</span>
-            <span class="home-overview-number" :class="{ 'home-overview-number-muted': item.count === 0 || item.key === 'finished' }">{{ item.count }}</span>
-          </div>
-        </div>
-      </section>
+      <HomeAgreementOverview
+        :agreements="props.agreements"
+        :current-user-id="props.user?.id ?? null"
+        @create="emit('create')"
+        @history="emit('history')"
+        @open="emit('openAgreement', $event)"
+      />
 
       <section class="home-games-section">
         <div class="home-section-heading home-games-heading">
@@ -125,8 +103,10 @@ const overviewItems = computed(() => [
             <span class="home-game-copy">
               <strong>{{ card.name }}</strong>
               <span class="home-game-rule">{{ copy.home.gameTeasers[card.id as keyof typeof copy.home.gameTeasers] ?? card.winCondition }}</span>
-              <span class="home-game-duration"><span class="home-game-minutes">{{ card.durationMinutes }}</span><span>{{ copy.home.minutes }}</span></span>
-              <span class="home-game-cta">{{ copy.home.playThisCard }}<ChevronRight :size="14" aria-hidden="true" /></span>
+              <span class="home-game-footer">
+                <span class="home-game-duration"><span class="home-game-minutes">{{ card.durationMinutes }}</span><span>{{ copy.home.minutes }}</span></span>
+                <span class="home-game-cta">{{ copy.home.playThisCard }}</span>
+              </span>
             </span>
           </button>
         </div>

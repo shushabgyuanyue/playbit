@@ -1,5 +1,6 @@
 @import "./home-announcement.css";
 @import "./home-games.css";
+@import "./home-overview.css";
 
 .home-page {
   background: var(--pb-fill-card);
@@ -45,13 +46,21 @@
   height: 36px;
   flex: 0 0 36px;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  background: linear-gradient(145deg, #ffffff, #e8f1ff);
-  color: #2878d0;
-  box-shadow: 0 3px 10px rgba(8, 32, 66, 0.4), inset 0 1px 2px #ffffff;
+  background: rgba(12, 42, 79, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
-.home-account-avatar svg { filter: drop-shadow(0 1px 1px rgba(22, 76, 139, 0.2)); }
+.home-account-avatar img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  max-width: none;
+  object-fit: contain;
+  transform: translate(-1px, -4px) rotate(-6deg);
+  filter: drop-shadow(0 1px 1px rgba(8, 32, 66, 0.32))
+    drop-shadow(0 3px 4px rgba(8, 32, 66, 0.28));
+}
 .home-account-label {
   display: block;
   width: 58px;
@@ -85,7 +94,7 @@
   display: block;
   flex: 1 0 auto;
   padding: 0 0 calc(26px + env(safe-area-inset-bottom));
-  background: linear-gradient(#fff 80px, var(--pb-surface-service) 260px);
+  background: var(--pb-fill-card);
 }
 .home-function-grid {
   display: grid;
@@ -171,40 +180,5 @@
   font-size: var(--pb-font-sm);
   padding: 0;
 }
-.home-overview-card {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  padding: 4px 0 0;
-}
-.home-overview-item {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #e7edf5;
-  border-radius: var(--pb-radius-lg);
-  background: linear-gradient(180deg, #fff, #fafcff);
-  text-align: center;
-}
-.home-overview-label {
-  display: block;
-  padding: 5px 2px;
-  background: linear-gradient(110deg, #f2f6fc, #e8f0fc);
-  color: #456181;
-  font-size: var(--pb-font-xs);
-  font-weight: 500;
-  white-space: nowrap;
-}
-.home-overview-number {
-  padding: 7px 2px 8px;
-  color: var(--pb-blue);
-  font-family: var(--font-sans);
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.home-overview-number-muted { color: var(--pb-text-2); }
 .home-page button:focus-visible { outline: 2px solid var(--pb-blue); outline-offset: 3px; }
 .home-page .home-hero button:focus-visible { outline-color: #fff; }

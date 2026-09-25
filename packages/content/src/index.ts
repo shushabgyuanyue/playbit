@@ -46,6 +46,13 @@ export const copy = {
     announcementTitle: "公告",
     announcements: officialNotices.map((notice) => notice.title),
     overviewTitle: "合约总览",
+    latestPending: "最近待处理",
+    latestFinished: "最近结案",
+    latestEmptyTitle: "还没有合约记录",
+    latestEmptyAction: "立一份约定",
+    latestWith: (name: string) => `与 ${name}`,
+    viewAgreement: "查看合约",
+    overviewCount: (count: number) => count > 99 ? "99+" : String(count),
     overview: {
       pending: "待签署",
       active: "进行中",

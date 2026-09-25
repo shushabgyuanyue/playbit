@@ -152,6 +152,7 @@ const activeCouponCount = computed(() => buildVoucherItems(
         @draw="openDraw"
         @play-featured="openFeaturedCard"
         @history="openHistory"
+        @open-agreement="(agreement) => openAgreementFrom(agreement, 'home')"
         @notice="openNotice"
         @account="openAccount"
         @vouchers="openVouchers"
