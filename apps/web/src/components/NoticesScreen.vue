@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   back: [];
+  home: [];
   select: [index: number];
 }>();
 
@@ -24,8 +25,11 @@ const otherNotices = computed(() => copy.notices.items
     <LifeServiceHero
       :title="copy.notices.title"
       :show-back="true"
+      :show-home="true"
       :back-label="copy.common.back"
+      :home-label="copy.common.home"
       @back="emit('back')"
+      @home="emit('home')"
     />
 
     <div class="notices-content">

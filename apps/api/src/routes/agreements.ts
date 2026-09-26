@@ -9,14 +9,16 @@ import {
   confirmBoost,
   createAgreement,
   recordAgreementResult,
-  signCounterparty
+  signCounterparty,
+  updateAgreementDraft
 } from "@playbit/game-core";
 import {
   agreementSchema,
   createBoostSchema,
   createAgreementSchema,
   signAgreementSchema,
-  recordResultSchema
+  recordResultSchema,
+  updateAgreementSchema
 } from "@playbit/shared";
 import type { AgreementRealtimeEvent } from "@playbit/shared";
 import type { Context, Hono } from "hono";
@@ -81,6 +83,79 @@ export function registerAgreementRoutes(
     }
 
     return context.json({ agreement });
+  });
+
+  app.patch("/agreements/:id", async (context) => {
+    const currentUser = await requireCurrentUser(context, auth);
+    if (currentUser instanceof Response) {
+      return currentUser;
+    }
+
+    const agreement = await agreements.findById(context.req.param("id"));
+    if (!agreement) {
+      return context.json({ message: "Session not found" }, 404);
+    }
+    const accessError = requireAgreementParticipant(context, agreement, currentUser);
+    if (accessError) {
+      return accessError;
+    }
+
+    const payload = updateAgreementSchema.parse(await context.req.json());
+    if (payload.source === "card" && !dailyCards.some((card) => card.id === payload.cardId && card.mode === "versus")) {
+      return context.json({ message: "This card cannot be used for an agreement" }, 422);
+    }
+
+    try {
+      const draft = updateAgreementDraft(
+        agreement,
+        { ...payload, creatorNickname: currentUser.nickname },
+        currentUser.id
+      );
+      await auth.updateSignature(currentUser.id, payload.creatorSignatureDataUrl);
+      const updated = await agreements.update(draft, agreement.revision);
+      realtime.publishAgreement(updated);
+      return context.json({ agreement: agreementSchema.parse(updated) });
+    } catch (error) {
+      if (error instanceof Error && error.message === "AGREEMENT_DRAFT_NOT_EDITABLE") {
+        return context.json({ message: "Only unsigned drafts can be edited" }, 409);
+      }
+      if (error instanceof Error && error.message === "AGREEMENT_DRAFT_FORBIDDEN") {
+        return context.json({ message: "Only the initiator can edit this draft" }, 403);
+      }
+      if (error instanceof AgreementRevisionConflict) {
+        const latest = await agreements.findById(agreement.id);
+        return context.json({ message: "Agreement changed, please refresh", agreement: latest }, 409);
+      }
+      throw error;
+    }
+  });
+
+  app.delete("/agreements/:id", async (context) => {
+    const currentUser = await requireCurrentUser(context, auth);
+    if (currentUser instanceof Response) {
+      return currentUser;
+    }
+
+    const agreement = await agreements.findById(context.req.param("id"));
+    if (!agreement) {
+      return context.json({ message: "Session not found" }, 404);
+    }
+
+    const isInitiator = agreement.participants.some(
+      (participant) => participant.role === "initiator" && participant.userId === currentUser.id
+    );
+    if (agreement.ownerUserId !== currentUser.id || !isInitiator) {
+      return context.json({ message: "Only the initiator can delete this agreement" }, 403);
+    }
+    if (agreement.status === "fulfilled" || agreement.status === "waived") {
+      return context.json({ message: "Completed agreements cannot be deleted" }, 409);
+    }
+
+    const deleted = await agreements.delete(agreement.id);
+    if (!deleted) {
+      return context.json({ message: "Session not found" }, 404);
+    }
+    return context.body(null, 204);
   });
 
   app.get("/agreements/:id/sync", async (context) => {

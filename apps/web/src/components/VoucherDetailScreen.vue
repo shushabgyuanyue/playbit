@@ -23,6 +23,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   back: [];
+  home: [];
   openAgreement: [voucher: VoucherItem];
   redeem: [voucher: VoucherItem];
   flip: [couponId: string];
@@ -50,8 +51,11 @@ function statusTone(status: VoucherItem["status"]) {
       class="service-flow-hero"
       :title="copy.vouchers.detailTitle"
       :show-back="true"
+      :show-home="true"
       :back-label="copy.common.back"
+      :home-label="copy.common.home"
       @back="emit('back')"
+      @home="emit('home')"
     />
 
     <div class="life-page-content service-flow-content">

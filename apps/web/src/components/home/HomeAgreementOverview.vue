@@ -48,12 +48,17 @@ const partnerName = computed(() => {
     <SectionHeading :title="copy.home.overviewTitle" title-id="home-overview-title" :action-label="copy.home.viewAll" @action="emit('history')" />
     <div class="home-overview-content">
       <BrandSeal class="home-overview-watermark" />
-      <dl class="home-overview-stats">
+      <button
+        type="button"
+        class="home-overview-stats pb-pressable"
+        :aria-label="copy.home.viewAll"
+        @click="emit('history')"
+      >
         <div v-for="item in overviewItems" :key="item.label" class="home-overview-stat">
-          <dt>{{ item.label }}</dt>
-          <dd :title="String(item.count)">{{ copy.home.overviewCount(item.count) }}</dd>
+          <span class="home-overview-stat-label">{{ item.label }}</span>
+          <strong :title="String(item.count)">{{ copy.home.overviewCount(item.count) }}</strong>
         </div>
-      </dl>
+      </button>
       <button
         v-if="latestAgreement"
         type="button"

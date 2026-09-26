@@ -20,6 +20,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   back: [];
+  home: [];
   accept: [accept: boolean];
   refresh: [];
   recordResult: [winnerUserId: string];
@@ -59,8 +60,11 @@ onUnmounted(() => {
       class="service-flow-hero"
       :title="copy.flip.navTitle"
       :show-back="true"
+      :show-home="true"
       :back-label="copy.common.back"
+      :home-label="copy.common.home"
       @back="emit('back')"
+      @home="emit('home')"
     />
 
     <div class="life-page-content service-flow-content">

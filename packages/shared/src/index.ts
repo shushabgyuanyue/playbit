@@ -155,6 +155,10 @@ export const createAgreementSchema = z.object({
   cardId: z.string().nullable().optional()
 });
 
+// Draft edits keep the same validated shape as creation, but have a separate
+// contract so callers cannot accidentally treat an update as a new record.
+export const updateAgreementSchema = createAgreementSchema;
+
 export const signAgreementSchema = z.object({
   signatureDataUrl: z.string().min(1).max(50000)
 });
@@ -197,6 +201,7 @@ export type Card = z.infer<typeof cardSchema>;
 export type AgreementStatus = z.infer<typeof agreementStatusSchema>;
 export type Agreement = z.infer<typeof agreementSchema>;
 export type CreateAgreementInput = z.infer<typeof createAgreementSchema>;
+export type UpdateAgreementInput = z.infer<typeof updateAgreementSchema>;
 export type SignAgreementInput = z.infer<typeof signAgreementSchema>;
 export type CreateBoostInput = z.infer<typeof createBoostSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;

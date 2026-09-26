@@ -53,11 +53,11 @@
 }
 
 .account-profile-watermark {
-  right: 13px;
-  bottom: 12px;
+  top: 35px;
+  right: 30px;
   z-index: 0;
-  --pb-seal-size: 58px;
-  opacity: 0.12;
+  --pb-seal-size: 112px;
+  opacity: 0.08;
 }
 
 .account-profile-avatar-pane,
@@ -144,7 +144,7 @@
   display: grid;
   min-width: 0;
   gap: 8px;
-  background: rgba(239, 247, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
   padding: 11px 11px 9px 12px;
 }
 
@@ -180,7 +180,7 @@
 .account-profile-copy p {
   overflow: hidden;
   margin: 0;
-  color: var(--pb-text-3);
+  color: var(--pb-text-2);
   font-size: var(--pb-font-xs);
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -231,12 +231,12 @@
   color: var(--pb-text-1);
   font-family: var(--pb-font-numeric);
   font-size: 18px;
-  font-weight: var(--pb-weight-medium);
+  font-weight: var(--pb-weight-bold);
   line-height: 1.1;
 }
 
 .account-stats span {
-  color: var(--pb-text-3);
+  color: var(--pb-text-2);
   font-size: var(--pb-font-xs);
 }
 
@@ -252,7 +252,7 @@
   z-index: 1;
   grid-column: 1 / -1;
   border-top: 1px solid rgba(22, 119, 255, 0.12);
-  background: rgba(218, 237, 255, 0.42);
+  background: rgba(247, 251, 255, 0.86);
   padding: 8px 11px 10px;
 }
 

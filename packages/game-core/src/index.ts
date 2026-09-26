@@ -1,4 +1,4 @@
-import type { Agreement, Boost, Card, Coupon, CreateAgreementInput, Flip, Participant, StakeAddition } from "@playbit/shared";
+import type { Agreement, Boost, Card, Coupon, CreateAgreementInput, Flip, Participant, StakeAddition, UpdateAgreementInput } from "@playbit/shared";
 
 function makeId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -36,6 +36,43 @@ export function createAgreement(input: CreateAgreementInput, creatorUserId: stri
     updatedAt: new Date().toISOString(),
     resultRecordedAt: null,
     shareCode: makeId("share")
+  };
+}
+
+export function updateAgreementDraft(
+  agreement: Agreement,
+  input: UpdateAgreementInput,
+  creatorUserId: string
+): Agreement {
+  if (agreement.status !== "pending_signature") {
+    throw new Error("AGREEMENT_DRAFT_NOT_EDITABLE");
+  }
+  if (agreement.ownerUserId !== creatorUserId) {
+    throw new Error("AGREEMENT_DRAFT_FORBIDDEN");
+  }
+
+  const initiator = agreement.participants.find((participant) => participant.role === "initiator");
+  if (!initiator || initiator.userId !== creatorUserId) {
+    throw new Error("AGREEMENT_DRAFT_FORBIDDEN");
+  }
+
+  return {
+    ...agreement,
+    title: input.title,
+    source: input.source,
+    challenge: input.challenge ?? input.title,
+    stake: input.stake,
+    cardId: input.cardId ?? null,
+    participants: agreement.participants.map((participant) =>
+      participant.role === "initiator"
+        ? {
+            ...participant,
+            nickname: input.creatorNickname ?? participant.nickname,
+            signatureDataUrl: input.creatorSignatureDataUrl,
+            confirmed: true
+          }
+        : participant
+    )
   };
 }
 

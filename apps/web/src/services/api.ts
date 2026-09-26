@@ -76,6 +76,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json() as Promise<T>;
 }
 
@@ -119,6 +123,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     });
+  },
+  updateAgreement(id: string, payload: CreateAgreementInput) {
+    return request<{ agreement: Agreement }>(`/agreements/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    });
+  },
+  deleteAgreement(id: string) {
+    return request<void>(`/agreements/${id}`, { method: "DELETE" });
   },
   listAgreements() {
     return request<{ agreements: Agreement[] }>("/agreements");

@@ -21,9 +21,13 @@ const props = defineProps<{
   flip: Flip | null;
   kind: "agreement" | "result" | "fulfillment" | "waiver" | "flip";
   autoAction?: "save" | "share" | null;
+  embedded?: boolean;
 }>();
 
-const emit = defineEmits<{ back: [] }>();
+const emit = defineEmits<{
+  back: [];
+  home: [];
+}>();
 const canvas = ref<HTMLCanvasElement | null>(null);
 const busy = ref(false);
 const autoActionTimer = ref<number | null>(null);
@@ -52,7 +56,8 @@ function drawText(
   x: number,
   y: number,
   maxWidth: number,
-  lineHeight = 46
+  lineHeight = 46,
+  underline = false
 ) {
   const lines: string[] = [];
   let line = "";
@@ -66,8 +71,29 @@ function drawText(
     }
   }
   if (line) lines.push(line);
-  lines.forEach((value, index) => ctx.fillText(value, x, y + index * lineHeight));
+  lines.forEach((value, index) => {
+    const lineY = y + index * lineHeight;
+    ctx.fillText(value, x, lineY);
+    if (underline) {
+      ctx.beginPath();
+      ctx.moveTo(x, lineY + 6);
+      ctx.lineTo(x + ctx.measureText(value).width, lineY + 6);
+      ctx.stroke();
+    }
+  });
   return Math.max(1, lines.length) * lineHeight;
+}
+
+function loadImage(dataUrl: string | null | undefined): Promise<HTMLImageElement | null> {
+  if (!dataUrl) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = dataUrl;
+  });
 }
 
 function agreementDate(agreement: Agreement) {
@@ -78,7 +104,7 @@ function agreementDate(agreement: Agreement) {
   return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
 }
 
-function renderAgreementDocument(
+async function renderAgreementDocument(
   target: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
   agreement: Agreement,
@@ -155,12 +181,23 @@ function renderAgreementDocument(
   ];
 
   for (const [index, subtitle, body] of clauses) {
+    const isAgreement = index === copy.contract.articleLabels.first;
     ctx.fillStyle = palette.ink;
     ctx.font = "700 25px system-ui, sans-serif";
     ctx.fillText(`${index} ${subtitle}`, 104, y);
+    if (isAgreement) {
+      ctx.strokeStyle = palette.ink;
+      ctx.beginPath();
+      ctx.moveTo(104, y + 6);
+      ctx.lineTo(104 + ctx.measureText(`${index} ${subtitle}`).width, y + 6);
+      ctx.stroke();
+    }
     y += 34;
-    ctx.font = "26px system-ui, sans-serif";
-    y += drawText(ctx, body, 104, y, 872, 36) + 24;
+    ctx.font = isAgreement ? "700 26px system-ui, sans-serif" : "26px system-ui, sans-serif";
+    if (isAgreement) {
+      ctx.strokeStyle = palette.ink;
+    }
+    y += drawText(ctx, body, 104, y, 872, 36, isAgreement) + 24;
   }
 
   const signatureY = Math.max(y + 8, 1390);
@@ -178,9 +215,21 @@ function renderAgreementDocument(
     ctx.fillText(name, x, signatureY + 46);
     ctx.strokeStyle = palette.line;
     ctx.beginPath();
-    ctx.moveTo(x, signatureY + 60);
-    ctx.lineTo(x + 360, signatureY + 60);
+    ctx.moveTo(x, signatureY + 105);
+    ctx.lineTo(x + 360, signatureY + 105);
     ctx.stroke();
+  });
+
+  const signatureImages = await Promise.all([
+    loadImage(agreement.participants.find((participant) => participant.role === "initiator")?.signatureDataUrl),
+    loadImage(agreement.participants.find((participant) => participant.role === "counterparty")?.signatureDataUrl)
+  ]);
+  signatureImages.forEach((image, index) => {
+    if (!image) {
+      return;
+    }
+    const x = index === 0 ? 104 : 580;
+    ctx.drawImage(image, x, signatureY + 54, 270, 42);
   });
 
   const signed = isCounterpartySigned(agreement);
@@ -199,7 +248,7 @@ function renderAgreementDocument(
   ctx.fillText(getAgreementStatusLabel(agreement.status), 104, 1608);
 }
 
-function renderCertificate() {
+async function renderCertificate() {
   const target = canvas.value;
   const ctx = target?.getContext("2d");
   const agreement = props.agreement;
@@ -220,7 +269,7 @@ function renderCertificate() {
   target.width = 1080;
   target.height = 1440;
   if (props.kind === "agreement") {
-    renderAgreementDocument(target, ctx, agreement, palette);
+    await renderAgreementDocument(target, ctx, agreement, palette);
     return;
   }
 
@@ -354,23 +403,27 @@ function save(file: File) {
   URL.revokeObjectURL(url);
 }
 
-async function saveCertificate() {
-  if (busy.value) return;
+async function saveCertificate(): Promise<boolean> {
+  if (busy.value) return false;
   busy.value = true;
   try {
+    await renderCertificate();
     save(await imageFile());
     showToast(copy.certificate.saved);
+    return true;
   } catch {
     showToast(copy.certificate.failed);
+    return false;
   } finally {
     busy.value = false;
   }
 }
 
-async function shareCertificate() {
-  if (busy.value) return;
+async function shareCertificate(): Promise<boolean> {
+  if (busy.value) return false;
   busy.value = true;
   try {
+    await renderCertificate();
     const file = await imageFile();
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       await navigator.share({ title: title(), files: [file] });
@@ -378,20 +431,29 @@ async function shareCertificate() {
       save(file);
       showToast(copy.certificate.shareUnavailable);
     }
+    return true;
   } catch (error) {
     if (!(error instanceof Error && error.name === "AbortError")) {
       showToast(copy.certificate.failed);
     }
+    return false;
   } finally {
     busy.value = false;
   }
 }
 
 onMounted(() => {
-  renderCertificate();
+  void renderCertificate();
   if (props.autoAction) {
     autoActionTimer.value = window.setTimeout(() => {
-      void (props.autoAction === "save" ? saveCertificate() : shareCertificate());
+      void (async () => {
+        const completed = props.autoAction === "save"
+          ? await saveCertificate()
+          : await shareCertificate();
+        if (completed) {
+          emit("back");
+        }
+      })();
     }, 80);
   }
 });
@@ -400,22 +462,41 @@ onUnmounted(() => {
     window.clearTimeout(autoActionTimer.value);
   }
 });
-watch(() => [props.agreement?.revision, props.flip?.status, props.kind], renderCertificate);
+watch(
+  () => [props.agreement?.revision, props.flip?.status, props.kind],
+  () => { void renderCertificate(); }
+);
+
+defineExpose({
+  busy,
+  saveCertificate,
+  shareCertificate
+});
 </script>
 
 <template>
-  <section class="life-page service-flow-page certificate-page">
+  <section
+    class="life-page service-flow-page certificate-page"
+    :class="{ 'is-auto-action': props.autoAction, 'certificate-page-embedded': props.embedded }"
+  >
     <LifeServiceHero
+      v-if="!props.embedded"
       class="service-flow-hero"
       :title="props.kind === 'agreement' ? copy.contract.documentTitle : copy.certificate.navTitle"
       :show-back="true"
+      :show-home="true"
       :back-label="copy.common.back"
+      :home-label="copy.common.home"
       @back="emit('back')"
+      @home="emit('home')"
     />
-    <div class="life-page-content service-flow-content certificate-preview-wrap">
+    <div
+      class="life-page-content service-flow-content certificate-preview-wrap"
+      :class="{ 'is-direct-action': props.autoAction, 'is-embedded': props.embedded }"
+    >
       <canvas ref="canvas" class="certificate-preview" :aria-label="title()" />
     </div>
-    <LifeActionBar>
+    <LifeActionBar v-if="!props.autoAction && !props.embedded">
       <BaseButton variant="outline" size="lg" :loading="busy" @click="saveCertificate">
         <Download :size="18" />
         {{ props.kind === "agreement" ? copy.contract.documentSave : copy.certificate.save }}
@@ -431,6 +512,32 @@ watch(() => [props.agreement?.revision, props.flip?.status, props.kind], renderC
 <style scoped>
 .certificate-preview-wrap {
   padding-bottom: 24px;
+}
+
+.certificate-preview-wrap.is-direct-action {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.certificate-page-embedded {
+  min-height: 0;
+  background: transparent;
+  animation: none;
+}
+
+.certificate-preview-wrap.is-embedded {
+  display: block;
+  min-height: 0;
+  padding: 0;
+}
+
+.certificate-preview-wrap.is-embedded .certificate-preview {
+  width: min(100%, 420px);
+  box-shadow: var(--pb-shadow-certificate);
 }
 
 .certificate-preview {

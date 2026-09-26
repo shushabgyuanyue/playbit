@@ -111,6 +111,45 @@ const created = await json<{ agreement: Agreement }>("/agreements", {
 assert.equal(created.agreement.status, "pending_signature");
 assert.equal(created.agreement.participants.length, 1);
 
+const deletableDraft = await json<{ agreement: Agreement }>("/agreements", {
+  method: "POST",
+  headers: auth(initiator.token),
+  body: JSON.stringify({
+    source: "custom",
+    creatorSignatureDataUrl: "data:image/png;base64:deletable-signature",
+    title: "待删除约定",
+    challenge: "这份约定用于验证删除权限",
+    stake: { type: "custom", label: "删除测试权益", fulfilled: false, additions: [] },
+    cardId: null
+  })
+});
+const deletedDraft = await app.request(`/agreements/${deletableDraft.agreement.id}`, {
+  method: "DELETE",
+  headers: auth(initiator.token)
+});
+assert.equal(deletedDraft.status, 204);
+const deletedDraftView = await app.request(`/agreements/${deletableDraft.agreement.id}`, {
+  headers: auth(initiator.token)
+});
+assert.equal(deletedDraftView.status, 404);
+
+const updatedDraft = await json<{ agreement: Agreement }>(`/agreements/${created.agreement.id}`, {
+  method: "PATCH",
+  headers: auth(initiator.token),
+  body: JSON.stringify({
+    source: "custom",
+    creatorSignatureDataUrl: "data:image/png;base64,initiator-signature-updated",
+    title: "编辑后的约定",
+    challenge: "编辑后的约定内容",
+    stake: { type: "coupon", label: "洗碗一次", fulfilled: false, additions: [] },
+    cardId: null
+  })
+});
+assert.equal(updatedDraft.agreement.id, created.agreement.id);
+assert.equal(updatedDraft.agreement.shareCode, created.agreement.shareCode);
+assert.equal(updatedDraft.agreement.title, "编辑后的约定");
+assert.equal(updatedDraft.agreement.participants[0].signatureDataUrl, "data:image/png;base64,initiator-signature-updated");
+
 const share = await json<{ agreement: Agreement }>(`/share/${created.agreement.shareCode}`);
 assert.equal(share.agreement.id, created.agreement.id);
 
@@ -133,6 +172,11 @@ const signed = await json<{ agreement: Agreement }>(`/share/${created.agreement.
 
 assert.equal(signed.agreement.status, "active");
 assert.equal(signed.agreement.participants.length, 2);
+const counterpartyDelete = await app.request(`/agreements/${signed.agreement.id}`, {
+  method: "DELETE",
+  headers: auth(counterparty.token)
+});
+assert.equal(counterpartyDelete.status, 403);
 assert.equal(signed.agreement.participants.find((participant) => participant.role === "counterparty")?.nickname, counterparty.user.nickname);
 
 const signedOutsiderShare = await app.request(`/share/${created.agreement.shareCode}`, {
@@ -148,7 +192,7 @@ assert.equal(initiatorAfterSign.agreement.status, "active");
 const initiatorMe = await json<{ user: User }>("/auth/me", {
   headers: auth(initiator.token)
 });
-assert.equal(initiatorMe.user.signatureDataUrl, "data:image/png;base64,initiator-signature");
+assert.equal(initiatorMe.user.signatureDataUrl, "data:image/png;base64,initiator-signature-updated");
 
 const boost = await json<{ agreement: Agreement }>(`/agreements/${signed.agreement.id}/boost`, {
   method: "POST",
@@ -394,6 +438,11 @@ assert.equal((await json<{ coupons: Coupon[] }>("/coupons", {
 assert.equal((await json<{ agreement: Agreement }>(`/agreements/${signed.agreement.id}`, {
   headers: auth(initiator.token)
 })).agreement.status, "fulfilled");
+const completedDelete = await app.request(`/agreements/${signed.agreement.id}`, {
+  method: "DELETE",
+  headers: auth(initiator.token)
+});
+assert.equal(completedDelete.status, 409);
 
 const secondUse = await app.request(`/coupons/${originalCoupon.id}/use`, {
   method: "PATCH",

@@ -67,6 +67,11 @@ watch(signed, (value, previous) => {
 
 onMounted(() => {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (signed.value && !reducedMotion) {
+    requestAnimationFrame(() => {
+      stamping.value = true;
+    });
+  }
   if (!props.reveal || reducedMotion) {
     revealed.value = true;
     return;
@@ -118,9 +123,9 @@ onMounted(() => {
       {{ copy.contract.productLine }}
     </p>
 
-    <section class="contract-clause contract-reveal-item" style="--contract-reveal-delay: 220ms">
+    <section class="contract-clause contract-agreement-clause contract-reveal-item" style="--contract-reveal-delay: 220ms">
       <h3>{{ copy.contract.articleLabels.first }} {{ copy.contract.clauseTitles.subject }}</h3>
-      <p>{{ protocolLines[0] }}</p>
+      <p class="contract-agreement-highlight">{{ protocolLines[0] }}</p>
     </section>
 
     <section class="contract-clause contract-reveal-item" style="--contract-reveal-delay: 300ms">
@@ -169,5 +174,9 @@ onMounted(() => {
     <div v-if="showSeal" class="contract-seal" :class="{ pending: !signed, 'is-stamping': stamping }">
       {{ signed ? copy.contract.seal : copy.contract.pendingSeal }}
     </div>
+
+    <footer v-if="$slots.actions" class="contract-document-actions">
+      <slot name="actions" />
+    </footer>
   </article>
 </template>

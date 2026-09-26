@@ -46,7 +46,7 @@ export function createPlaybitApp(repositories: AppRepositories, webOrigins: stri
       "*",
       cors({
         origin,
-        allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
+        allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allowHeaders: ["Content-Type", "Authorization"]
       })
     );

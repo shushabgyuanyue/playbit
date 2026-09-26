@@ -31,8 +31,7 @@
 
 .stake-selected-row:focus-visible,
 .stake-option:focus-visible {
-  outline: 2px solid var(--pb-focus);
-  outline-offset: 2px;
+  outline: none;
 }
 
 .stake-selected-row .voucher-ticket-main {
@@ -128,7 +127,7 @@
 
 .stake-option.active {
   border-color: var(--pb-line-action-strong);
-  box-shadow: var(--pb-shadow-ticket), 0 0 0 2px var(--pb-focus-soft);
+  box-shadow: var(--pb-shadow-ticket);
 }
 
 .stake-radio {
@@ -145,7 +144,6 @@
 .stake-option.active .stake-radio {
   border-color: var(--pb-theme-contract);
   background: var(--pb-theme-contract);
-  box-shadow: 0 0 0 3px var(--pb-focus-soft);
 }
 
 @media (max-width: 374px) {

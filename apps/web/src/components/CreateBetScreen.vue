@@ -218,13 +218,13 @@ onMounted(focusTitle);
           <h2>{{ copy.create.signatureSheetTitle }}</h2>
         </header>
         <p class="create-sheet-hint">{{ copy.signature.safety }}</p>
-        <AgreementNotice />
         <SignaturePad
           ref="signaturePad"
           :label="copy.create.signature"
           :model-value="form.creatorSignatureDataUrl"
           @change="form.creatorSignatureDataUrl = $event"
         />
+        <AgreementNotice />
         <BaseButton size="lg" :disabled="!form.creatorSignatureDataUrl || props.loading" @click="confirmSignature">
           <Check :size="18" />
           {{ copy.create.signatureConfirm }}

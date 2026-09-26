@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Agreement, Coupon, GraceTicket } from "@playbit/shared";
-import { TicketCheck } from "lucide-vue-next";
-import { computed, ref, watch } from "vue";
+import type { VoucherUiStatus } from "../types/voucher";
+import { computed, onUnmounted, ref, watch } from "vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import { useVoucherAssets } from "../composables/useVoucherAssets";
 import type { VoucherItem, VoucherStatusFilter, VoucherViewFilter } from "../types/voucher";
 import VoucherSection from "./VoucherSection.vue";
-import BaseBadge from "./ui/BaseBadge.vue";
+import VoucherTicket from "./ui/VoucherTicket.vue";
 
 const props = defineProps<{
   agreements: Agreement[];
@@ -18,6 +18,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   back: [];
+  home: [];
   openAgreement: [agreementId: string];
   openVoucher: [voucherId: string];
 }>();
@@ -28,6 +29,12 @@ const visibleCounts = ref<Record<VoucherStatusFilter, number>>({
   available: 3,
   used: 3
 });
+const loadingStatus = ref<Record<VoucherStatusFilter, boolean>>({
+  pending: false,
+  available: false,
+  used: false
+});
+const loadTimers = new Map<VoucherStatusFilter, number>();
 
 const { statusCounts, totalCount, voucherSections } = useVoucherAssets(
   () => props.agreements,
@@ -59,19 +66,45 @@ function redeemVoucher(voucher: VoucherItem) {
   emit("openVoucher", voucher.id);
 }
 
-function showMore(status: VoucherStatusFilter) {
-  visibleCounts.value = {
-    ...visibleCounts.value,
-    [status]: visibleCounts.value[status] + 3
-  };
+function graceStatus(status: GraceTicket["status"]): VoucherUiStatus {
+  return status === "available" ? "available" : status === "reserved" ? "pending" : "used";
+}
+
+function loadMore(status: VoucherStatusFilter) {
+  const section = voucherSections.value.find((item) => item.status === status);
+  if (!section || loadingStatus.value[status] || visibleCounts.value[status] >= section.items.length) {
+    return;
+  }
+
+  loadingStatus.value = { ...loadingStatus.value, [status]: true };
+  const timer = window.setTimeout(() => {
+    visibleCounts.value = {
+      ...visibleCounts.value,
+      [status]: visibleCounts.value[status] + 3
+    };
+    loadingStatus.value = { ...loadingStatus.value, [status]: false };
+    loadTimers.delete(status);
+  }, 260);
+  loadTimers.set(status, timer);
 }
 
 watch(activeView, () => {
+  loadTimers.forEach((timer) => window.clearTimeout(timer));
+  loadTimers.clear();
   visibleCounts.value = {
     pending: 3,
     available: 3,
     used: 3
   };
+  loadingStatus.value = {
+    pending: false,
+    available: false,
+    used: false
+  };
+});
+
+onUnmounted(() => {
+  loadTimers.forEach((timer) => window.clearTimeout(timer));
 });
 </script>
 
@@ -81,8 +114,11 @@ watch(activeView, () => {
       class="service-flow-hero voucher-service-hero"
       :title="copy.vouchers.navTitle"
       :show-back="true"
+      :show-home="true"
       :back-label="copy.common.back"
+      :home-label="copy.common.home"
       @back="emit('back')"
+      @home="emit('home')"
     />
 
     <div class="voucher-overview-wrap">
@@ -113,15 +149,29 @@ watch(activeView, () => {
           <p>{{ copy.vouchers.graceTitle }}</p>
           <h2 id="grace-ticket-heading">{{ copy.vouchers.graceEarned }}</h2>
         </div>
-        <TicketCheck :size="21" aria-hidden="true" />
       </div>
       <div v-if="props.graceTickets.length" class="grace-ticket-list">
-        <article v-for="ticket in props.graceTickets" :key="ticket.id" class="grace-ticket-row">
-          <span>{{ copy.vouchers.graceMilestonePrefix }}{{ ticket.earnedAtFulfillmentCount }}{{ copy.vouchers.graceMilestoneSuffix }}</span>
-          <BaseBadge :tone="ticket.status === 'available' ? 'success' : ticket.status === 'reserved' ? 'pending' : 'archive'">
-            {{ ticket.status === 'available' ? copy.vouchers.graceAvailable : ticket.status === 'reserved' ? copy.vouchers.graceReserved : copy.vouchers.graceUsed }}
-          </BaseBadge>
-        </article>
+        <VoucherTicket
+          v-for="ticket in props.graceTickets"
+          :key="ticket.id"
+          kind="custom"
+          variant="grace"
+          :status="graceStatus(ticket.status)"
+          watermark="none"
+        >
+          <template #value>
+            <strong>{{ copy.vouchers.graceTitle }}</strong>
+            <span>{{ copy.vouchers.graceMilestonePrefix }}{{ ticket.earnedAtFulfillmentCount }}{{ copy.vouchers.graceMilestoneSuffix }}</span>
+          </template>
+          <div class="voucher-ticket-copy">
+            <div class="voucher-ticket-title-row">
+              <strong>{{ copy.vouchers.graceTitle }}</strong>
+            </div>
+            <p class="voucher-ticket-time">
+              {{ ticket.status === 'available' ? copy.vouchers.graceAvailable : ticket.status === 'reserved' ? copy.vouchers.graceReserved : copy.vouchers.graceUsed }}
+            </p>
+          </div>
+        </VoucherTicket>
       </div>
       <p v-else class="grace-ticket-empty">{{ copy.vouchers.graceEmpty }}</p>
     </section>
@@ -144,11 +194,12 @@ watch(activeView, () => {
         :key="section.status"
         :section="section"
         :visible-count="visibleCounts[section.status]"
+        :loading="loadingStatus[section.status]"
         @open-agreement="openAgreement"
         @open-detail="emit('openVoucher', $event.id)"
         @open-rules="emit('openVoucher', $event.id)"
         @redeem="redeemVoucher"
-        @show-more="showMore(section.status)"
+        @load-more="loadMore(section.status)"
       />
     </div>
 
@@ -157,66 +208,3 @@ watch(activeView, () => {
     </van-empty>
   </section>
 </template>
-
-<style scoped>
-.grace-ticket-section {
-  margin: 0 var(--pb-page-x) 14px;
-  padding: 13px 14px;
-  border: 1px solid var(--pb-line);
-  border-radius: var(--pb-radius-lg);
-  background: var(--pb-fill-card);
-}
-
-.grace-ticket-heading,
-.grace-ticket-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.grace-ticket-heading p,
-.grace-ticket-heading h2,
-.grace-ticket-empty {
-  margin: 0;
-}
-
-.grace-ticket-heading p {
-  color: var(--pb-text-3);
-  font-size: var(--pb-font-sm);
-}
-
-.grace-ticket-heading h2 {
-  margin-top: 4px;
-  color: var(--pb-text-1);
-  font-size: var(--pb-font-md);
-  font-weight: var(--pb-weight-semibold);
-}
-
-.grace-ticket-heading > svg {
-  flex: 0 0 auto;
-  color: var(--pb-blue);
-}
-
-.grace-ticket-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.grace-ticket-row {
-  min-height: 38px;
-  padding-top: 8px;
-  border-top: 1px solid var(--pb-line);
-}
-
-.grace-ticket-row > span,
-.grace-ticket-empty {
-  color: var(--pb-text-3);
-  font-size: var(--pb-font-sm);
-}
-
-.grace-ticket-empty {
-  margin-top: 10px;
-}
-</style>

@@ -55,6 +55,7 @@ const {
   closeAuthSheet,
   createAgreement,
   drawCard,
+  deleteAgreement,
   loginAccount,
   logoutAccount,
   addBoost,
@@ -68,6 +69,7 @@ const {
   openFeaturedCard,
   openHistory,
   openAgreementFrom,
+  returnFromContract,
   openCertificate,
   openVoucherCertificate,
   closeCertificate,
@@ -174,6 +176,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         v-else-if="screen === 'notices'"
         :active-index="activeNoticeIndex"
         @back="screen = 'home'"
+        @home="screen = 'home'"
         @select="activeNoticeIndex = $event"
       />
       <AccountScreen
@@ -202,7 +205,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :agreement="activeAgreement"
         :current-user-id="currentUser?.id ?? null"
         :refreshing="agreementRefreshing"
-        @back="screen = contractBackScreen"
+        @back="returnFromContract"
         @home="screen = 'home'"
         @open-share="openShare('sign')"
         @refresh="refreshActiveAgreement"
@@ -216,6 +219,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :kind="certificateKind"
         :auto-action="certificateAction"
         @back="closeCertificate"
+        @home="screen = 'home'"
       />
       <DrawCardScreen
         v-else-if="screen === 'draw'"
@@ -231,8 +235,10 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
       <SessionScreen
         v-else-if="screen === 'agreement' && activeAgreement"
         :agreement="activeAgreement"
+        :coupons="coupons"
         :current-user-id="currentUser?.id ?? null"
-        @back="screen = 'home'"
+        @back="screen = 'contract'"
+        @home="screen = 'home'"
         @settle="recordAgreementResult"
         @add-boost="addBoost"
         @confirm-boost="confirmBoost"
@@ -244,10 +250,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :current-user-id="currentUser?.id ?? null"
         :show-back="contractBackScreen === 'history' || contractBackScreen === 'vouchers' || contractBackScreen === 'voucherDetail'"
         @back="screen = contractBackScreen"
-        @open-share="openShare()"
-        @open-certificate="openCertificate"
         @open-vouchers="openVouchers"
-        @open-agreement="openAgreementById(activeAgreement?.id ?? '', 'settlement')"
         @fulfill="fulfillCustomAgreement(activeAgreement?.id ?? '')"
         @home="screen = 'home'"
       />
@@ -260,6 +263,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :current-user-id="currentUser?.id ?? null"
         :loading="flipBusy"
         @back="closeFlip"
+        @home="screen = 'home'"
         @accept="respondToFlip"
         @refresh="refreshFlip"
         @record-result="recordFlipOutcome"
@@ -270,8 +274,11 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
       <HistoryScreen
         v-else-if="screen === 'history'"
         :agreements="agreements"
+        :current-user-id="currentUser?.id ?? null"
         @back="screen = 'home'"
+        @home="screen = 'home'"
         @open="(agreement) => openAgreementFrom(agreement, 'history')"
+        @delete="deleteAgreement"
       />
       <VoucherCenterScreen
         v-else-if="screen === 'vouchers'"
@@ -280,6 +287,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :current-user-id="currentUser?.id ?? null"
         :grace-tickets="graceTickets"
         @back="screen = 'home'"
+        @home="screen = 'home'"
         @open-agreement="(agreementId) => openAgreementById(agreementId, 'vouchers')"
         @open-voucher="openVoucherDetail"
       />
@@ -296,6 +304,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :can-respond-waiver="canRespondGraceWaiver"
         :is-waiver-requester="isGraceWaiverRequester"
         @back="screen = 'vouchers'"
+        @home="screen = 'home'"
         @open-agreement="
           (voucher) => {
             if (voucher.agreementId) openAgreementById(voucher.agreementId, 'voucherDetail');
@@ -318,7 +327,6 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :agreement="activeAgreement ?? null"
         :user="currentUser"
         :loading="signLoading"
-        @decline="screen = 'home'"
         @home="screen = 'home'"
         @sign="signSession"
       />

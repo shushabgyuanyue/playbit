@@ -6,10 +6,12 @@ const props = withDefaults(defineProps<{
   kind: VoucherKind;
   status?: VoucherUiStatus;
   size?: "default" | "mini";
+  variant?: "default" | "grace";
   watermark?: "panda" | "rabbit" | "none";
   interactive?: boolean;
 }>(), {
   size: "default",
+  variant: "default",
   status: undefined,
   watermark: "panda",
   interactive: false
@@ -28,6 +30,7 @@ const emit = defineEmits<{
     :class="[
       `kind-${props.kind}`,
       `voucher-ticket-${props.size}`,
+      `voucher-ticket-${props.variant}`,
       props.status ? `status-${props.status}` : '',
       { 'voucher-ticket-interactive': props.interactive }
     ]"

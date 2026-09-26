@@ -8,38 +8,57 @@
 }
 
 .voucher-overview-wrap {
-  padding: 12px var(--pb-page-x) 8px;
+  padding: 10px var(--pb-page-x) 6px;
+}
+
+.voucher-overview-wrap .life-summary-card {
+  border-color: rgba(22, 119, 255, 0.14);
+  background: var(--pb-surface-ticket);
+  box-shadow: var(--pb-shadow-ticket);
+  padding: 10px 12px;
+}
+
+.voucher-overview-wrap .life-metric-row {
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.voucher-overview-wrap .life-metric-row span {
+  color: var(--pb-text-2);
+  font-size: var(--pb-font-xs);
+}
+
+.voucher-overview-wrap .life-metric-row strong {
+  color: var(--pb-blue);
+  font-size: var(--pb-font-xl);
+  font-weight: var(--pb-weight-bold);
 }
 
 .voucher-list-shell {
   display: grid;
-  gap: 10px;
-  padding: 8px var(--pb-page-x) 24px;
+  gap: 8px;
+  padding: 6px var(--pb-page-x) 22px;
 }
 
 .voucher-section {
   position: relative;
-  overflow: hidden;
-  border-radius: var(--pb-radius-lg);
-  border: 1px solid var(--pb-line-soft);
-  background: var(--pb-surface-panel-cool);
-  box-shadow: 0 2px 7px rgba(23, 43, 77, 0.025);
+  overflow: visible;
 }
 
 .voucher-section-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 42px;
-  padding: 0 11px;
-  color: var(--pb-text-1);
-  font-size: var(--pb-font-lg);
+  min-height: 38px;
+  padding: 0 10px;
+  color: var(--pb-text-2);
+  font-size: var(--pb-font-md);
   font-weight: var(--pb-weight-semibold);
 }
 
 .voucher-section-header > span:last-child {
   color: var(--pb-text-3);
-  font-size: var(--pb-font-base);
+  font-size: var(--pb-font-xs);
   font-weight: var(--pb-weight-regular);
 }
 
@@ -50,36 +69,101 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--pb-theme-pending);
+  background: var(--pb-ink-pending);
   color: var(--pb-text-on-color);
 }
 
 .voucher-section.status-available .voucher-section-icon {
-  background: var(--pb-theme-redeem);
+  background: var(--pb-blue);
 }
 
 .voucher-section.status-used .voucher-section-icon {
-  background: var(--pb-theme-archive);
+  background: var(--pb-text-2);
 }
 
 .voucher-section-stack {
   display: grid;
-  gap: 8px;
-  padding: 0 10px 12px;
+  gap: 7px;
+  padding: 0 0 9px;
 }
 
-.voucher-section-more {
-  justify-self: end;
-  min-width: 92px;
+.voucher-section-list {
+  min-height: 0;
+}
+
+.voucher-section-list .van-list__loading {
+  display: flex;
   min-height: 34px;
-  margin: -2px 10px 10px auto;
-  border: 0;
-  border-radius: var(--pb-radius-sm);
-  background: var(--pb-fill-soft);
-  color: var(--pb-blue);
-  padding: 0 14px;
-  font-size: var(--pb-font-base);
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--pb-text-2);
+  font-size: var(--pb-font-xs);
+}
+
+.voucher-section-list .van-loading__text {
+  color: inherit;
+  font-size: inherit;
+}
+
+.grace-ticket-section {
+  position: relative;
+  overflow: hidden;
+  margin: 0 var(--pb-page-x) 12px;
+  border: 1px solid var(--pb-grace-line);
+  border-radius: var(--pb-radius-lg);
+  background: var(--pb-surface-grace);
+  box-shadow: var(--pb-shadow-grace);
+  padding: 12px 13px;
+}
+
+.grace-ticket-heading,
+.grace-ticket-heading p,
+.grace-ticket-heading h2,
+.grace-ticket-empty {
+  margin: 0;
+}
+
+.grace-ticket-heading p {
+  color: var(--pb-grace-gold-deep);
+  font-size: var(--pb-font-xs);
   font-weight: var(--pb-weight-semibold);
+}
+
+.grace-ticket-heading h2 {
+  margin-top: 4px;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-md);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.grace-ticket-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 11px;
+}
+
+.grace-ticket-list .voucher-ticket {
+  width: 100%;
+}
+
+.grace-ticket-empty {
+  color: var(--pb-text-2);
+  font-size: var(--pb-font-xs);
+}
+
+.grace-ticket-empty {
+  margin-top: 9px;
+}
+
+.voucher-page .life-status-tabs {
+  gap: 14px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.voucher-page .life-status-tabs button {
+  min-height: 36px;
 }
 
 @media (max-width: 374px) {

@@ -73,6 +73,12 @@ function choose(preset: StakePreset) {
   pickerOpen.value = false;
 }
 
+function open() {
+  pickerOpen.value = true;
+}
+
+defineExpose({ open });
+
 function kindForPreset(preset: StakePreset) {
   return inferStakeVoucherKind({ type: preset.type, label: preset.label, fulfilled: false, additions: [] });
 }
@@ -94,12 +100,12 @@ function kindForPreset(preset: StakePreset) {
       @click="pickerOpen = true"
     >
       <template #value>
-        <strong>{{ benefit.title }}</strong>
-        <span>{{ benefit.subtitle }}</span>
+        <strong>{{ selectedPreset.type === "custom" ? copy.stakes.customTicket : benefit.title }}</strong>
+        <span>{{ selectedPreset.type === "custom" ? copy.stakes.displayBenefit : benefit.subtitle }}</span>
       </template>
       <div class="stake-selected-copy">
-        <strong>{{ stake.label }}</strong>
-        <small>{{ selectedPreset.description }}</small>
+        <strong>{{ selectedPreset.type === "custom" ? (customLabel || copy.stakes.custom) : stake.label }}</strong>
+        <small>{{ selectedPreset.type === "custom" ? copy.stakes.displayBenefit : selectedPreset.description }}</small>
       </div>
       <ChevronRight :size="17" aria-hidden="true" />
     </VoucherTicket>
@@ -142,12 +148,12 @@ function kindForPreset(preset: StakePreset) {
             @click="choose(preset)"
           >
             <template #value>
-              <strong>{{ formatVoucherBenefit(preset.label).title }}</strong>
-              <span>{{ formatVoucherBenefit(preset.label).subtitle }}</span>
+              <strong>{{ preset.type === "custom" ? copy.stakes.customTicket : formatVoucherBenefit(preset.label).title }}</strong>
+              <span>{{ preset.type === "custom" ? copy.stakes.displayBenefit : formatVoucherBenefit(preset.label).subtitle }}</span>
             </template>
             <div class="stake-option-copy">
-              <strong>{{ preset.label }}</strong>
-              <small>{{ preset.description }}</small>
+              <strong>{{ preset.type === "custom" ? (customLabel || copy.stakes.custom) : preset.label }}</strong>
+              <small>{{ preset.type === "custom" ? copy.stakes.displayBenefit : preset.description }}</small>
             </div>
             <span class="stake-radio" aria-hidden="true">
               <Check v-if="selectedLabel === preset.label" :size="12" :stroke-width="3" />

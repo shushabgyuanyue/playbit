@@ -51,6 +51,7 @@ export function usePlaybitFlow() {
   const certificateKind = ref<"agreement" | "result" | "fulfillment" | "waiver" | "flip">("agreement");
   const certificateAction = ref<"save" | "share" | null>(null);
   const authReturnScreen = ref<Screen>("home");
+  const editingAgreementId = ref<string | null>(null);
   const drawnCardIds = ref<string[]>([]);
   const cardLoading = ref(false);
   const createLoading = ref(false);
@@ -142,6 +143,7 @@ export function usePlaybitFlow() {
 
   function openCreate() {
     resetCreateDraft();
+    editingAgreementId.value = null;
     screen.value = "create";
   }
 
@@ -278,13 +280,16 @@ export function usePlaybitFlow() {
 
     createLoading.value = true;
     try {
-      const response = await api.createAgreement(sessionInput);
+      const response = editingAgreementId.value
+        ? await api.updateAgreement(editingAgreementId.value, sessionInput)
+        : await api.createAgreement(sessionInput);
       currentUser.value = {
         ...user,
         signatureDataUrl: payload.creatorSignatureDataUrl
       };
       agreements.value = [response.agreement, ...agreements.value.filter((item) => item.id !== response.agreement.id)];
       activeAgreementId.value = response.agreement.id;
+      editingAgreementId.value = response.agreement.id;
 
       contractBackScreen.value = payload.source === "card" ? "draw" : "create";
       screen.value = "contract";
@@ -402,6 +407,26 @@ export function usePlaybitFlow() {
     openAgreement(agreement);
   }
 
+  function returnFromContract() {
+    if (
+      contractBackScreen.value === "create" &&
+      editingAgreementId.value === activeAgreement.value?.id &&
+      activeAgreement.value?.status === "pending_signature"
+    ) {
+      const agreement = activeAgreement.value;
+      const initiator = agreement.participants.find((participant) => participant.role === "initiator");
+      createDraft.title = agreement.title;
+      createDraft.stake = {
+        ...agreement.stake,
+        additions: [...(agreement.stake.additions ?? [])]
+      };
+      createDraft.creatorSignatureDataUrl = initiator?.signatureDataUrl ?? "";
+      screen.value = "create";
+      return;
+    }
+    screen.value = contractBackScreen.value;
+  }
+
   function openCertificate(
     kind: "agreement" | "result" | "fulfillment" | "waiver",
     action: "save" | "share" | null = null
@@ -472,6 +497,40 @@ export function usePlaybitFlow() {
         return;
       }
       showToast(copy.vouchers.openFailed);
+    }
+  }
+
+  async function deleteAgreement(agreement: Agreement) {
+    const user = currentUser.value;
+    const isInitiator = agreement.participants.some(
+      (participant) => participant.role === "initiator" && participant.userId === user?.id
+    );
+    if (!user || agreement.ownerUserId !== user.id || !isInitiator || ["fulfilled", "waived"].includes(agreement.status)) {
+      return;
+    }
+
+    try {
+      await showConfirmDialog({
+        title: copy.history.deleteTitle,
+        message: copy.history.deleteMessage(agreement.title),
+        confirmButtonText: copy.history.deleteAction
+      });
+    } catch {
+      return;
+    }
+
+    try {
+      await api.deleteAgreement(agreement.id);
+      agreements.value = agreements.value.filter((item) => item.id !== agreement.id);
+      coupons.value = coupons.value.filter((coupon) => coupon.agreementId !== agreement.id);
+      if (activeAgreementId.value === agreement.id) {
+        activeAgreementId.value = null;
+        editingAgreementId.value = null;
+        screen.value = "home";
+      }
+      showToast(copy.history.deleteSuccess);
+    } catch {
+      showToast(copy.history.deleteFailed);
     }
   }
 
@@ -661,6 +720,7 @@ export function usePlaybitFlow() {
     pendingFlipId.value = null;
     pendingFlipCouponId.value = null;
     activeAgreementId.value = null;
+    editingAgreementId.value = null;
     activeVoucherId.value = null;
     screen.value = "home";
   }
@@ -844,6 +904,7 @@ export function usePlaybitFlow() {
     screen,
     copyShareText,
     createAgreement,
+    deleteAgreement,
     confirmBoost,
     drawCard,
     beginCardUpgrade,
@@ -860,6 +921,7 @@ export function usePlaybitFlow() {
     openHistory,
     openAgreement,
     openAgreementFrom,
+    returnFromContract,
     openCertificate,
     openVoucherCertificate,
     openFlipCertificate,

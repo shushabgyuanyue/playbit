@@ -18,7 +18,6 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  decline: [];
   home: [];
   sign: [payload: { signatureDataUrl: string }];
 }>();
@@ -80,9 +79,6 @@ watch(
     </div>
 
     <LifeActionBar v-if="props.agreement">
-      <BaseButton variant="outline" size="lg" :disabled="props.loading" @click="emit('decline')">
-        {{ copy.sign.decline }}
-      </BaseButton>
       <BaseButton
         size="lg"
         :loading="props.loading"

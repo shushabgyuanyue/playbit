@@ -81,6 +81,10 @@ class MemoryAgreementRepository {
     return Array.from(this.agreements.values()).find((agreement) => agreement.shareCode === shareCode) ?? null;
   }
 
+  async delete(id: string): Promise<boolean> {
+    return this.agreements.delete(id);
+  }
+
   async update(agreement: Agreement, expectedRevision = agreement.revision): Promise<Agreement> {
     const current = this.agreements.get(agreement.id);
     if (!current || current.revision !== expectedRevision) {
@@ -128,6 +132,14 @@ class PostgresAgreementRepository {
       .where(eq(agreements.shareCode, shareCode))
       .limit(1);
     return row ? fromRow(row) : null;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const deleted = await this.db
+      .delete(agreements)
+      .where(eq(agreements.id, id))
+      .returning({ id: agreements.id });
+    return deleted.length > 0;
   }
 
   async update(agreement: Agreement, expectedRevision = agreement.revision): Promise<Agreement> {
