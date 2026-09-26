@@ -12,8 +12,8 @@
   display: grid;
   flex: 1 0 auto;
   align-content: start;
-  gap: 14px;
-  padding: 14px var(--pb-page-x) 28px;
+  gap: 12px;
+  padding: 12px var(--pb-page-x) 24px;
 }
 
 .life-muted {
@@ -35,41 +35,4 @@
   .life-page {
     animation: none;
   }
-}
-
-.account-identity-panel {
-  display: grid;
-  gap: 10px;
-}
-
-.account-identity-list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-}
-
-.account-identity-list div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-top: 1px solid var(--pb-line);
-  padding-top: 10px;
-}
-
-.account-identity-list dt {
-  color: var(--pb-text-3);
-  font-size: var(--pb-font-sm);
-}
-
-.account-identity-list dd {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin: 0;
-  overflow: hidden;
-  color: var(--pb-text-2);
-  font-size: var(--pb-font-base);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }

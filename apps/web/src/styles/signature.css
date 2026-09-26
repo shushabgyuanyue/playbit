@@ -2,8 +2,8 @@
   display: grid;
   gap: 10px;
   border-radius: var(--pb-radius-lg);
-  border: 1px solid var(--pb-line);
-  background: var(--pb-fill-card);
+  border: 1px solid var(--pb-line-soft);
+  background: var(--pb-surface-panel);
   padding: 12px 12px 14px;
 }
 
@@ -39,7 +39,7 @@
   gap: 4px;
   border: 1px solid var(--pb-line);
   border-radius: var(--pb-radius-sm);
-  background: #ffffff;
+  background: var(--pb-fill-card);
   color: var(--pb-text-2);
   padding: 0 10px;
   font-size: var(--pb-font-xs);
@@ -49,15 +49,15 @@
   position: relative;
   overflow: hidden;
   min-height: 132px;
-  border: 1px solid rgba(23, 43, 77, 0.18);
+  border: 1px solid var(--pb-line-ink);
   border-radius: var(--pb-radius-md);
-  background: #ffffff;
+  background: var(--pb-surface-paper);
 }
 
 .signature-pad-paper::before {
   position: absolute;
   inset: 10px;
-  border: 1px solid rgba(23, 43, 77, 0.045);
+  border: 1px solid var(--pb-line-ink-soft);
   content: "";
   pointer-events: none;
 }
@@ -77,7 +77,7 @@
   bottom: 38px;
   left: 18px;
   height: 1px;
-  background: rgba(23, 43, 77, 0.22);
+  background: var(--pb-line-ink);
 }
 
 .signature-pad-label {
@@ -87,6 +87,13 @@
   color: var(--pb-text-3);
   font-size: var(--pb-font-xs);
   letter-spacing: 0;
+}
+
+.sign-signature-safety {
+  margin: -2px 0 0;
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-xs);
+  line-height: 1.5;
 }
 
 .contract-signature-grid {
@@ -103,7 +110,7 @@
   min-height: 88px;
   border: 1px solid rgba(23, 43, 77, 0.16);
   border-radius: var(--pb-radius-sm);
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--pb-overlay-white-muted);
   padding: 9px 10px 11px;
 }
 
@@ -113,7 +120,7 @@
   bottom: 26px;
   left: 10px;
   height: 1px;
-  background: rgba(23, 43, 77, 0.16);
+  background: var(--pb-line-ink);
   content: "";
 }
 

@@ -15,9 +15,9 @@ html {
 
 body {
   margin: 0;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
+  background: var(--pb-fill-page);
+  color: var(--pb-text-1);
+  font-family: var(--pb-font-sans);
   font-size: var(--pb-font-base);
   font-weight: var(--pb-weight-regular);
   line-height: 1.45;

@@ -1,0 +1,24 @@
+.life-sheet-popup {
+  overflow: hidden;
+  background: var(--pb-fill-card);
+  z-index: 2001 !important;
+}
+
+.van-overlay {
+  z-index: 2000 !important;
+}
+
+.stake-picker-popup {
+  z-index: 4001 !important;
+}
+
+.stake-picker-overlay {
+  z-index: 4000 !important;
+}
+
+.life-sheet-popup.van-popup--bottom {
+  left: 50%;
+  width: min(100%, 430px);
+  transform: translate3d(-50%, 0, 0);
+  border-radius: 12px 12px 0 0;
+}

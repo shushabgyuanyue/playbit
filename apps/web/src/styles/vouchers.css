@@ -8,29 +8,30 @@
 }
 
 .voucher-overview-wrap {
-  padding: 14px var(--pb-page-x) 10px;
+  padding: 12px var(--pb-page-x) 8px;
 }
 
 .voucher-list-shell {
   display: grid;
-  gap: 12px;
-  padding: 8px var(--pb-page-x) 28px;
+  gap: 10px;
+  padding: 8px var(--pb-page-x) 24px;
 }
 
 .voucher-section {
   position: relative;
   overflow: hidden;
   border-radius: var(--pb-radius-lg);
-  border: 1px solid var(--pb-line);
-  background: var(--pb-fill-card);
+  border: 1px solid var(--pb-line-soft);
+  background: var(--pb-surface-panel-cool);
+  box-shadow: 0 2px 7px rgba(23, 43, 77, 0.025);
 }
 
 .voucher-section-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 12px;
+  min-height: 42px;
+  padding: 0 11px;
   color: var(--pb-text-1);
   font-size: var(--pb-font-lg);
   font-weight: var(--pb-weight-semibold);
@@ -50,7 +51,7 @@
   height: 22px;
   border-radius: 50%;
   background: var(--pb-theme-pending);
-  color: #ffffff;
+  color: var(--pb-text-on-color);
 }
 
 .voucher-section.status-available .voucher-section-icon {

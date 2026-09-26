@@ -1,11 +1,14 @@
 .voucher-ticket {
+  isolation: isolate;
   position: relative;
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr);
-  min-height: 88px;
+  min-height: 84px;
   overflow: hidden;
   border-radius: var(--pb-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   color: var(--pb-text-1);
+  box-shadow: var(--pb-shadow-ticket);
 }
 
 .voucher-ticket::before,
@@ -28,27 +31,103 @@
   bottom: -6px;
 }
 
+.voucher-ticket-watermark {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.voucher-ticket-watermark-panda {
+  right: 24px;
+  bottom: -22px;
+  opacity: 0.11;
+  filter: saturate(0.72) contrast(0.94);
+  transform: rotate(-8deg);
+}
+
+.voucher-ticket-watermark-rabbit {
+  right: 26px;
+  bottom: -12px;
+  opacity: 0.1;
+  filter: saturate(0.72) contrast(0.94);
+  transform: rotate(8deg);
+}
+
+.voucher-ticket-value,
+.voucher-ticket-main {
+  position: relative;
+  z-index: 1;
+}
+
 .voucher-ticket.kind-housework,
 .voucher-ticket.kind-treat {
-  background: var(--pb-red-soft);
+  background: linear-gradient(135deg, #fff3f0 0%, var(--pb-red-soft) 58%, #fffdfc 100%);
 }
 
 .voucher-ticket.kind-decision {
-  background: var(--pb-blue-soft);
+  background: linear-gradient(135deg, #eef7ff 0%, var(--pb-blue-soft) 62%, #ffffff 100%);
 }
 
 .voucher-ticket.kind-service,
 .voucher-ticket.kind-custom {
-  background: var(--pb-orange-soft);
+  background: linear-gradient(135deg, #fff8ed 0%, var(--pb-orange-soft) 62%, #fffefb 100%);
 }
 
 .voucher-ticket.status-used {
-  background: var(--pb-neutral-soft);
+  background: linear-gradient(135deg, #f6f8fa 0%, var(--pb-neutral-soft) 68%, #ffffff 100%);
   color: var(--pb-text-3);
 }
 
 .voucher-ticket.status-pending {
-  background: var(--pb-orange-soft);
+  background: linear-gradient(135deg, #fff8ed 0%, var(--pb-orange-soft) 68%, #ffffff 100%);
+}
+
+.voucher-ticket-interactive {
+  appearance: none;
+  font: inherit;
+}
+
+.voucher-ticket-mini {
+  grid-template-columns: 56px minmax(0, 1fr);
+  min-height: 50px;
+  border-radius: 11px;
+}
+
+.voucher-ticket-mini::before,
+.voucher-ticket-mini::after {
+  left: 50px;
+  width: 8px;
+  height: 8px;
+}
+
+.voucher-ticket-mini::before {
+  top: -4px;
+}
+
+.voucher-ticket-mini::after {
+  bottom: -4px;
+}
+
+.voucher-ticket-mini .voucher-ticket-value {
+  padding: 5px 3px;
+}
+
+.voucher-ticket-mini .voucher-ticket-value strong {
+  max-width: 50px;
+  font-size: 13px;
+}
+
+.voucher-ticket-mini .voucher-ticket-value span {
+  max-width: 50px;
+  margin-top: 1px;
+  font-size: 9px;
+}
+
+.voucher-ticket-mini .voucher-ticket-main {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+  padding: 5px 7px 5px 8px;
 }
 
 .voucher-ticket-value {
@@ -56,7 +135,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-right: 1px dashed rgba(201, 205, 212, 0.8);
+  border-right: 1px dashed var(--pb-line-dashed);
   padding: 10px 8px;
   text-align: center;
 }
@@ -111,7 +190,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  padding: 13px 12px 12px 15px;
+  padding: 11px 11px 10px 13px;
 }
 
 .voucher-ticket-copy {
@@ -177,7 +256,7 @@
   border: 0;
   border-radius: var(--pb-radius-sm);
   background: var(--pb-theme-redeem);
-  color: #ffffff;
+  color: var(--pb-text-on-color);
   padding: 0 13px;
   font-size: var(--pb-font-base);
   font-weight: var(--pb-weight-semibold);
@@ -191,12 +270,12 @@
 }
 
 .status-pending .voucher-ticket-action {
-  background: #e8eaee;
+  background: var(--pb-fill-muted);
   color: var(--pb-text-3);
 }
 
 .status-used .voucher-ticket-action {
-  background: #ffffff;
+  background: var(--pb-fill-card);
   color: var(--pb-text-2);
   box-shadow: inset 0 0 0 1px var(--pb-line);
 }
@@ -232,5 +311,19 @@
     min-width: 58px;
     padding: 0 8px;
     font-size: var(--pb-font-sm);
+  }
+
+  .voucher-ticket-mini {
+    grid-template-columns: 50px minmax(0, 1fr);
+  }
+
+  .voucher-ticket-mini::before,
+  .voucher-ticket-mini::after {
+    left: 44px;
+  }
+
+  .voucher-ticket-mini .voucher-ticket-value strong,
+  .voucher-ticket-mini .voucher-ticket-value span {
+    max-width: 44px;
   }
 }

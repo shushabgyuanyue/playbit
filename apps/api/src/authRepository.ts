@@ -110,6 +110,16 @@ class MemoryAuthRepository {
     }
   }
 
+  async updateNickname(userId: string, nickname: string): Promise<User | null> {
+    const user = this.users.get(userId);
+    if (!user) {
+      return null;
+    }
+    const updated = { ...user, nickname };
+    this.users.set(userId, updated);
+    return fromUserRow(updated);
+  }
+
   private async createAuthSessionForUser(user: UserRow): Promise<AuthResult> {
     const token = `pb_${randomBytes(32).toString("base64url")}`;
     this.sessions.set(tokenHash(token), {
@@ -175,6 +185,15 @@ class PostgresAuthRepository {
 
   async updateSignature(userId: string, signatureDataUrl: string): Promise<void> {
     await this.db.update(users).set({ signatureDataUrl }).where(eq(users.id, userId));
+  }
+
+  async updateNickname(userId: string, nickname: string): Promise<User | null> {
+    const [updated] = await this.db
+      .update(users)
+      .set({ nickname })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated ? fromUserRow(updated) : null;
   }
 
   private async createAuthSessionForUser(user: UserRow): Promise<AuthResult> {

@@ -33,7 +33,7 @@ export const stakeAdditionSchema = z.object({
 
 export const stakeSchema = z.object({
   type: z.enum(["point", "coupon", "custom"]),
-  label: z.string().min(1).max(80),
+  label: z.string().trim().min(1).max(80),
   fulfilled: z.boolean().default(false),
   additions: z.array(stakeAdditionSchema).default([])
 });
@@ -149,8 +149,8 @@ export const createAgreementSchema = z.object({
   source: z.enum(["custom", "card"]),
   creatorNickname: z.string().min(1).max(24).optional(),
   creatorSignatureDataUrl: z.string().min(1).max(50000),
-  title: z.string().min(1).max(48),
-  challenge: z.string().min(1).max(180).optional(),
+  title: z.string().trim().min(1).max(48),
+  challenge: z.string().trim().min(1).max(180).optional(),
   stake: stakeSchema,
   cardId: z.string().nullable().optional()
 });
@@ -167,6 +167,10 @@ export const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(72),
   nickname: z.string().min(1).max(24)
+});
+
+export const updateProfileSchema = z.object({
+  nickname: z.string().trim().min(1).max(24)
 });
 
 export const loginSchema = z.object({
@@ -196,5 +200,6 @@ export type CreateAgreementInput = z.infer<typeof createAgreementSchema>;
 export type SignAgreementInput = z.infer<typeof signAgreementSchema>;
 export type CreateBoostInput = z.infer<typeof createBoostSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RecordResultInput = z.infer<typeof recordResultSchema>;

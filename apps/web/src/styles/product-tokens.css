@@ -6,13 +6,47 @@
   --pb-ink-pending: #a66a22;
   --pb-tint-coral: #ffe5df;
   --pb-surface-ticket: linear-gradient(110deg, var(--pb-blue-soft), #f8fbff 70%, #fffaf4);
+  --pb-surface-account: linear-gradient(132deg, #e2efff 0%, #c4ddff 42%, #eaf3ff 72%, #fff8f0 100%);
   --pb-surface-action-soft: linear-gradient(110deg, #fffaf8, #fff0e9);
+  --pb-surface-paper: linear-gradient(180deg, #ffffff 0%, #fffdfa 100%);
+  --pb-surface-option: linear-gradient(145deg, #ffffff, #f9fbff);
+  --pb-surface-stake-sheet: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+  --pb-surface-notice-icon: linear-gradient(145deg, #edf5ff, #e5efff);
+  --pb-action-share-gradient: linear-gradient(110deg, #267fdf, #1769c4);
+  --pb-action-home-blue: #328ee1;
+  --pb-social-green: #16b35f;
+  --pb-social-blue: #1683ff;
+  --pb-accent-challenge: #72a9eb;
+  --pb-certificate-paper: #fffefa;
+  --pb-certificate-line: #dfe6ef;
+  --pb-shadow-certificate: 0 5px 18px rgba(23, 43, 77, 0.09);
+  --pb-line-action: rgba(22, 119, 255, 0.22);
+  --pb-line-action-strong: rgba(22, 119, 255, 0.42);
+  --pb-line-contract: rgba(22, 119, 255, 0.2);
+  --pb-line-seal: rgba(182, 62, 66, 0.24);
+  --pb-line-coral: rgba(184, 76, 62, 0.08);
+  --pb-accent-settlement: #e7a478;
+  --pb-line-soft: #e8edf4;
+  --pb-surface-service-head: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  --pb-surface-panel: linear-gradient(145deg, #ffffff 0%, #fbfcff 100%);
+  --pb-surface-panel-cool: linear-gradient(145deg, #ffffff 0%, #fcfdff 100%);
+  --pb-surface-challenge: linear-gradient(145deg, #ffffff 0%, #f8fbff 74%, #f2f7ff 100%);
+  --pb-surface-settlement: linear-gradient(150deg, #ffffff 0%, #fbfdff 100%);
+  --pb-shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.96), 0 2px 7px rgba(23, 43, 77, 0.025);
+  --pb-shadow-action-bar: 0 -5px 18px rgba(23, 43, 77, 0.035);
+  --pb-action-contract-gradient: linear-gradient(115deg, #2582e3, #176bc6);
+  --pb-shadow-action-contract: 0 3px 8px rgba(22, 105, 198, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --pb-signature-ink: #22324a;
   --pb-badge-start: #df646e;
   --pb-badge-end: #c84359;
   --pb-surface-badge: linear-gradient(110deg, var(--pb-badge-start), var(--pb-badge-end));
   --pb-shadow-ticket: inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 0 0 1px rgba(22, 119, 255, 0.06),
     0 2px 0 rgba(22, 119, 255, 0.045), 0 4px 8px rgba(23, 43, 77, 0.04);
+  --pb-shadow-account: inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.32),
+    0 3px 0 rgba(37, 101, 174, 0.12), 0 9px 0 rgba(37, 101, 174, 0.045),
+    0 16px 26px rgba(23, 43, 77, 0.12);
   --pb-perforation: rgba(22, 119, 255, 0.18);
   --pb-shadow-image-bar: inset 0 -1px 0 rgba(255, 255, 255, 0.28),
     0 2px 0 rgba(8, 32, 66, 0.08), 0 4px 9px rgba(8, 32, 66, 0.12);

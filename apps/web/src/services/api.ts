@@ -5,6 +5,7 @@ import type {
   CreateAgreementInput,
   LoginInput,
   RegisterInput,
+  UpdateProfileInput,
   AgreementRealtimeEvent,
   SignAgreementInput,
   Flip,
@@ -101,6 +102,12 @@ export const api = {
   me() {
     return request<{ user: User | null }>("/auth/me");
   },
+  updateProfile(payload: UpdateProfileInput) {
+    return request<{ user: User }>("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    });
+  },
   drawCard(previousIds: string[]) {
     return request<{ card: Card }>("/cards/draw", {
       method: "POST",
@@ -125,10 +132,12 @@ export const api = {
   subscribeAgreementEvents(
     id: string,
     onEvent: (event: AgreementRealtimeEvent) => void,
-    onError?: () => void
+    onError?: () => void,
+    onOpen?: () => void
   ) {
     const token = getAuthToken();
     if (!token || typeof EventSource === "undefined") {
+      onError?.();
       return () => undefined;
     }
 
@@ -140,12 +149,14 @@ export const api = {
       onEvent(JSON.parse(message.data) as AgreementRealtimeEvent);
     };
     source.addEventListener("agreement.updated", handleEvent);
+    source.onopen = () => onOpen?.();
     source.onerror = () => {
       onError?.();
     };
 
     return () => {
       source.removeEventListener("agreement.updated", handleEvent);
+      source.onopen = null;
       source.onerror = null;
       source.close();
     };

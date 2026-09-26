@@ -3,10 +3,11 @@
 .challenge-document {
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--pb-line);
+  border: 1px solid var(--pb-line-soft);
   border-radius: var(--pb-radius-lg);
-  background: var(--pb-fill-card);
+  background: var(--pb-surface-panel-cool);
   padding: 16px;
+  box-shadow: var(--pb-shadow-panel);
 }
 
 .contract-document::before,
@@ -14,18 +15,18 @@
 .challenge-document::before {
   position: absolute;
   inset: 7px;
-  border: 1px solid rgba(23, 43, 77, 0.045);
+  border: 1px solid var(--pb-line-ink-soft);
   content: "";
   pointer-events: none;
 }
 
 .agreement-progress {
   display: grid;
-  gap: 12px;
-  border: 1px solid var(--pb-line);
+  gap: 10px;
+  border: 1px solid var(--pb-line-soft);
   border-radius: var(--pb-radius-lg);
-  background: var(--pb-fill-card);
-  padding: 12px 14px;
+  background: var(--pb-surface-panel);
+  padding: 10px 13px;
 }
 
 .agreement-progress-header {
@@ -43,6 +44,34 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: var(--pb-font-xs);
   font-weight: var(--pb-weight-semibold);
+}
+
+.agreement-progress-tools {
+  display: inline-flex;
+  min-height: var(--pb-touch);
+  align-items: center;
+  gap: 2px;
+}
+
+.agreement-progress-action {
+  display: inline-flex;
+  width: var(--pb-touch);
+  height: var(--pb-touch);
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--pb-radius-md);
+  background: transparent;
+  color: var(--pb-theme-contract);
+  padding: 0;
+}
+
+.agreement-progress-action:active:not(:disabled) {
+  background: var(--pb-blue-soft);
+}
+
+.agreement-progress-action:disabled {
+  color: var(--pb-text-4);
 }
 
 .agreement-progress-steps {
@@ -96,7 +125,7 @@
 
 .agreement-progress-steps li.complete::before,
 .agreement-progress-steps li.active::before {
-  background: rgba(22, 119, 255, 0.4);
+  background: var(--pb-line-action-strong);
 }
 
 .agreement-progress-steps li.complete .agreement-progress-dot,
@@ -143,7 +172,7 @@
 .challenge-title {
   margin: 14px 0 12px;
   color: var(--pb-text-1);
-  font-family: var(--font-serif);
+  font-family: var(--pb-font-serif);
   font-size: 22px;
   font-weight: var(--pb-weight-bold);
   line-height: 1.38;
@@ -215,6 +244,30 @@
   line-height: 1.72;
 }
 
+.contract-product-note {
+  margin: -3px 0 13px;
+  border-left: 2px solid var(--pb-line-action-strong);
+  color: var(--pb-text-3);
+  padding-left: 8px;
+  font-size: var(--pb-font-xs);
+  line-height: 1.55;
+}
+
+.contract-document.is-reveal-enabled .contract-reveal-item {
+  opacity: 0;
+  filter: blur(10px) saturate(0.82);
+  transform: translateY(6px) scale(0.985);
+  transition: opacity 560ms ease, filter 720ms ease, transform 560ms cubic-bezier(0.2, 0.75, 0.25, 1);
+  transition-delay: var(--contract-reveal-delay, 0ms);
+  will-change: opacity, filter, transform;
+}
+
+.contract-document.is-reveal-enabled.is-revealed .contract-reveal-item {
+  opacity: 1;
+  filter: blur(0) saturate(1);
+  transform: translateY(0) scale(1);
+}
+
 .contract-article-list {
   display: grid;
   gap: 10px;
@@ -261,7 +314,7 @@
   border: 3px solid var(--pb-seal);
   border-radius: 50%;
   color: var(--pb-seal);
-  font-family: var(--font-serif);
+  font-family: var(--pb-font-serif);
   font-size: var(--pb-font-lg);
   font-weight: var(--pb-weight-bold);
   line-height: 1.15;
@@ -316,12 +369,22 @@
   .contract-seal.is-stamping {
     animation: none;
   }
+
+  .contract-document.is-reveal-enabled .contract-reveal-item,
+  .contract-document.is-reveal-enabled.is-revealed .contract-reveal-item {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
+  }
 }
 
 .challenge-document {
   display: grid;
-  gap: 10px;
-  border-top: 2px solid var(--pb-blue);
+  gap: 9px;
+  border-color: var(--pb-blue-soft);
+  border-top: 3px solid var(--pb-accent-challenge);
+  background: var(--pb-surface-challenge);
 }
 
 .challenge-card-meta {
@@ -352,10 +415,7 @@
 }
 
 .draw-page .service-flow-content {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  justify-content: safe center;
+  align-content: center;
 }
 
 .challenge-title {
@@ -370,39 +430,13 @@
   line-height: 1.7;
 }
 
-.session-enhancement-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-}
-
-.session-option-button {
-  display: grid;
-  gap: 5px;
-  min-height: 70px;
-  border: 1px solid var(--pb-line);
-  border-radius: var(--pb-radius-md);
-  background: var(--pb-fill-card);
-  color: var(--pb-text-1);
-  padding: 11px 12px;
-  text-align: left;
-}
-
-.session-option-button strong {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--pb-font-base);
-  font-weight: var(--pb-weight-semibold);
-}
-
-.session-option-button span {
-  color: var(--pb-text-3);
-  font-size: var(--pb-font-xs);
+.draw-page .life-inline-actions:has(> :only-child) {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .settlement-document {
-  border-color: rgba(22, 119, 255, 0.18);
+  border-color: var(--pb-line-contract);
+  background: var(--pb-surface-settlement);
 }
 
 .settlement-title {
@@ -414,7 +448,7 @@
   align-items: center;
   gap: 6px;
   margin: 2px auto 0;
-  border: 1px solid rgba(182, 62, 66, 0.24);
+  border: 1px solid var(--pb-line-seal);
   border-radius: var(--pb-radius-sm);
   background: var(--pb-red-soft);
   color: var(--pb-seal);
@@ -424,13 +458,21 @@
 }
 
 .settlement-issue-panel {
-  border-top: 2px solid var(--pb-green);
+  border-top: 2px solid var(--pb-accent-settlement);
   background: var(--pb-fill-card);
 }
 
 .settlement-result-panel {
   display: grid;
   gap: 10px;
+}
+
+.settlement-result-panel .life-info-list li:last-child {
+  padding-bottom: 2px;
+}
+
+.settlement-issue-panel .life-section-title {
+  margin-top: 0;
 }
 
 .settlement-result-heading {
@@ -460,4 +502,5 @@
   .challenge-title {
     font-size: var(--pb-font-xl);
   }
+
 }

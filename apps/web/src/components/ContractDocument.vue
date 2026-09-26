@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Agreement } from "@playbit/shared";
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import {
   getParticipantName,
   getEffectiveStakeLabel,
@@ -16,10 +16,12 @@ const props = withDefaults(
     agreement: Agreement;
     compact?: boolean;
     showSeal?: boolean;
+    reveal?: boolean;
   }>(),
   {
     compact: false,
-    showSeal: true
+    showSeal: true,
+    reveal: false
   }
 );
 
@@ -38,6 +40,14 @@ const stamping = ref(false);
 const statusTone = computed(() => getAgreementStatusTone(props.agreement.status));
 const statusLabel = computed(() => getAgreementStatusLabel(props.agreement.status));
 const effectiveStakeLabel = computed(() => getEffectiveStakeLabel(props.agreement));
+const protocolLines = computed(() => [
+  `${copy.contract.clauseSentences.subjectPrefix} ${props.agreement.challenge}${copy.contract.clauseSentences.subjectSuffix}`,
+  `${copy.contract.clauseSentences.judgmentPrefix} ${copy.contract.clauseSentences.judgmentSuffix}`,
+  `${copy.contract.stakePrefix} ${effectiveStakeLabel.value}${copy.contract.stakeSuffix}`,
+  copy.contract.articles.exception,
+  copy.contract.articles.effective
+]);
+const revealed = ref(!props.reveal);
 const agreementDate = computed(() => {
   const date = new Date(props.agreement.createdAt);
   if (Number.isNaN(date.getTime())) {
@@ -54,10 +64,27 @@ watch(signed, (value, previous) => {
     });
   }
 }, { immediate: true });
+
+onMounted(() => {
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!props.reveal || reducedMotion) {
+    revealed.value = true;
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      revealed.value = true;
+    });
+  });
+});
 </script>
 
 <template>
-  <article class="contract-document" :class="{ compact, 'is-stamping': stamping }">
+  <article
+    class="contract-document"
+    :class="{ compact, 'is-stamping': stamping, 'is-reveal-enabled': props.reveal, 'is-revealed': revealed }"
+  >
     <div class="contract-document-rule" />
 
     <div class="contract-document-meta">
@@ -66,7 +93,7 @@ watch(signed, (value, previous) => {
     </div>
 
     <h2 class="contract-document-title">
-      {{ copy.contract.titlePrefix }}{{ props.agreement.title }}{{ copy.contract.titleSuffix }}
+      {{ copy.contract.documentTitle }}
     </h2>
 
     <dl class="contract-field-list">
@@ -84,45 +111,39 @@ watch(signed, (value, previous) => {
       </div>
     </dl>
 
-    <p class="contract-preface">{{ copy.contract.articles.spirit }}</p>
+    <p class="contract-preface contract-reveal-item" style="--contract-reveal-delay: 80ms">
+      {{ copy.contract.articles.spirit }}
+    </p>
+    <p class="contract-product-note contract-reveal-item" style="--contract-reveal-delay: 150ms">
+      {{ copy.contract.productLine }}
+    </p>
 
-    <section class="contract-clause">
+    <section class="contract-clause contract-reveal-item" style="--contract-reveal-delay: 220ms">
       <h3>{{ copy.contract.articleLabels.first }} {{ copy.contract.clauseTitles.subject }}</h3>
-      <p>
-        {{ copy.contract.clauseSentences.subjectPrefix }}
-        <strong class="contract-inline-value">{{ props.agreement.challenge }}</strong>
-        {{ copy.contract.clauseSentences.subjectSuffix }}
-      </p>
+      <p>{{ protocolLines[0] }}</p>
     </section>
 
-    <section class="contract-clause">
+    <section class="contract-clause contract-reveal-item" style="--contract-reveal-delay: 300ms">
       <h3>{{ copy.contract.articleLabels.second }} {{ copy.contract.clauseTitles.judgment }}</h3>
-      <p>
-        {{ copy.contract.clauseSentences.judgmentPrefix }}
-        {{ copy.contract.clauseSentences.judgmentSuffix }}
-      </p>
+      <p>{{ protocolLines[1] }}</p>
     </section>
 
-    <section class="contract-clause">
+    <section class="contract-clause contract-reveal-item" style="--contract-reveal-delay: 380ms">
       <h3>{{ copy.contract.articleLabels.third }} {{ copy.contract.clauseTitles.stake }}</h3>
-      <p>
-        {{ copy.contract.stakePrefix }}
-        <strong class="contract-inline-value">{{ effectiveStakeLabel }}</strong>
-        {{ copy.contract.stakeSuffix }}
-      </p>
+      <p>{{ protocolLines[2] }}</p>
     </section>
 
-    <section class="contract-clause">
+    <section class="contract-clause contract-reveal-item" style="--contract-reveal-delay: 460ms">
       <h3>{{ copy.contract.articleLabels.fourth }} {{ copy.contract.clauseTitles.exception }}</h3>
-      <p>{{ copy.contract.articles.exception }}</p>
+      <p>{{ protocolLines[3] }}</p>
     </section>
 
-    <section class="contract-clause">
+    <section class="contract-clause contract-reveal-item" style="--contract-reveal-delay: 540ms">
       <h3>{{ copy.contract.articleLabels.fifth }} {{ copy.contract.clauseTitles.effective }}</h3>
-      <p>{{ copy.contract.articles.effective }}</p>
+      <p>{{ protocolLines[4] }}</p>
     </section>
 
-    <div class="contract-signature-grid">
+    <div class="contract-signature-grid contract-reveal-item" style="--contract-reveal-delay: 640ms">
       <section class="contract-signature-box">
         <span>{{ copy.contract.confirmA }}</span>
         <strong>{{ initiator }}</strong>

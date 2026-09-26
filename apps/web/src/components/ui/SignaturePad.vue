@@ -56,9 +56,13 @@ function setupCanvas() {
   context.lineCap = "round";
   context.lineJoin = "round";
   context.lineWidth = 2.4;
-  context.strokeStyle = "#1f2329";
+  context.strokeStyle = getComputedStyle(document.documentElement)
+    .getPropertyValue("--pb-signature-ink")
+    .trim() || "#22324a";
   drawValue(previousValue);
 }
+
+defineExpose({ refresh: setupCanvas });
 
 function point(event: PointerEvent) {
   const canvas = canvasRef.value;

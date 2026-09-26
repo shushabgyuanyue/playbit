@@ -49,6 +49,14 @@ assert.ok(anonymousCard.card.content);
 assert.ok(anonymousCard.card.winCondition);
 
 const initiator = await register("甲方", "initiator@example.com");
+const profileUser = await register("资料用户", "profile@example.com");
+const profileUpdate = await app.request("/auth/me", {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json", ...auth(profileUser.token) },
+  body: JSON.stringify({ nickname: "花花" })
+});
+assert.equal(profileUpdate.status, 200);
+assert.equal((await profileUpdate.json() as { user: User }).user.nickname, "花花");
 const togetherCard = dailyCards.find((card) => card.mode === "together");
 assert.ok(togetherCard);
 const invalidCardAgreement = await app.request("/agreements", {

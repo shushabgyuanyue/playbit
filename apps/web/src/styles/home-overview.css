@@ -67,7 +67,7 @@
   order: -1;
   margin: 0;
   color: var(--pb-blue);
-  font-family: var(--font-sans);
+  font-family: var(--pb-font-sans);
   font-size: var(--pb-font-xl);
   font-weight: var(--pb-weight-semibold);
   line-height: 22px;

@@ -13,7 +13,7 @@
   height: clamp(265px, 79vw, 385px);
   flex: 0 0 auto;
   overflow: hidden;
-  background: #183f78 url("../assets/home-hero.webp") center / cover;
+  background: var(--pb-action-home-blue) url("../assets/home-hero.webp") center / cover;
 }
 .home-visually-hidden {
   position: absolute;
@@ -36,8 +36,8 @@
   padding: 0;
   cursor: pointer;
 }
-.home-hero-cta:active { background: rgba(255, 255, 255, 0.12); }
-.home-hero-cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.home-hero-cta:active { background: var(--pb-overlay-white-press); }
+.home-hero-cta:focus-visible { outline: 3px solid var(--pb-text-on-color); outline-offset: 3px; }
 .home-product-content {
   display: block;
   flex: 1 0 auto;
@@ -82,13 +82,13 @@
   place-items: center;
   border-radius: 7px 7px 7px 0;
   background: var(--pb-surface-badge);
-  color: var(--primary-foreground);
+  color: var(--pb-text-on-color);
   font-size: var(--pb-font-caption);
   font-style: normal;
   font-weight: var(--pb-weight-semibold);
   padding: 0 5px;
   white-space: nowrap;
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 2px var(--pb-fill-card);
 }
 .home-function-badge::after {
   content: "";
@@ -103,4 +103,4 @@
 .home-overview-section { padding-top: 5px; padding-bottom: 2px; }
 .home-overview-section .pb-section-heading { margin-bottom: 0; }
 .home-page button:focus-visible { outline: 2px solid var(--pb-blue); outline-offset: 3px; }
-.home-page .home-hero button:focus-visible { outline-color: #fff; }
+.home-page .home-hero button:focus-visible { outline-color: var(--pb-text-on-color); }

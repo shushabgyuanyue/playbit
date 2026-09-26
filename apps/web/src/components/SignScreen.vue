@@ -3,6 +3,7 @@ import { copy } from "@playbit/content";
 import type { Agreement, User } from "@playbit/shared";
 import { FileSignature } from "lucide-vue-next";
 import ContractDocument from "./ContractDocument.vue";
+import AgreementNotice from "./ui/AgreementNotice.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import BaseButton from "./ui/BaseButton.vue";
@@ -18,6 +19,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   decline: [];
+  home: [];
   sign: [payload: { signatureDataUrl: string }];
 }>();
 
@@ -42,6 +44,9 @@ watch(
     <LifeServiceHero
       class="service-flow-hero"
       :title="copy.sign.title"
+      :show-home="true"
+      :home-label="copy.common.home"
+      @home="emit('home')"
     />
 
     <div v-if="props.agreement" class="life-page-content service-flow-content">
@@ -60,6 +65,10 @@ watch(
         :model-value="signatureDataUrl"
         @change="signatureDataUrl = $event"
       />
+      <div class="sign-signature-guidance">
+        <p class="sign-signature-safety">{{ copy.signature.safety }}</p>
+        <AgreementNotice />
+      </div>
     </div>
 
     <div v-else class="life-page-content service-flow-content">

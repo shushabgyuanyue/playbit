@@ -13,17 +13,35 @@
   transition: background var(--pb-motion-press) ease, box-shadow var(--pb-motion-press) ease;
 }
 .home-account-bar.is-scrolled {
-  background: #183f78 url("../assets/home-hero.webp") center top / 100% auto no-repeat;
+  background: var(--pb-home-hero-fallback) url("../assets/home-hero.webp") center top / 100% auto no-repeat;
   box-shadow: var(--pb-shadow-image-bar);
   pointer-events: auto;
 }
 .home-account-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   max-width: calc(100% - 68px);
-  color: var(--primary-foreground);
+  color: var(--pb-text-on-color);
   text-shadow: 0 1px 3px rgba(8, 32, 66, 0.65);
   font-size: var(--pb-font-lg);
   font-weight: var(--pb-weight-semibold);
   opacity: 0;
+}
+.home-auth-status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+.home-auth-status-dot.active {
+  border-color: rgba(255, 255, 255, 0.78);
+  background: #5bdb94;
+  box-shadow: 0 0 0 2px rgba(91, 219, 148, 0.18);
 }
 .is-scrolled .home-account-brand { opacity: 1; }
 .home-account-action {
@@ -40,7 +58,7 @@
   border: 0;
   border-radius: var(--pb-radius-md);
   background: transparent;
-  color: var(--primary-foreground);
+  color: var(--pb-text-on-color);
   padding: 0;
   pointer-events: auto;
 }
@@ -70,7 +88,7 @@
   text-shadow: 0 1px 3px rgba(8, 32, 66, 0.95);
   white-space: nowrap;
 }
-.home-page .home-account-bar button:focus-visible { outline-color: white; }
+.home-page .home-account-bar button:focus-visible { outline-color: var(--pb-text-on-color); }
 @media (prefers-reduced-motion: reduce) {
   .home-account-bar { transition: none; }
 }

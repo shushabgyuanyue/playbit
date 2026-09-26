@@ -17,10 +17,17 @@ onUnmounted(() => window.removeEventListener("scroll", updateScroll));
 
 <template>
   <header class="home-account-bar" :class="{ 'is-scrolled': scrolled }">
-    <span class="home-account-brand" :aria-hidden="!scrolled">{{ copy.app.name }}</span>
+    <span class="home-account-brand" :aria-hidden="!scrolled">
+      {{ copy.app.name }}
+      <span
+        class="home-auth-status-dot"
+        :class="{ active: Boolean(nickname) }"
+        :title="nickname ? copy.auth.statusSignedIn : copy.auth.statusGuest"
+      />
+    </span>
     <button type="button" class="home-account-action" :aria-label="copy.home.accountAction" @click="emit('account')">
       <span class="home-account-avatar">
-        <BrandMascot variant="rabbit-logo" width="36" height="40" />
+        <BrandMascot variant="panda-logo" width="38" height="40" />
       </span>
       <span class="home-account-label">{{ nickname ?? copy.home.accountGuestLabel }}</span>
     </button>

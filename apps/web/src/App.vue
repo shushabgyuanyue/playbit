@@ -19,7 +19,7 @@ import { dailyCards } from "@playbit/cards";
 import type { GraceWaiver } from "@playbit/shared";
 import { usePlaybitFlow } from "./composables/usePlaybitFlow";
 import { buildVoucherItems } from "./composables/useVoucherAssets";
-import { computed, ref } from "vue";
+import { computed, provide, ref } from "vue";
 
 const {
   activeCard,
@@ -33,9 +33,13 @@ const {
   authLoading,
   authOpen,
   authStep,
+  profileLoading,
+  profileError,
   cardLoading,
+  createLoading,
   contractBackScreen,
   certificateKind,
+  certificateAction,
   coupons,
   graceTickets,
   graceWaivers,
@@ -87,7 +91,8 @@ const {
   registerAccount,
   recordAgreementResult,
   signSession,
-  updateCreateDraft
+  updateCreateDraft,
+  updateProfile
 } = usePlaybitFlow();
 
 const activeVoucher = computed(() =>
@@ -123,7 +128,13 @@ const isGraceWaiverRequester = computed(() => Boolean(
   currentUser.value && activeGraceWaiver.value?.requesterUserId === currentUser.value.id
 ));
 const shareSheetOpen = ref(false);
+const shareIntent = ref<"sign" | "general">("general");
 const activeNoticeIndex = ref(0);
+
+function openShare(intent: "sign" | "general" = "general") {
+  shareIntent.value = intent;
+  shareSheetOpen.value = true;
+}
 
 function openNotice(index: number) {
   activeNoticeIndex.value = index;
@@ -137,6 +148,8 @@ const featuredCards = featuredCardIds
 const activeCouponCount = computed(() => buildVoucherItems(
   agreements.value, coupons.value, currentUser.value?.id ?? null
 ).filter((item) => item.role === "holder" && item.status !== "used").length);
+
+provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
 </script>
 
 <template>
@@ -166,32 +179,42 @@ const activeCouponCount = computed(() => buildVoucherItems(
       <AccountScreen
         v-else-if="screen === 'account' && currentUser"
         :user="currentUser"
+        :agreements="agreements"
+        :coupon-count="activeCouponCount"
+        :profile-loading="profileLoading"
+        :profile-error="profileError"
         @back="screen = 'home'"
         @logout="logoutAccount"
+        @update-profile="updateProfile"
       />
       <CreateBetScreen
         v-else-if="screen === 'create'"
         :draft="createDraft"
         :user="currentUser"
+        :loading="createLoading"
         @back="screen = 'home'"
+        @home="screen = 'home'"
         @submit="createAgreement"
         @update-draft="updateCreateDraft"
       />
       <ContractScreen
         v-else-if="screen === 'contract' && activeAgreement"
         :agreement="activeAgreement"
+        :current-user-id="currentUser?.id ?? null"
         :refreshing="agreementRefreshing"
         @back="screen = contractBackScreen"
-        @open-share="shareSheetOpen = true"
+        @home="screen = 'home'"
+        @open-share="openShare('sign')"
         @refresh="refreshActiveAgreement"
         @start="screen = 'agreement'"
-        @open-certificate="openCertificate('agreement')"
+        @open-document="(action) => openCertificate('agreement', action)"
       />
       <CertificateScreen
         v-else-if="screen === 'certificate' && (activeAgreement || (certificateKind === 'flip' && activeFlip))"
         :agreement="activeAgreement ?? null"
         :flip="certificateKind === 'flip' ? activeFlip : null"
         :kind="certificateKind"
+        :auto-action="certificateAction"
         @back="closeCertificate"
       />
       <DrawCardScreen
@@ -200,6 +223,7 @@ const activeCouponCount = computed(() => buildVoucherItems(
         :user="currentUser"
         :loading="cardLoading"
         @back="screen = 'home'"
+        @home="screen = 'home'"
         @draw="drawCard"
         @upgrade="beginCardUpgrade"
         @create-agreement="createAgreement"
@@ -220,7 +244,7 @@ const activeCouponCount = computed(() => buildVoucherItems(
         :current-user-id="currentUser?.id ?? null"
         :show-back="contractBackScreen === 'history' || contractBackScreen === 'vouchers' || contractBackScreen === 'voucherDetail'"
         @back="screen = contractBackScreen"
-        @open-share="shareSheetOpen = true"
+        @open-share="openShare()"
         @open-certificate="openCertificate"
         @open-vouchers="openVouchers"
         @open-agreement="openAgreementById(activeAgreement?.id ?? '', 'settlement')"
@@ -295,6 +319,7 @@ const activeCouponCount = computed(() => buildVoucherItems(
         :user="currentUser"
         :loading="signLoading"
         @decline="screen = 'home'"
+        @home="screen = 'home'"
         @sign="signSession"
       />
     </div>
@@ -311,6 +336,7 @@ const activeCouponCount = computed(() => buildVoucherItems(
     <ShareSheet
       v-model:show="shareSheetOpen"
       :payload="sharePayload"
+      :intent="shareIntent"
       @native-share="nativeShare"
       @copy="copyShareText"
     />

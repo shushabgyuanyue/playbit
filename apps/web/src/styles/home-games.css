@@ -83,7 +83,7 @@
   font-size: var(--pb-font-sm);
 }
 .home-game-card-primary .home-game-minutes {
-  font-family: var(--font-sans);
+  font-family: var(--pb-font-sans);
   font-size: var(--pb-font-feature-number);
   font-weight: var(--pb-weight-medium);
   line-height: 1.15;

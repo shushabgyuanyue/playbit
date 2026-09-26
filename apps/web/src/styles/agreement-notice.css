@@ -1,0 +1,128 @@
+.agreement-notice-entry {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+}
+
+.agreement-notice-trigger {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--pb-radius-sm);
+  background: transparent;
+  color: var(--pb-theme-contract);
+  padding: 0 2px;
+  font-size: var(--pb-font-sm);
+  font-weight: var(--pb-weight-semibold);
+}
+
+.agreement-notice-trigger svg {
+  flex: 0 0 auto;
+}
+
+.agreement-notice-trigger:active {
+  background: var(--pb-blue-soft);
+}
+
+.agreement-notice-trigger:focus-visible {
+  outline: 2px solid var(--pb-focus);
+  outline-offset: 3px;
+}
+
+.agreement-notice-sheet {
+  display: grid;
+  gap: 12px;
+  max-height: min(88vh, 760px);
+  overflow-y: auto;
+  background: var(--pb-fill-card);
+  padding: 10px 18px calc(18px + env(safe-area-inset-bottom));
+}
+
+.agreement-notice-handle {
+  width: 34px;
+  height: 4px;
+  margin: 0 auto 3px;
+  border-radius: 999px;
+  background: var(--pb-line);
+}
+
+.agreement-notice-heading {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--pb-line);
+  padding: 4px 0 15px;
+  text-align: center;
+}
+
+.agreement-notice-heading h2,
+.agreement-notice-heading h3 {
+  margin: 0;
+  color: var(--pb-text-1);
+  font-family: var(--pb-font-serif);
+  font-weight: var(--pb-weight-bold);
+  line-height: 1.4;
+}
+
+.agreement-notice-heading h2 {
+  font-size: 22px;
+}
+
+.agreement-notice-heading h3 {
+  font-size: var(--pb-font-lg);
+}
+
+.agreement-notice-greeting,
+.agreement-notice-sheet > p {
+  margin: 0;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-md);
+  line-height: 1.85;
+  text-align: justify;
+  text-justify: inter-ideograph;
+}
+
+.agreement-notice-greeting {
+  margin-top: 2px;
+  font-weight: var(--pb-weight-semibold);
+  text-align: left;
+}
+
+.agreement-notice-emphasis {
+  border-top: 1px solid var(--pb-line);
+  padding-top: 12px;
+  font-weight: var(--pb-weight-bold) !important;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.agreement-notice-confirmation {
+  border-top: 1px solid var(--pb-line);
+  padding-top: 14px;
+}
+
+.agreement-notice-confirmation h3 {
+  margin: 0 0 8px;
+  color: var(--pb-text-1);
+  font-family: var(--pb-font-serif);
+  font-size: var(--pb-font-lg);
+  font-weight: var(--pb-weight-bold);
+  line-height: 1.4;
+  text-align: center;
+}
+
+.agreement-notice-confirmation p {
+  margin: 0;
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-md);
+  line-height: 1.85;
+  text-align: justify;
+  text-justify: inter-ideograph;
+}
+
+.sign-signature-guidance {
+  display: grid;
+  gap: 2px;
+}

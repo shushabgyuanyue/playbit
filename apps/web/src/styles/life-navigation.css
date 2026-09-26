@@ -7,7 +7,7 @@
   gap: 16px;
   overflow-x: auto;
   border-bottom: 1px solid var(--pb-line);
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--pb-overlay-white);
   padding: 6px var(--pb-page-x);
   scrollbar-width: none;
   backdrop-filter: blur(12px);
@@ -73,9 +73,10 @@
   display: grid;
   gap: 8px;
   margin-top: auto;
-  border-top: 1px solid rgba(226, 231, 238, 0.9);
-  padding: 10px var(--pb-page-x) calc(10px + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid rgba(226, 231, 238, 0.78);
+  padding: 10px var(--pb-page-x) calc(12px + env(safe-area-inset-bottom));
+  background: var(--pb-overlay-white-strong);
+  box-shadow: var(--pb-shadow-action-bar);
   backdrop-filter: blur(14px);
 }
 

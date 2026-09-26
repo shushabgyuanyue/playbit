@@ -1,6 +1,6 @@
 import { AuthAccountNotFound, type AuthRepository } from "../authRepository.js";
 import { getCurrentUser } from "../http/auth.js";
-import { loginSchema, registerSchema } from "@playbit/shared";
+import { loginSchema, registerSchema, updateProfileSchema } from "@playbit/shared";
 import type { Hono } from "hono";
 
 export function registerAuthRoutes(app: Hono, auth: AuthRepository) {
@@ -39,6 +39,19 @@ export function registerAuthRoutes(app: Hono, auth: AuthRepository) {
     const user = await getCurrentUser(context, auth);
     if (!user) {
       return context.json({ user: null });
+    }
+    return context.json({ user });
+  });
+
+  app.patch("/auth/me", async (context) => {
+    const currentUser = await getCurrentUser(context, auth);
+    if (!currentUser) {
+      return context.json({ message: "Authentication required" }, 401);
+    }
+    const payload = updateProfileSchema.parse(await context.req.json());
+    const user = await auth.updateNickname(currentUser.id, payload.nickname);
+    if (!user) {
+      return context.json({ message: "User not found" }, 404);
     }
     return context.json({ user });
   });

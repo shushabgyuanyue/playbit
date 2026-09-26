@@ -13,6 +13,7 @@ type FlipFlowOptions = {
   screen: Ref<Screen>;
   returnScreen: Ref<Screen>;
   pendingFlipId: Ref<string | null>;
+  pendingFlipCouponId: Ref<string | null>;
   ensureIdentity: () => Promise<User | null>;
   requireAccount: (screen: Screen) => boolean;
   refreshAgreements: () => Promise<void>;
@@ -75,7 +76,11 @@ export function useFlipFlow(options: FlipFlowOptions) {
   async function startFlip(couponId: string) {
     if (flipBusy.value) return;
     const coupon = options.coupons.value.find((item) => item.id === couponId);
-    if (!coupon || !options.requireAccount("voucherDetail")) return;
+    if (!coupon) return;
+    if (!options.requireAccount("voucherDetail")) {
+      options.pendingFlipCouponId.value = couponId;
+      return;
+    }
     let agreement = options.agreements.value.find((item) => item.id === coupon.agreementId);
     if (!agreement) {
       await options.refreshAgreements();

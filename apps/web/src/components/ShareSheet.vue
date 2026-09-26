@@ -2,11 +2,15 @@
 import { copy } from "@playbit/content";
 import { Link2, MessageCircle, Send, Share2, UsersRound } from "lucide-vue-next";
 import type { SharePayload } from "../composables/playbitFlowHelpers";
+import { computed } from "vue";
 
-defineProps<{
+const props = withDefaults(defineProps<{
   show: boolean;
   payload: SharePayload | null;
-}>();
+  intent?: "sign" | "general";
+}>(), {
+  intent: "general"
+});
 
 const emit = defineEmits<{
   "update:show": [show: boolean];
@@ -21,6 +25,14 @@ const channels = [
   { key: "weibo", label: copy.share.channels.weibo, icon: Share2, tone: "weibo" },
   { key: "copy", label: copy.share.channels.copy, icon: Link2, tone: "copy" }
 ] as const;
+
+const panelTitle = computed(() => props.intent === "sign" ? copy.share.signPanelTitle : copy.share.panelTitle);
+const panelHint = computed(() => props.intent === "sign" ? copy.share.signPanelHint : copy.share.panelHint);
+const nativeShareLabel = computed(() => props.intent === "sign" ? copy.share.signNativeShare : copy.share.nativeShare);
+
+function channelLabel(key: (typeof channels)[number]["key"]) {
+  return key === "copy" && props.intent === "sign" ? copy.share.signCopy : copy.share.channels[key];
+}
 
 function copyAndClose() {
   emit("copy");
@@ -38,20 +50,21 @@ function shareAndClose() {
     :show="show"
     round
     position="bottom"
-    class="share-sheet-popup"
+    teleport="body"
+    class="life-sheet-popup share-sheet-popup"
     @update:show="emit('update:show', $event)"
   >
     <section class="share-sheet">
       <header class="share-sheet-header">
-        <strong>{{ copy.share.panelTitle }}</strong>
-        <p>{{ copy.share.panelHint }}</p>
+        <strong>{{ panelTitle }}</strong>
+        <p>{{ panelHint }}</p>
       </header>
 
       <button type="button" class="share-native-button" :disabled="!payload" @click="shareAndClose">
         <span>
           <Share2 :size="18" />
         </span>
-        {{ copy.share.nativeShare }}
+        {{ nativeShareLabel }}
       </button>
 
       <div class="share-channel-grid">
@@ -67,7 +80,7 @@ function shareAndClose() {
           <span>
             <component :is="channel.icon" :size="18" />
           </span>
-          <strong>{{ channel.label }}</strong>
+          <strong>{{ channelLabel(channel.key) }}</strong>
         </button>
       </div>
 

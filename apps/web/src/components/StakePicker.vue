@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Stake } from "@playbit/shared";
-import { ChevronRight } from "lucide-vue-next";
+import { Check, ChevronRight } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 import BaseField from "./ui/BaseField.vue";
-import {
-  formatVoucherBenefit,
-  inferStakeVoucherKind
-} from "../utils/voucherDisplay";
+import VoucherTicket from "./ui/VoucherTicket.vue";
+import { formatVoucherBenefit, inferStakeVoucherKind } from "../utils/voucherDisplay";
 
 type StakePreset = {
   type: Stake["type"];
@@ -23,6 +21,7 @@ const props = defineProps<{
   modelValue?: Stake;
   title?: string;
   compact?: boolean;
+  error?: string;
 }>();
 
 const presets = [
@@ -80,70 +79,81 @@ function kindForPreset(preset: StakePreset) {
 </script>
 
 <template>
-  <section class="stake-picker">
+  <section class="stake-picker" :class="{ compact: props.compact }">
     <div class="stake-picker-heading">
       <h3 class="life-section-title">{{ props.title ?? copy.stakes.selected }}</h3>
-      <button type="button" class="stake-change-button" @click="pickerOpen = true">
-        {{ copy.common.change }}
-        <ChevronRight :size="14" />
-      </button>
     </div>
 
-    <button
-      type="button"
-      class="stake-ticket-button voucher-ticket"
-      :class="[`kind-${selectedKind}`, 'status-available']"
+    <VoucherTicket
+      class="stake-selected-row"
+      :kind="selectedKind"
+      status="available"
+      size="mini"
+      interactive
+      :aria-label="copy.stakes.choose"
       @click="pickerOpen = true"
     >
-      <section class="voucher-ticket-value">
+      <template #value>
         <strong>{{ benefit.title }}</strong>
         <span>{{ benefit.subtitle }}</span>
-      </section>
-      <section class="voucher-ticket-main">
-        <div class="voucher-ticket-copy">
-          <div class="voucher-ticket-title-row">
-            <strong>{{ stake.label }}</strong>
-          </div>
-          <p class="voucher-ticket-time">{{ selectedPreset.description }}</p>
-        </div>
-        <span class="stake-ticket-action">{{ copy.stakes.choose }}</span>
-      </section>
-    </button>
+      </template>
+      <div class="stake-selected-copy">
+        <strong>{{ stake.label }}</strong>
+        <small>{{ selectedPreset.description }}</small>
+      </div>
+      <ChevronRight :size="17" aria-hidden="true" />
+    </VoucherTicket>
 
     <BaseField
       v-if="selectedPreset.type === 'custom'"
       v-model="customLabel"
       :label="copy.stakes.customLabel"
       :placeholder="copy.stakes.customPlaceholder"
+      :error="props.error"
     />
 
-    <van-popup v-model:show="pickerOpen" round position="bottom" class="stake-picker-popup">
+    <van-popup
+      v-model:show="pickerOpen"
+      round
+      position="bottom"
+      teleport="body"
+      class="life-sheet-popup stake-picker-popup"
+      :z-index="4001"
+      overlay-class="stake-picker-overlay"
+    >
       <section class="stake-picker-sheet">
+        <div class="stake-sheet-handle" aria-hidden="true" />
         <header>
           <strong>{{ copy.stakes.choose }}</strong>
+          <span>{{ copy.stakes.assetHint }}</span>
         </header>
-        <button
-          v-for="preset in presets"
-          :key="preset.label"
-          type="button"
-          class="stake-sheet-option voucher-ticket status-available"
-          :class="[`kind-${kindForPreset(preset)}`, { active: selectedLabel === preset.label }]"
-          @click="choose(preset)"
-        >
-          <section class="voucher-ticket-value">
-            <strong>{{ formatVoucherBenefit(preset.label).title }}</strong>
-            <span>{{ formatVoucherBenefit(preset.label).subtitle }}</span>
-          </section>
-          <section class="voucher-ticket-main">
-            <div class="voucher-ticket-copy">
-              <div class="voucher-ticket-title-row">
-                <strong>{{ preset.label }}</strong>
-              </div>
-              <p class="voucher-ticket-time">{{ preset.description }}</p>
+        <div class="stake-options" role="radiogroup" :aria-label="copy.stakes.choose">
+          <VoucherTicket
+            v-for="preset in presets"
+            :key="preset.label"
+            class="stake-option"
+            :kind="kindForPreset(preset)"
+            status="available"
+            size="mini"
+            interactive
+            :class="{ active: selectedLabel === preset.label }"
+            role="radio"
+            :aria-checked="selectedLabel === preset.label"
+            @click="choose(preset)"
+          >
+            <template #value>
+              <strong>{{ formatVoucherBenefit(preset.label).title }}</strong>
+              <span>{{ formatVoucherBenefit(preset.label).subtitle }}</span>
+            </template>
+            <div class="stake-option-copy">
+              <strong>{{ preset.label }}</strong>
+              <small>{{ preset.description }}</small>
             </div>
-            <span class="stake-sheet-check">{{ selectedLabel === preset.label ? copy.common.selected : copy.stakes.choose }}</span>
-          </section>
-        </button>
+            <span class="stake-radio" aria-hidden="true">
+              <Check v-if="selectedLabel === preset.label" :size="12" :stroke-width="3" />
+            </span>
+          </VoucherTicket>
+        </div>
       </section>
     </van-popup>
   </section>

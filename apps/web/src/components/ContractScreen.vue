@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Agreement } from "@playbit/shared";
-import { BadgeCheck, Play, RefreshCw, Share2 } from "lucide-vue-next";
+import { ArrowRight, Download, RefreshCw, Share2 } from "lucide-vue-next";
 import { computed } from "vue";
 import AgreementProgress from "./AgreementProgress.vue";
 import ContractDocument from "./ContractDocument.vue";
@@ -12,18 +12,26 @@ import { isCounterpartySigned } from "../utils/sessionDisplay";
 
 const props = defineProps<{
   agreement: Agreement;
+  currentUserId: string | null;
   refreshing?: boolean;
 }>();
 
 const emit = defineEmits<{
   back: [];
+  home: [];
   start: [];
   refresh: [];
   openShare: [];
-  openCertificate: [];
+  openDocument: [action: "save" | "share"];
 }>();
 
 const signed = computed(() => isCounterpartySigned(props.agreement));
+const isInitiator = computed(() =>
+  props.agreement.participants.some(
+    (participant) => participant.role === "initiator" && participant.userId === props.currentUserId
+  )
+);
+const canSendForSignature = computed(() => isInitiator.value && !signed.value);
 </script>
 
 <template>
@@ -32,8 +40,11 @@ const signed = computed(() => isCounterpartySigned(props.agreement));
       class="service-flow-hero"
       :title="copy.contract.navTitle"
       :show-back="true"
+      :show-home="true"
       :back-label="copy.common.back"
+      :home-label="copy.common.home"
       @back="emit('back')"
+      @home="emit('home')"
     >
       <template #action>
         <button
@@ -50,26 +61,52 @@ const signed = computed(() => isCounterpartySigned(props.agreement));
     </LifeServiceHero>
 
     <div class="life-page-content service-flow-content">
-      <AgreementProgress :agreement="props.agreement" />
-      <ContractDocument :agreement="props.agreement" />
-      <BaseButton v-if="signed" variant="outline" @click="emit('openCertificate')">
-        <BadgeCheck :size="17" />
-        {{ copy.certificate.agreementTitle }}
-      </BaseButton>
+      <AgreementProgress :agreement="props.agreement">
+        <template #actions>
+          <button
+            v-if="signed"
+            type="button"
+            class="agreement-progress-action"
+            :aria-label="copy.contract.documentSave"
+            :title="copy.contract.documentSave"
+            @click="emit('openDocument', 'save')"
+          >
+            <Download :size="17" aria-hidden="true" />
+          </button>
+          <button
+            v-if="signed"
+            type="button"
+            class="agreement-progress-action"
+            :aria-label="copy.contract.documentShare"
+            :title="copy.contract.documentShare"
+            @click="emit('openDocument', 'share')"
+          >
+            <Share2 :size="17" aria-hidden="true" />
+          </button>
+          <button
+            v-else-if="canSendForSignature"
+            type="button"
+            class="agreement-progress-action"
+            :aria-label="copy.contract.sendToCounterparty"
+            :title="copy.contract.sendToCounterparty"
+            @click="emit('openShare')"
+          >
+            <Share2 :size="17" aria-hidden="true" />
+          </button>
+        </template>
+      </AgreementProgress>
+      <ContractDocument :agreement="props.agreement" :reveal="true" />
       <p class="life-section-caption">
         {{ signed ? copy.contract.enterSession : props.refreshing ? copy.contract.refreshing : copy.contract.waiting }}
       </p>
     </div>
 
     <LifeActionBar>
-      <BaseButton variant="outline" size="lg" @click="emit('openShare')">
-        <Share2 :size="18" />
-        {{ copy.share.openPanel }}
-      </BaseButton>
       <BaseButton size="lg" :disabled="!signed" @click="emit('start')">
-        <Play :size="18" />
+        <ArrowRight :size="18" />
         {{ signed ? copy.contract.enterSession : copy.contract.waiting }}
       </BaseButton>
     </LifeActionBar>
+
   </section>
 </template>

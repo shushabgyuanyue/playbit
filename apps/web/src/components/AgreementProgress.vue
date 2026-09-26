@@ -33,7 +33,10 @@ const progressText = computed(() => `${String(activeIndex.value + 1).padStart(2,
   <section class="agreement-progress">
     <header class="agreement-progress-header">
       <span>{{ copy.contract.progressTitle }}</span>
-      <strong>{{ progressText }}</strong>
+      <div class="agreement-progress-tools">
+        <strong>{{ progressText }}</strong>
+        <slot name="actions" />
+      </div>
     </header>
     <ol class="agreement-progress-steps">
       <li
