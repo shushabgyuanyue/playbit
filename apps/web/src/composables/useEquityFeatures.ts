@@ -113,12 +113,12 @@ export function useFlipFlow(options: FlipFlowOptions) {
   async function loadFlip(flipId: string, backScreen: Screen = "home") {
     options.pendingFlipId.value = flipId;
     options.returnScreen.value = backScreen;
-    const user = await options.ensureIdentity();
-    if (!user) {
-      options.requireAccount("flip");
-      return false;
-    }
     try {
+      const user = await options.ensureIdentity();
+      if (!user) {
+        options.requireAccount("flip");
+        return false;
+      }
       const { flip } = await api.getFlip(flipId);
       activeFlip.value = flip;
       upsertFlip(flip);
@@ -224,24 +224,23 @@ type GraceFlowOptions = {
   refreshAgreements: () => Promise<void>;
   refreshCoupons: () => Promise<void>;
   upsertAgreement: (agreement: Agreement) => void;
-  setScreen: (screen: Screen) => void;
 };
 
 export function useGraceFlow(options: GraceFlowOptions) {
   async function refreshGrace() {
-    const user = await options.ensureIdentity();
-    if (!user) {
-      options.graceTickets.value = [];
-      options.graceWaivers.value = [];
-      return;
-    }
     try {
+      const user = await options.ensureIdentity();
+      if (!user) {
+        options.graceTickets.value = [];
+        options.graceWaivers.value = [];
+        return;
+      }
       const response = await api.listGrace();
+      if ((await options.ensureIdentity())?.id !== user.id) return;
       options.graceTickets.value = response.tickets;
       options.graceWaivers.value = response.waivers;
     } catch {
-      options.graceTickets.value = [];
-      options.graceWaivers.value = [];
+      // Preserve the last known assets while the service is temporarily unavailable.
     }
   }
 
@@ -267,16 +266,5 @@ export function useGraceFlow(options: GraceFlowOptions) {
     }
   }
 
-  async function fulfillCustomAgreement(agreementId: string) {
-    try {
-      const response = await api.fulfillAgreement(agreementId);
-      options.upsertAgreement(response.agreement);
-      await refreshGrace();
-      options.setScreen("settlement");
-    } catch {
-      showToast(copy.settlement.fulfillFailed);
-    }
-  }
-
-  return { refreshGrace, requestGraceWaiver, respondGraceWaiver, fulfillCustomAgreement };
+  return { refreshGrace, requestGraceWaiver, respondGraceWaiver };
 }

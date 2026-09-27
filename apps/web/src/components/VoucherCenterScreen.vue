@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Agreement, Coupon, GraceTicket } from "@playbit/shared";
-import type { VoucherUiStatus } from "../types/voucher";
 import { computed, onUnmounted, ref, watch } from "vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import { useVoucherAssets } from "../composables/useVoucherAssets";
 import type { VoucherItem, VoucherStatusFilter, VoucherViewFilter } from "../types/voucher";
 import VoucherSection from "./VoucherSection.vue";
-import VoucherTicket from "./ui/VoucherTicket.vue";
+import GraceTicketCard from "./GraceTicketCard.vue";
 
 const props = defineProps<{
   agreements: Agreement[];
@@ -64,10 +63,6 @@ function selectStatus(status: VoucherViewFilter) {
 
 function redeemVoucher(voucher: VoucherItem) {
   emit("openVoucher", voucher.id);
-}
-
-function graceStatus(status: GraceTicket["status"]): VoucherUiStatus {
-  return status === "available" ? "available" : status === "reserved" ? "pending" : "used";
 }
 
 function loadMore(status: VoucherStatusFilter) {
@@ -151,27 +146,7 @@ onUnmounted(() => {
         </div>
       </div>
       <div v-if="props.graceTickets.length" class="grace-ticket-list">
-        <VoucherTicket
-          v-for="ticket in props.graceTickets"
-          :key="ticket.id"
-          kind="custom"
-          variant="grace"
-          :status="graceStatus(ticket.status)"
-          watermark="none"
-        >
-          <template #value>
-            <strong>{{ copy.vouchers.graceTitle }}</strong>
-            <span>{{ copy.vouchers.graceMilestonePrefix }}{{ ticket.earnedAtFulfillmentCount }}{{ copy.vouchers.graceMilestoneSuffix }}</span>
-          </template>
-          <div class="voucher-ticket-copy">
-            <div class="voucher-ticket-title-row">
-              <strong>{{ copy.vouchers.graceTitle }}</strong>
-            </div>
-            <p class="voucher-ticket-time">
-              {{ ticket.status === 'available' ? copy.vouchers.graceAvailable : ticket.status === 'reserved' ? copy.vouchers.graceReserved : copy.vouchers.graceUsed }}
-            </p>
-          </div>
-        </VoucherTicket>
+        <GraceTicketCard v-for="ticket in props.graceTickets" :key="ticket.id" :ticket="ticket" />
       </div>
       <p v-else class="grace-ticket-empty">{{ copy.vouchers.graceEmpty }}</p>
     </section>

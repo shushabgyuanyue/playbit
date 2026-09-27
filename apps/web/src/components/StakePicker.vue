@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
+import { inputLimits } from "@playbit/shared";
 import type { Stake } from "@playbit/shared";
 import { Check, ChevronRight } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
@@ -31,7 +32,7 @@ const presets = [
 ].filter(preset => !props.equityOnly || preset.type !== "point");
 const customPreset = presets.find((preset) => preset.type === "custom") ?? presets[presets.length - 1];
 const initialPreset = props.modelValue
-  ? presets.find((item) => item.label === props.modelValue?.label && item.type === props.modelValue.type)
+  ? presets.find((item) => item.type !== "custom" && item.label === props.modelValue?.label && item.type === props.modelValue.type)
   : null;
 const selectedLabel = ref(initialPreset?.label ?? (props.modelValue ? customPreset.label : presets[0].label));
 const customLabel = ref(initialPreset ? "" : props.modelValue?.label ?? "");
@@ -44,7 +45,7 @@ const selectedPreset = computed(
 const stake = computed<Stake>(() => ({
   type: selectedPreset.value.type,
   label:
-    selectedPreset.value.type === "custom" && customLabel.value.trim()
+    selectedPreset.value.type === "custom"
       ? customLabel.value.trim()
       : selectedPreset.value.label,
   fulfilled: false,
@@ -62,7 +63,7 @@ watch(
     if (!value) {
       return;
     }
-    const preset = presets.find((item) => item.label === value.label && item.type === value.type);
+    const preset = presets.find((item) => item.type !== "custom" && item.label === value.label && item.type === value.type);
     selectedLabel.value = preset?.label ?? customPreset.label;
     customLabel.value = preset ? "" : value.label;
   },
@@ -117,6 +118,7 @@ function kindForPreset(preset: StakePreset) {
       :label="copy.stakes.customLabel"
       :placeholder="copy.stakes.customPlaceholder"
       :error="props.error"
+      :maxlength="inputLimits.customEquity"
     />
 
     <van-popup

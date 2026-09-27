@@ -1,6 +1,7 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { randomBytes } from "node:crypto";
+import { hasCouponEquity } from "@playbit/game-core";
 import type { Agreement, Coupon, GraceTicket, GraceWaiver } from "@playbit/shared";
 import { agreements as agreementTable, coupons, graceTickets, graceWaivers } from "./db/schema.js";
 import type { AgreementRepository } from "./agreementRepository.js";
@@ -46,12 +47,25 @@ export class GraceConflict extends Error {
 class MemoryGraceRepository {
   private tickets = new Map<string, GraceTicket>();
   private waivers = new Map<string, GraceWaiver>();
+  private deletedAgreements = new Set<string>();
   private mutationQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly agreements: AgreementRepository,
     private readonly coupons: CouponRepository
-  ) {}
+  ) {
+    if ("onDelete" in agreements) agreements.onDelete(id => {
+      this.deletedAgreements.add(id);
+      for (const [key, waiver] of this.waivers) {
+        if (waiver.agreementId !== id) continue;
+        const ticket = this.tickets.get(waiver.ticketId);
+        if (waiver.status === "pending" && ticket?.status === "reserved") {
+          this.tickets.set(ticket.id, { ...ticket, status: "available" });
+        }
+        this.waivers.delete(key);
+      }
+    });
+  }
 
   private async serialize<T>(operation: () => Promise<T>): Promise<T> {
     const previous = this.mutationQueue;
@@ -66,20 +80,22 @@ class MemoryGraceRepository {
   }
 
   async ensureEarned(userId: string, completedCount: number): Promise<GraceTicket[]> {
-    const earned: GraceTicket[] = [];
-    for (let milestone = 10; milestone <= completedCount; milestone += 10) {
-      const existing = Array.from(this.tickets.values()).find(
-        (ticket) => ticket.userId === userId && ticket.earnedAtFulfillmentCount === milestone
-      );
-      if (existing) continue;
-      const ticket: GraceTicket = {
-        id: id("grace"), userId, earnedAtFulfillmentCount: milestone,
-        status: "available", createdAt: new Date().toISOString(), usedAt: null
-      };
-      this.tickets.set(ticket.id, ticket);
-      earned.push(ticket);
-    }
-    return earned;
+    return this.serialize(async () => {
+      const earned: GraceTicket[] = [];
+      for (let milestone = 10; milestone <= completedCount; milestone += 10) {
+        const existing = Array.from(this.tickets.values()).find(
+          (ticket) => ticket.userId === userId && ticket.earnedAtFulfillmentCount === milestone
+        );
+        if (existing) continue;
+        const ticket: GraceTicket = {
+          id: id("grace"), userId, earnedAtFulfillmentCount: milestone,
+          status: "available", createdAt: new Date().toISOString(), usedAt: null
+        };
+        this.tickets.set(ticket.id, ticket);
+        earned.push(ticket);
+      }
+      return earned;
+    });
   }
 
   async listByUser(userId: string): Promise<GraceTicket[]> {
@@ -108,8 +124,15 @@ class MemoryGraceRepository {
       if (!coupon.sourceFlipId && agreement.status !== "result_recorded") {
         throw new GraceConflict("AGREEMENT_STATE_CONFLICT");
       }
+      if (this.deletedAgreements.has(agreement.id)) {
+        throw new GraceConflict("AGREEMENT_STATE_CONFLICT");
+      }
       const reservedCoupon = await this.coupons.reserveIfAvailable(coupon.id);
       if (!reservedCoupon) throw new GraceConflict("EQUITY_NOT_AVAILABLE_FOR_WAIVER");
+      if (this.deletedAgreements.has(agreement.id)) {
+        await this.coupons.releaseReservation(coupon.id);
+        throw new GraceConflict("AGREEMENT_STATE_CONFLICT");
+      }
       const request: GraceWaiver = {
         id: id("waiver"), ticketId, couponId: coupon.id, agreementId: agreement.id,
         requesterUserId, status: "pending", createdAt: new Date().toISOString(), resolvedAt: null
@@ -272,7 +295,7 @@ export async function grantGraceIfEligible(
     (coupon) => coupon.issuerUserId === userId && coupon.status === "used"
   ).length;
   const recordedFulfillments = userAgreements.filter((agreement) => {
-    if (agreement.status !== "fulfilled" || agreement.stake.type === "coupon") return false;
+    if (agreement.status !== "fulfilled" || hasCouponEquity(agreement)) return false;
     const owingParticipant = agreement.participants.find((participant) => participant.id === agreement.loserId);
     return owingParticipant?.userId === userId;
   }).length;

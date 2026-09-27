@@ -9,7 +9,7 @@
     "dev:api": "pnpm --filter @playbit/api dev",
     "build": "pnpm -r build",
     "check": "pnpm -r check",
-    "test": "pnpm --filter @playbit/game-core test && pnpm --filter @playbit/api test",
+    "test": "pnpm --filter @playbit/game-core test && pnpm --filter @playbit/api test && pnpm --filter @playbit/web test",
     "db:generate": "pnpm --filter @playbit/api db:generate",
     "db:migrate": "pnpm --filter @playbit/api db:migrate"
   },

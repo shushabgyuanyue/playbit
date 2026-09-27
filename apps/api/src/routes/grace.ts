@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hasCouponEquity } from "@playbit/game-core";
 import { agreementSchema, graceTicketSchema, graceWaiverSchema } from "@playbit/shared";
 import type { Hono } from "hono";
 import type { AuthRepository } from "../authRepository.js";
@@ -42,7 +43,7 @@ export function registerGraceRoutes(
     if (!agreement) return context.json({ message: "Agreement not found" }, 404);
     const forbidden = requireAgreementParticipant(context, agreement, user);
     if (forbidden) return forbidden;
-    if (agreement.status !== "result_recorded" || agreement.stake.type === "coupon") {
+    if (agreement.status !== "result_recorded" || hasCouponEquity(agreement)) {
       return context.json({ message: "This agreement cannot be recorded as completed here" }, 409);
     }
 

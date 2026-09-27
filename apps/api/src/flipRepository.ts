@@ -37,12 +37,18 @@ export class FlipConflict extends Error {
 
 class MemoryFlipRepository {
   private values = new Map<string, Flip>();
+  private deletedAgreements = new Set<string>();
   private mutationQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly agreements: AgreementRepository,
     private readonly coupons: CouponRepository
-  ) {}
+  ) {
+    if ("onDelete" in agreements) agreements.onDelete(id => {
+      this.deletedAgreements.add(id);
+      for (const [key, flip] of this.values) if (flip.agreementId === id) this.values.delete(key);
+    });
+  }
 
   private async serialize<T>(operation: () => Promise<T>): Promise<T> {
     const previous = this.mutationQueue;
@@ -62,6 +68,7 @@ class MemoryFlipRepository {
     return this.serialize(async () => {
       const reserved = await this.coupons.reserveIfAvailable(flip.couponId);
       if (!reserved) throw new FlipConflict("EQUITY_NOT_AVAILABLE");
+      if (this.deletedAgreements.has(flip.agreementId)) throw new FlipConflict("EQUITY_NOT_AVAILABLE");
       this.values.set(flip.id, flip);
       return flip;
     });

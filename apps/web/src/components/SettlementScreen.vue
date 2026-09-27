@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { Agreement, Coupon } from "@playbit/shared";
-import { Download, Share2 } from "lucide-vue-next";
+import { hasCouponEquity } from "@playbit/game-core";
+import type { Agreement } from "@playbit/shared";
+import { CheckCircle2, ChevronRight, Share2 } from "lucide-vue-next";
 import { computed, ref } from "vue";
 import BaseButton from "./ui/BaseButton.vue";
 import CertificateScreen from "./CertificateScreen.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
-import VoucherTicket from "./ui/VoucherTicket.vue";
-import { buildVoucherItems } from "../composables/useVoucherAssets";
 
 type CertificateActions = {
   busy: boolean;
@@ -18,7 +17,6 @@ type CertificateActions = {
 
 const props = defineProps<{
   agreement: Agreement;
-  coupon: Coupon | null;
   currentUserId: string | null;
   showBack?: boolean;
 }>();
@@ -27,45 +25,30 @@ const emit = defineEmits<{
   back: [];
   home: [];
   openVouchers: [];
-  openVoucher: [id: string];
-  fulfill: [];
 }>();
 
 const certificateRef = ref<CertificateActions | null>(null);
 
 const fulfilled = computed(() => props.agreement.status === "fulfilled" || props.agreement.stake.fulfilled);
 const waived = computed(() => props.agreement.status === "waived");
-const isCouponStake = computed(() => props.agreement.stake.type === "coupon");
+const isCouponStake = computed(() => hasCouponEquity(props.agreement));
 const issueTitle = computed(() => {
   if (isCouponStake.value) return copy.settlement.voucherIssued;
-  if (props.agreement.stake.type === "point") return copy.settlement.pointRecorded;
-  return copy.settlement.customRecorded;
+  return copy.settlement.pointRecorded;
 });
 const issueHint = computed(() => {
   if (isCouponStake.value) {
     return fulfilled.value || waived.value ? copy.settlement.voucherArchivedHint : copy.settlement.voucherIssuedHint;
   }
-  if (props.agreement.stake.type === "point") return copy.settlement.pointRecordedHint;
-  return copy.settlement.customRecordedHint;
-});
-const voucher = computed(() =>
-  buildVoucherItems([props.agreement], props.coupon ? [props.coupon] : [], props.currentUserId).find(
-    (item) => item.agreementId === props.agreement.id
-  ) ?? null
-);
-const certificateKind = computed<"result" | "fulfillment" | "waiver">(() => {
-  if (waived.value) return "waiver";
-  if (fulfilled.value) return "fulfillment";
-  return "result";
+  return copy.settlement.pointRecordedHint;
 });
 const certificateBusy = computed(() => certificateRef.value?.busy ?? false);
 
-async function saveResult() {
-  await certificateRef.value?.saveCertificate();
-}
-
-async function shareResult() {
-  await certificateRef.value?.shareCertificate();
+async function saveAndShare() {
+  const certificate = certificateRef.value;
+  if (!certificate) return;
+  const saved = await certificate.saveCertificate();
+  if (saved) await certificate.shareCertificate();
 }
 </script>
 
@@ -85,73 +68,40 @@ async function shareResult() {
     <div class="life-page-content service-flow-content">
       <section
         class="settlement-certificate-panel"
-        :aria-label="certificateKind === 'fulfillment'
-          ? copy.certificate.fulfillmentTitle
-          : certificateKind === 'waiver' ? copy.certificate.waiverTitle : copy.certificate.resultTitle"
+        :aria-label="copy.certificate.resultTitle"
       >
         <CertificateScreen
           ref="certificateRef"
           :agreement="props.agreement"
           :flip="null"
-          :kind="certificateKind"
+          kind="result"
+          :current-user-id="currentUserId"
           :embedded="true"
         />
       </section>
 
-      <section v-if="voucher" class="settlement-voucher-panel">
-        <div class="settlement-section-heading">
-          <h2 class="life-section-title">{{ issueTitle }}</h2>
+      <section v-if="isCouponStake" class="settlement-asset-panel" aria-live="polite">
+        <div class="settlement-asset-copy">
+          <span class="settlement-asset-kicker"><CheckCircle2 :size="15" aria-hidden="true" />{{ issueTitle }}</span>
+          <p>{{ issueHint }}</p>
         </div>
-        <VoucherTicket
-          :kind="voucher.kind"
-          :status="voucher.status"
-          size="mini"
-          :watermark="voucher.status === 'used' ? 'rabbit' : 'panda'"
-          :interactive="true"
-          :aria-label="copy.settlement.openVouchers"
-          @click="emit('openVoucher', voucher.id)"
-        >
-          <template #value>
-            <strong>{{ voucher.benefitTitle }}</strong>
-            <span>{{ voucher.benefitSubtitle }}</span>
-          </template>
-          <div class="settlement-voucher-copy">
-            <strong>{{ voucher.agreementTitle }}</strong>
-            <small>{{ voucher.timeText }}</small>
-          </div>
-        </VoucherTicket>
-        <p class="life-section-caption">{{ issueHint }}</p>
+        <button type="button" class="settlement-asset-link" @click="emit('openVouchers')">
+          <span>{{ copy.settlement.openVouchers }}</span>
+          <ChevronRight :size="17" aria-hidden="true" />
+        </button>
       </section>
 
       <section v-else class="life-panel settlement-fulfillment-panel">
         <h2 class="life-section-title">{{ issueTitle }}</h2>
         <p class="life-section-caption">{{ issueHint }}</p>
-        <BaseButton
-          v-if="props.agreement.status === 'result_recorded' && props.agreement.stake.type === 'custom'"
-          class="settlement-fulfill-action"
-          variant="outline"
-          @click="emit('fulfill')"
-        >
-          {{ copy.settlement.completeCustom }}
-        </BaseButton>
       </section>
     </div>
 
     <LifeActionBar>
-      <BaseButton variant="outline" size="lg" :loading="certificateBusy" @click="saveResult">
-        <Download :size="18" />
-        {{ copy.settlement.downloadResult }}
-      </BaseButton>
-      <BaseButton size="lg" :loading="certificateBusy" @click="shareResult">
+      <BaseButton class="settlement-certificate-action" size="lg" :loading="certificateBusy" @click="saveAndShare">
         <Share2 :size="18" />
-        {{ copy.settlement.shareResult }}
+        {{ copy.settlement.downloadAndShare }}
       </BaseButton>
     </LifeActionBar>
   </section>
 </template>
-
-<style scoped>
-.settlement-fulfill-action {
-  margin-top: 14px;
-}
-</style>

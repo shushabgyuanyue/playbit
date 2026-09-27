@@ -102,14 +102,28 @@ share the sheet but retain separate links, permissions, and acceptance actions.
   participant on another device can log in to resume the same game.
 - Opening a share link as its initiator or an existing signatory resumes the
   Agreement instead of asking for another signature. A new signatory uses the
-  account nickname; the signing request contains only the saved or drawn mark.
+  account nickname; the signing request contains the saved/drawn mark and the
+  revision actually reviewed. Draft edits also require the reviewed revision.
+  Login continuation retains that revision; changed terms require a fresh confirmation.
+- Contract creation carries a per-attempt request identity, just like game
+  creation. Retrying the same payload does not create another Agreement.
+- New stakes cannot supply fulfilled state or preconfirmed additions. Individual
+  stake and boost labels remain bounded to 80 characters; the issued coupon can
+  hold all four labels plus separators (323 characters).
 - Each equity coupon links to one Agreement. Provider/holder actions derive
   from explicit user IDs, not array position or display text.
-- Result recording and coupon issuance commit in one transaction. Game stakes,
-  including custom descriptions, issue coupons. Signed contracts retain the
-  existing separate point/custom fulfillment behavior.
+- Result recording and coupon issuance commit in one transaction. Game stakes
+  and signed contract stakes with `coupon` or `custom` descriptions issue the
+  same coupon asset. Point stakes remain a record only; coupon assets are
+  redeemed or waived through their normal flows.
 - The result reporter, winner, provider, and holder are explicit fields. Do not
   infer them from who opened a screen.
+- A settled agreement (`result_recorded`, `fulfilled`, or `waived`) is terminal
+  history and cannot be deleted. Only an unsigned, unjoined, or active record
+  may be removed by its initiator.
+- A pending boost may be withdrawn by its proposer. Withdrawal removes the
+  pending proposal and frees its slot; once both participants confirm it, the
+  addition is part of the stake and cannot be withdrawn.
 
 ### Flip, Waiver, And Proof
 

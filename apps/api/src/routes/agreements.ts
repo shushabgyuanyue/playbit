@@ -1,10 +1,13 @@
+import { createHash } from "node:crypto";
 import type { AuthRepository } from "../authRepository.js";
 import type { CouponRepository } from "../couponRepository.js";
-import { canViewAgreement, isParticipant, agreementParticipantIds, requireCurrentUser, requireAgreementParticipant } from "../http/auth.js";
+import { canViewAgreement, agreementParticipantIds, requireCurrentUser, requireAgreementParticipant } from "../http/auth.js";
 import { AgreementRevisionConflict, type AgreementRepository } from "../agreementRepository.js";
 import type { AgreementRealtimeHub } from "../agreementRealtime.js";
 import {
   addBoost,
+  withdrawBoost,
+  canDeleteAgreement,
   confirmBoost,
   createAgreement,
   recordAgreementResult,
@@ -14,7 +17,7 @@ import {
 import {
   agreementSchema,
   createBoostSchema,
-  createAgreementSchema,
+  createAgreementRequestSchema,
   signAgreementSchema,
   recordResultSchema,
   updateAgreementSchema
@@ -38,18 +41,36 @@ export function registerAgreementRoutes(
     if (currentUser instanceof Response) {
       return currentUser;
     }
-    const payload = createAgreementSchema.parse(await context.req.json());
+    const parsed = createAgreementRequestSchema.safeParse(await context.req.json());
+    if (!parsed.success) return context.json({ message: "Invalid agreement" }, 422);
+    const payload = parsed.data;
     if (payload.source !== "custom") return context.json({ message: "Use the game invitation flow" }, 422);
+    const id = `bet_${createHash("sha256").update(`${currentUser.id}:${payload.requestId}`).digest("hex").slice(0, 32)}`;
+    const matches = (saved: Awaited<ReturnType<AgreementRepository["findById"]>>) => saved &&
+      saved.title === payload.title && saved.challenge === (payload.challenge ?? payload.title) &&
+      saved.stake.type === payload.stake.type && saved.stake.label === payload.stake.label;
+    const existing = await agreements.findById(id);
+    if (existing) {
+      return matches(existing) ? context.json({ agreement: existing })
+        : context.json({ message: "Request already used for another agreement" }, 409);
+    }
     const agreement = createAgreement(
       {
         ...payload,
-        creatorNickname: payload.creatorNickname ?? currentUser.nickname
+        creatorNickname: currentUser.nickname
       },
       currentUser.id
     );
-    await auth.updateSignature(currentUser.id, payload.creatorSignatureDataUrl);
-    const created = await agreements.create(agreement);
-    return context.json({ agreement: agreementSchema.parse(created) }, 201);
+    try {
+      const created = await agreements.create({ ...agreement, id });
+      await auth.updateSignature(currentUser.id, payload.creatorSignatureDataUrl);
+      return context.json({ agreement: agreementSchema.parse(created) }, 201);
+    } catch (error) {
+      const saved = await agreements.findById(id);
+      if (matches(saved)) return context.json({ agreement: saved });
+      if (saved) return context.json({ message: "Request already used for another agreement" }, 409);
+      throw error;
+    }
   });
 
   app.get("/agreements", async (context) => {
@@ -97,8 +118,11 @@ export function registerAgreementRoutes(
       return accessError;
     }
 
-    const payload = updateAgreementSchema.parse(await context.req.json());
+    const parsed = updateAgreementSchema.safeParse(await context.req.json());
+    if (!parsed.success) return context.json({ message: "Invalid agreement update" }, 422);
+    const payload = parsed.data;
     if (agreement.source !== "custom" || payload.source !== "custom") return context.json({ message: "Games cannot be edited as contracts" }, 409);
+    if (agreement.revision !== payload.revision) return context.json({ message: "Agreement changed, please review again" }, 409);
 
     try {
       const draft = updateAgreementDraft(
@@ -106,8 +130,8 @@ export function registerAgreementRoutes(
         { ...payload, creatorNickname: currentUser.nickname },
         currentUser.id
       );
-      await auth.updateSignature(currentUser.id, payload.creatorSignatureDataUrl);
       const updated = await agreements.update(draft, agreement.revision);
+      await auth.updateSignature(currentUser.id, payload.creatorSignatureDataUrl);
       realtime.publishAgreement(updated);
       return context.json({ agreement: agreementSchema.parse(updated) });
     } catch (error) {
@@ -142,15 +166,19 @@ export function registerAgreementRoutes(
     if (agreement.ownerUserId !== currentUser.id || !isInitiator) {
       return context.json({ message: "Only the initiator can delete this agreement" }, 403);
     }
-    if (agreement.status === "fulfilled" || agreement.status === "waived") {
+    if (!canDeleteAgreement(agreement, currentUser.id)) {
       return context.json({ message: "Completed agreements cannot be deleted" }, 409);
     }
 
-    const deleted = await agreements.delete(agreement.id);
-    if (!deleted) {
-      return context.json({ message: "Session not found" }, 404);
+    try {
+      const deleted = await agreements.delete(agreement.id, agreement.revision);
+      if (!deleted) return context.json({ message: "Session not found" }, 404);
+      realtime.publishDeletion(agreement.id);
+      return context.body(null, 204);
+    } catch (error) {
+      if (error instanceof AgreementRevisionConflict) return context.json({ message: "Agreement changed, please refresh" }, 409);
+      throw error;
     }
-    return context.body(null, 204);
   });
 
   app.get("/agreements/:id/sync", async (context) => {
@@ -220,6 +248,7 @@ export function registerAgreementRoutes(
           controller.enqueue(
             encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`)
           );
+          if (event.type === "agreement.deleted") close();
         };
         unsubscribe = realtime.subscribe(agreement, send);
         keepAlive = setInterval(() => {
@@ -269,8 +298,10 @@ export function registerAgreementRoutes(
       return context.json({ message: "Share page not found" }, 404);
     }
 
-    const payload = signAgreementSchema.parse(await context.req.json());
     if (agreement.source !== "custom") return context.json({ message: "Use the game confirmation flow" }, 409);
+    const parsed = signAgreementSchema.safeParse(await context.req.json());
+    if (!parsed.success) return context.json({ message: "Signature and reviewed revision required" }, 422);
+    const payload = parsed.data;
     const initiator = agreement.participants.find((participant) => participant.role === "initiator");
     const counterparty = agreement.participants.find((participant) => participant.role === "counterparty");
     if (initiator?.userId === currentUser.id) {
@@ -285,17 +316,20 @@ export function registerAgreementRoutes(
     if (agreement.status !== "pending_signature") {
       return context.json({ message: "Agreement is not open for signing" }, 409);
     }
+    if (agreement.revision !== payload.revision) {
+      return context.json({ message: "Agreement changed, please review before signing", code: "AGREEMENT_CHANGED" }, 409);
+    }
 
     const signed = signCounterparty(agreement, currentUser.nickname, currentUser.id, payload.signatureDataUrl);
-    await auth.updateSignature(currentUser.id, payload.signatureDataUrl);
     try {
       const updated = await agreements.update(signed, agreement.revision);
+      await auth.updateSignature(currentUser.id, payload.signatureDataUrl);
       realtime.publishAgreement(updated);
       return context.json({ agreement: updated });
     } catch (error) {
       if (error instanceof AgreementRevisionConflict) {
-        const latest = await agreements.findByShareCode(context.req.param("shareCode"));
-      return context.json({ message: "Agreement changed, please refresh", agreement: latest }, 409);
+        // A different visitor may have claimed the invitation: never disclose their signed document.
+        return context.json({ message: "Agreement changed, please refresh", code: "AGREEMENT_CHANGED" }, 409);
       }
       throw error;
     }
@@ -319,7 +353,9 @@ export function registerAgreementRoutes(
       return context.json({ message: "Only active agreements can be settled" }, 409);
     }
 
-    const payload = recordResultSchema.parse(await context.req.json());
+    const parsed = recordResultSchema.safeParse(await context.req.json());
+    if (!parsed.success) return context.json({ message: "Winner required" }, 422);
+    const payload = parsed.data;
     if (!agreementParticipantIds(agreement).includes(payload.winnerId)) {
       return context.json({ message: "Winner must be a participant" }, 422);
     }
@@ -357,7 +393,10 @@ export function registerAgreementRoutes(
       return context.json({ message: "Forbidden" }, 403);
     }
 
-    const payload = createBoostSchema.parse(await context.req.json());
+    if (agreement.status !== "active") return context.json({ message: "Only active agreements can be amended" }, 409);
+    const parsed = createBoostSchema.safeParse(await context.req.json());
+    if (!parsed.success) return context.json({ message: "Invalid amendment" }, 422);
+    const payload = parsed.data;
     try {
       const boosted = addBoost(agreement, participant.id, payload.label);
       const updated = await agreements.update(boosted, agreement.revision);
@@ -370,6 +409,31 @@ export function registerAgreementRoutes(
       if (error instanceof AgreementRevisionConflict) {
         const latest = await agreements.findById(agreement.id);
         return context.json({ message: "Agreement changed, please refresh", agreement: latest }, 409);
+      }
+      throw error;
+    }
+  });
+
+  app.delete("/agreements/:id/boost/:boostId", async (context) => {
+    const user = await requireCurrentUser(context, auth);
+    if (user instanceof Response) return user;
+    const agreement = await agreements.findById(context.req.param("id"));
+    if (!agreement) return context.json({ message: "Agreement not found" }, 404);
+    const participant = agreement.participants.find(person => person.userId === user.id);
+    if (!participant) return context.json({ message: "Forbidden" }, 403);
+    try {
+      const next = withdrawBoost(agreement, context.req.param("boostId"), participant.id);
+      const updated = await agreements.update(next, agreement.revision);
+      realtime.publishAgreement(updated);
+      return context.json({ agreement: agreementSchema.parse(updated) });
+    } catch (error) {
+      if (error instanceof AgreementRevisionConflict) return context.json({ message: "Agreement changed, please refresh" }, 409);
+      if (error instanceof Error) {
+        if (error.message === "BOOST_NOT_FOUND") return context.json({ message: "Boost not found" }, 404);
+        if (error.message === "BOOST_WITHDRAW_FORBIDDEN") return context.json({ message: "Only the proposer can withdraw" }, 403);
+        if (["BOOST_ALREADY_CONFIRMED", "BOOST_REQUIRES_ACTIVE_AGREEMENT"].includes(error.message)) {
+          return context.json({ message: "This boost cannot be withdrawn" }, 409);
+        }
       }
       throw error;
     }
@@ -390,6 +454,7 @@ export function registerAgreementRoutes(
       return context.json({ message: "Forbidden" }, 403);
     }
 
+    if (agreement.status !== "active") return context.json({ message: "Only active agreements can be amended" }, 409);
     try {
       const confirmed = confirmBoost(agreement, context.req.param("boostId"), participant.id);
       const updated = await agreements.update(confirmed, agreement.revision);

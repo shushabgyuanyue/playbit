@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Agreement } from "@playbit/shared";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { useVisibleStamp } from "../composables/useVisibleStamp";
 import {
   getParticipantName,
   getEffectiveStakeLabel,
@@ -17,6 +18,7 @@ const props = withDefaults(
     compact?: boolean;
     showSeal?: boolean;
     reveal?: boolean;
+    exporting?: boolean;
   }>(),
   {
     compact: false,
@@ -36,12 +38,17 @@ const counterparty = computed(() =>
   getParticipantName(props.agreement, "counterparty", copy.contract.fallbackCounterparty)
 );
 const signed = computed(() => isCounterpartySigned(props.agreement));
-const stamping = ref(false);
+const signatureTarget = ref<HTMLElement | null>(null);
+const stamping = useVisibleStamp(signatureTarget, () => signed.value && props.showSeal && !props.exporting, () => props.agreement.id);
 const statusTone = computed(() => getAgreementStatusTone(props.agreement.status));
 const statusLabel = computed(() => getAgreementStatusLabel(props.agreement.status));
 const effectiveStakeLabel = computed(() => getEffectiveStakeLabel(props.agreement));
+const subject = computed(() => {
+  const text = props.agreement.challenge.trim();
+  return /[。！？.!?]$/.test(text) ? text : `${text}${copy.contract.clauseSentences.subjectSuffix}`;
+});
 const protocolLines = computed(() => [
-  `${copy.contract.clauseSentences.subjectPrefix} ${props.agreement.challenge}${copy.contract.clauseSentences.subjectSuffix}`,
+  `${copy.contract.clauseSentences.subjectPrefix} ${subject.value}`,
   `${copy.contract.clauseSentences.judgmentPrefix} ${copy.contract.clauseSentences.judgmentSuffix}`,
   `${copy.contract.stakePrefix} ${effectiveStakeLabel.value}${copy.contract.stakeSuffix}`,
   copy.contract.articles.exception,
@@ -56,22 +63,8 @@ const agreementDate = computed(() => {
   return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
 });
 
-watch(signed, (value, previous) => {
-  if (value && previous === false) {
-    stamping.value = false;
-    requestAnimationFrame(() => {
-      stamping.value = true;
-    });
-  }
-}, { immediate: true });
-
 onMounted(() => {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (signed.value && !reducedMotion) {
-    requestAnimationFrame(() => {
-      stamping.value = true;
-    });
-  }
   if (!props.reveal || reducedMotion) {
     revealed.value = true;
     return;
@@ -88,7 +81,7 @@ onMounted(() => {
 <template>
   <article
     class="contract-document"
-    :class="{ compact, 'is-stamping': stamping, 'is-reveal-enabled': props.reveal, 'is-revealed': revealed }"
+    :class="{ compact, 'is-exporting': exporting, 'is-reveal-enabled': props.reveal, 'is-revealed': revealed }"
   >
     <div class="contract-document-rule" />
 
@@ -100,6 +93,7 @@ onMounted(() => {
     <h2 class="contract-document-title">
       {{ copy.contract.documentTitle }}
     </h2>
+    <p class="contract-document-subtitle">{{ copy.contract.documentSubtitle }}</p>
 
     <dl class="contract-field-list">
       <div>
@@ -148,7 +142,7 @@ onMounted(() => {
       <p>{{ protocolLines[4] }}</p>
     </section>
 
-    <div class="contract-signature-grid contract-reveal-item" style="--contract-reveal-delay: 640ms">
+    <div class="contract-signature-grid">
       <section class="contract-signature-box">
         <span>{{ copy.contract.confirmA }}</span>
         <strong>{{ initiator }}</strong>
@@ -159,7 +153,10 @@ onMounted(() => {
         />
         <em v-else class="contract-signature-placeholder">{{ copy.contract.signaturePending }}</em>
       </section>
-      <section class="contract-signature-box">
+      <section ref="signatureTarget" class="contract-signature-box contract-signature-counterparty">
+        <div v-if="showSeal && signed" class="contract-seal" :class="{ 'is-stamping': stamping && !exporting, 'is-visible': stamping || exporting }" :aria-hidden="!stamping && !exporting">
+          <small>{{ copy.contract.sealEyebrow }}</small><b>{{ copy.contract.seal }}</b><small>{{ copy.contract.sealFooter }}</small>
+        </div>
         <span>{{ copy.contract.confirmB }}</span>
         <strong>{{ counterparty }}</strong>
         <img
@@ -171,12 +168,15 @@ onMounted(() => {
       </section>
     </div>
 
-    <div v-if="showSeal" class="contract-seal" :class="{ pending: !signed, 'is-stamping': stamping }">
-      {{ signed ? copy.contract.seal : copy.contract.pendingSeal }}
-    </div>
+    <p class="contract-record-note">{{ copy.contract.recordNote }}</p>
 
     <footer v-if="$slots.actions" class="contract-document-actions">
       <slot name="actions" />
     </footer>
   </article>
 </template>
+
+<style scoped>
+.contract-document-subtitle { margin: -5px 0 22px; text-align: center; font-family: var(--pb-font-serif); font-size: var(--pb-font-xs); color: var(--pb-text-2); }
+.contract-record-note { margin: 18px 0 0; border-top: 1px solid var(--pb-line); padding-top: 10px; font-size: var(--pb-font-xs); line-height: 1.6; color: var(--pb-text-2); }
+</style>

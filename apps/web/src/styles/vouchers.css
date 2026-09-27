@@ -108,13 +108,8 @@
 
 .grace-ticket-section {
   position: relative;
-  overflow: hidden;
   margin: 0 var(--pb-page-x) 12px;
-  border: 1px solid var(--pb-grace-line);
-  border-radius: var(--pb-radius-lg);
-  background: var(--pb-surface-grace);
-  box-shadow: var(--pb-shadow-grace);
-  padding: 12px 13px;
+  padding: 4px 0 8px;
 }
 
 .grace-ticket-heading,

@@ -1,6 +1,6 @@
 import { agreements, coupons } from "./db/schema.js";
 import type { Agreement, Coupon, Participant } from "@playbit/shared";
-import { getEffectiveStakeLabel } from "@playbit/game-core";
+import { getEffectiveStakeLabel, hasCouponEquity } from "@playbit/game-core";
 import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { randomBytes } from "node:crypto";
@@ -53,7 +53,7 @@ function findParticipant(agreement: Agreement, participantId: string | null): Pa
 }
 
 export function couponFromRecordedAgreement(agreement: Agreement): Coupon | null {
-  if (agreement.stake.type !== "coupon" || !agreement.winnerId || !agreement.loserId) {
+  if (!hasCouponEquity(agreement) || !agreement.winnerId || !agreement.loserId) {
     return null;
   }
 
@@ -84,12 +84,19 @@ export function couponFromRecordedAgreement(agreement: Agreement): Coupon | null
 
 class MemoryCouponRepository {
   private coupons = new Map<string, Coupon>();
+  private deletedAgreements = new Set<string>();
 
-  constructor(private readonly agreements: AgreementRepository) {}
+  constructor(private readonly agreements: AgreementRepository) {
+    if ("onDelete" in agreements) agreements.onDelete(id => {
+      this.deletedAgreements.add(id);
+      for (const [key, coupon] of this.coupons) if (coupon.agreementId === id) this.coupons.delete(key);
+    });
+  }
 
   async recordResult(agreement: Agreement, revision: number): Promise<Agreement> {
     const coupon = couponFromRecordedAgreement(agreement);
     const updated = await this.agreements.update(agreement, revision);
+    if (this.deletedAgreements.has(agreement.id)) throw new AgreementRevisionConflict();
     if (coupon) this.coupons.set(coupon.id, coupon);
     return updated;
   }
@@ -101,6 +108,7 @@ class MemoryCouponRepository {
     }
 
     const existing = await this.findByAgreementId(agreement.id);
+    if (this.deletedAgreements.has(agreement.id)) throw new AgreementRevisionConflict();
     const next = existing ? { ...coupon, id: existing.id, createdAt: existing.createdAt } : coupon;
     this.coupons.set(next.id, next);
     return next;
@@ -126,6 +134,7 @@ class MemoryCouponRepository {
 
   async createFromFlip(source: Coupon, flipId: string): Promise<Coupon> {
     const existing = await this.findBySourceFlipId(flipId);
+    if (this.deletedAgreements.has(source.agreementId)) throw new AgreementRevisionConflict();
     if (existing) return existing;
     const coupon: Coupon = {
       ...source,
@@ -141,7 +150,7 @@ class MemoryCouponRepository {
   }
 
   async markUsedIfAvailable(id: string): Promise<Coupon | null> {
-    const coupon = await this.findById(id);
+    const coupon = this.coupons.get(id);
     if (!coupon || coupon.status !== "available") {
       return null;
     }
@@ -152,23 +161,31 @@ class MemoryCouponRepository {
   }
 
   async redeem(id: string, holderUserId: string, recorderUserId: string): Promise<Coupon | null> {
-    const coupon = await this.findById(id);
+    const coupon = this.coupons.get(id);
     if (!coupon || coupon.status !== "available" || coupon.holderUserId !== holderUserId) return null;
-    if (!coupon.sourceFlipId) {
-      const agreement = await this.agreements.findById(coupon.agreementId);
-      if (!agreement || agreement.status !== "result_recorded") return null;
-      await this.agreements.update({
-        ...agreement,
-        status: "fulfilled",
-        stake: { ...agreement.stake, fulfilled: true },
-        fulfillmentRecorderUserId: recorderUserId
-      }, agreement.revision);
+    const used: Coupon = { ...coupon, status: "used", usedAt: new Date().toISOString() };
+    this.coupons.set(id, used);
+    try {
+      if (!coupon.sourceFlipId) {
+        const agreement = await this.agreements.findById(coupon.agreementId);
+        if (!agreement || agreement.status !== "result_recorded") throw new CouponRedemptionConflict();
+        await this.agreements.update({
+          ...agreement,
+          status: "fulfilled",
+          stake: { ...agreement.stake, fulfilled: true },
+          fulfillmentRecorderUserId: recorderUserId
+        }, agreement.revision);
+      }
+      if (this.deletedAgreements.has(coupon.agreementId)) throw new CouponRedemptionConflict();
+      return used;
+    } catch {
+      if (this.coupons.get(id) === used) this.coupons.set(id, coupon);
+      throw new CouponRedemptionConflict();
     }
-    return this.markUsedIfAvailable(id);
   }
 
   async markWaivedIfAvailable(id: string): Promise<Coupon | null> {
-    const coupon = await this.findById(id);
+    const coupon = this.coupons.get(id);
     if (!coupon || coupon.status !== "reserved") return null;
     const next: Coupon = { ...coupon, status: "waived", waivedAt: new Date().toISOString() };
     this.coupons.set(id, next);
@@ -176,7 +193,7 @@ class MemoryCouponRepository {
   }
 
   async reserveIfAvailable(id: string): Promise<Coupon | null> {
-    const coupon = await this.findById(id);
+    const coupon = this.coupons.get(id);
     if (!coupon || coupon.status !== "available") return null;
     const next: Coupon = { ...coupon, status: "reserved" };
     this.coupons.set(id, next);
@@ -184,7 +201,7 @@ class MemoryCouponRepository {
   }
 
   async releaseReservation(id: string): Promise<Coupon | null> {
-    const coupon = await this.findById(id);
+    const coupon = this.coupons.get(id);
     if (!coupon || coupon.status !== "reserved") return null;
     const next: Coupon = { ...coupon, status: "available" };
     this.coupons.set(id, next);

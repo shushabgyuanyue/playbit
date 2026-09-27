@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
+import { inputLimits } from "@playbit/shared";
 import type { LoginInput, RegisterInput } from "@playbit/shared";
 import { AlertCircle, Check, Eye, EyeOff, LockKeyhole, RefreshCw, X } from "lucide-vue-next";
 import { computed, reactive, ref, watch } from "vue";
@@ -163,6 +164,7 @@ function submit() {
               name="nickname"
               autocomplete="nickname"
               autofocus
+              :maxlength="inputLimits.nickname"
               :spellcheck="false"
             />
             <p class="auth-nickname-note">

@@ -73,7 +73,7 @@ onUnmounted(() => {
     />
 
     <div class="life-page-content service-flow-content">
-      <CertificateScreen v-if="props.flip.status === 'settled'" ref="certificateRef" :agreement="props.agreement" :flip="props.flip" kind="flip" embedded />
+      <CertificateScreen v-if="props.flip.status === 'settled'" ref="certificateRef" :agreement="props.agreement" :flip="props.flip" :current-user-id="props.currentUserId" kind="flip" embedded />
       <section v-else class="flip-game-stage">
         <GameCardStage :card="props.flip.card" />
         <CardReveal

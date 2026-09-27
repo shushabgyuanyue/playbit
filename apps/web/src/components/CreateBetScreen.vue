@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
+import { inputLimits } from "@playbit/shared";
 import type { CreateAgreementInput, Stake, User } from "@playbit/shared";
 import { ArrowRight, Check } from "lucide-vue-next";
 import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
@@ -37,14 +38,15 @@ const titleField = ref<InstanceType<typeof BaseField> | null>(null);
 const signaturePad = ref<InstanceType<typeof SignaturePad> | null>(null);
 
 const titleError = computed(() =>
-  validationAttempted.value && !form.title.trim() ? copy.create.agreementRequired : ""
+  !validationAttempted.value ? "" : !form.title.trim() ? copy.create.agreementRequired
+     : Array.from(form.title.trim()).length > inputLimits.agreementTitle ? copy.create.agreementTooLong : ""
 );
 const isEmptyCustomStake = computed(() =>
-  form.stake.type === "custom" &&
-    (!form.stake.label.trim() || form.stake.label.trim() === copy.stakes.custom)
+  form.stake.type === "custom" && !form.stake.label.trim()
 );
 const stakeError = computed(() =>
-  validationAttempted.value && isEmptyCustomStake.value ? copy.create.stakeRequired : ""
+  !validationAttempted.value ? "" : isEmptyCustomStake.value ? copy.create.stakeRequired
+     : Array.from(form.stake.label.trim()).length > inputLimits.customEquity ? copy.create.stakeTooLong : ""
 );
 
 watch(
@@ -91,7 +93,7 @@ function refreshSignaturePad() {
 
 function submit() {
   validationAttempted.value = true;
-  if (!form.title.trim() || isEmptyCustomStake.value || !form.creatorSignatureDataUrl || props.loading) {
+  if (titleError.value || stakeError.value || !form.creatorSignatureDataUrl || props.loading) {
     return;
   }
 
@@ -167,6 +169,7 @@ onMounted(() => { void focusTitle(); });
               :label="copy.create.agreement"
               :placeholder="copy.create.agreementPlaceholder"
               :multiline="true"
+              :maxlength="inputLimits.agreementTitle"
               :autofocus="true"
               :error="titleError"
             />

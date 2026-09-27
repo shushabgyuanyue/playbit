@@ -24,8 +24,7 @@ const agreementOpen = ref(false);
 const animating = ref(false);
 const busy = computed(() => props.loading || animating.value);
 const validationAttempted = ref(false);
-const stakeError = computed(() => validationAttempted.value && (!props.stake.label.trim() ||
-  (props.stake.type === 'custom' && props.stake.label === copy.stakes.presets.find(item => item.type === 'custom')?.label)) ? copy.create.stakeRequired : '');
+const stakeError = computed(() => validationAttempted.value && !props.stake.label.trim() ? copy.create.stakeRequired : '');
 watch(() => props.card?.id, () => {
   agreementOpen.value = false;
   validationAttempted.value = false;

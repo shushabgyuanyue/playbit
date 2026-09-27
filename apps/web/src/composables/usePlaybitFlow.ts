@@ -1,5 +1,6 @@
 import { drawCard as drawLocalCard } from "@playbit/cards";
 import { copy } from "@playbit/content";
+import { canDeleteAgreement } from "@playbit/game-core";
 import type {
   Agreement,
   Card,
@@ -26,6 +27,7 @@ import {
 } from "./playbitFlowHelpers";
 import { useFlipFlow, useGraceFlow } from "./useEquityFeatures";
 import { useGameFlow } from "./useGameFlow";
+import { requestId } from "../utils/requestId";
 
 export type CreateBetDraft = {
   title: string;
@@ -41,6 +43,7 @@ export function usePlaybitFlow() {
   const authStep = ref<"credentials" | "register">("credentials");
   const pendingCreatePayload = ref<CreateAgreementInput | null>(null);
   const agreements = ref<Agreement[]>([]);
+  const removedAgreementIds = new Set<string>();
   const coupons = ref<Coupon[]>([]);
   const graceTickets = ref<GraceTicket[]>([]);
   const graceWaivers = ref<GraceWaiver[]>([]);
@@ -53,12 +56,15 @@ export function usePlaybitFlow() {
   const certificateAction = ref<"save" | "share" | null>(null);
   const authReturnScreen = ref<Screen>("home");
   const editingAgreementId = ref<string | null>(null);
+  const editingRevision = ref<number | null>(null);
+  let createAttempt: { id: string; fingerprint: string } | null = null;
   const drawnCardIds = ref<string[]>([]);
   const cardLoading = ref(false);
   const createLoading = ref(false);
   const signLoading = ref(false);
   const resultLoading = ref(false);
-  const pendingSignSignature = ref<string | null>(null);
+  const pendingSignSignature = ref<SignAgreementInput | null>(null);
+  const boostLoading = ref(false);
   const authLoading = ref(false);
   const profileLoading = ref(false);
   const profileError = ref<string | null>(null);
@@ -90,18 +96,23 @@ export function usePlaybitFlow() {
       return currentUser.value;
     }
 
-    if (!api.getAuthToken()) {
+    const token = api.getAuthToken();
+    if (!token) {
       return null;
     }
 
     try {
       const response = await api.me();
+      if (api.getAuthToken() !== token) return currentUser.value;
       currentUser.value = response.user;
       return response.user;
-    } catch {
-      api.clearAuthToken();
-      currentUser.value = null;
-      return null;
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401 && api.getAuthToken() === token) {
+        api.clearAuthToken();
+        currentUser.value = null;
+        return null;
+      }
+      throw error;
     }
   }
 
@@ -150,6 +161,8 @@ export function usePlaybitFlow() {
   function openCreate() {
     resetCreateDraft();
     editingAgreementId.value = null;
+    editingRevision.value = null;
+    createAttempt = null;
     screen.value = "create";
   }
 
@@ -191,8 +204,15 @@ export function usePlaybitFlow() {
         return;
       }
 
+      const knownIds = new Set(agreements.value.map(agreement => agreement.id));
       const response = await api.listAgreements();
-      agreements.value = response.agreements;
+      if (currentUser.value?.id !== user.id) return;
+      const newlyCreated = agreements.value.filter(agreement => !knownIds.has(agreement.id) &&
+        !response.agreements.some(item => item.id === agreement.id));
+      agreements.value = [...newlyCreated, ...response.agreements.filter(agreement => !removedAgreementIds.has(agreement.id)).map(agreement => {
+        const local = agreements.value.find(item => item.id === agreement.id);
+        return local && local.revision > agreement.revision ? local : agreement;
+      })];
     } catch {
       agreementsError.value = copy.home.overviewLoadFailedNote;
     } finally {
@@ -210,23 +230,24 @@ export function usePlaybitFlow() {
       const response = await api.getShare(activeShareCode.value);
       upsertAgreement(response.agreement);
       return true;
-    } catch {
+    } catch (error) {
       activeAgreementId.value = null;
+      if (error instanceof ApiRequestError && error.status === 403 && !currentUser.value) {
+        authReturnScreen.value = "sign";
+        authOpen.value = true;
+      }
       return false;
     }
   }
 
   async function refreshCoupons() {
-    const user = await ensureIdentity();
-    if (!user) {
-      coupons.value = [];
-      return;
-    }
     try {
+      const user = await ensureIdentity();
+      if (!user) { coupons.value = []; return; }
       const response = await api.listCoupons();
-      coupons.value = response.coupons;
+      if (currentUser.value?.id === user.id) coupons.value = response.coupons;
     } catch {
-      coupons.value = [];
+      // A temporary failure must not turn existing equity into an empty wallet.
     }
   }
 
@@ -239,18 +260,27 @@ export function usePlaybitFlow() {
     }
 
     agreementSyncInFlight = true;
+    const agreementId = activeAgreementId.value;
+    const userId = currentUser.value?.id;
     if (!silent) {
       agreementRefreshing.value = true;
     }
     try {
-      const response = await api.syncAgreement(activeAgreementId.value);
+      const response = await api.syncAgreement(agreementId);
+      if (activeAgreementId.value !== agreementId || currentUser.value?.id !== userId) return;
       upsertAgreement(response.agreement);
       if (["game", "agreement"].includes(screen.value) && response.agreement.winnerId) {
         screen.value = "settlement";
         void refreshCoupons();
       }
-    } catch {
+    } catch (error) {
       // Keep the current contract visible if the network is temporarily unavailable.
+      if (error instanceof ApiRequestError && error.status === 404 && activeAgreementId.value === agreementId) {
+        removeAgreementLocally(agreementId);
+        showToast(copy.contract.removed);
+        return;
+      }
+      if (!silent) showToast(copy.session.stateSyncFailed);
     } finally {
       agreementSyncInFlight = false;
       if (!silent) {
@@ -286,29 +316,30 @@ export function usePlaybitFlow() {
   }
 
   async function createAgreement(payload: CreateAgreementInput) {
-    const user = await ensureIdentity();
-    if (!user) {
-      pendingCreatePayload.value = payload;
-      authReturnScreen.value = screen.value;
-      authError.value = null;
-      authStep.value = "credentials";
-      authOpen.value = true;
-      return;
-    }
-    if (!payload.creatorSignatureDataUrl) {
-      showToast(copy.create.signatureRequired);
-      return;
-    }
-    const sessionInput = {
-      ...payload,
-      creatorNickname: user.nickname
-    };
-
+    if (createLoading.value) return;
     createLoading.value = true;
     try {
+      const user = await ensureIdentity();
+      if (!user) {
+        pendingCreatePayload.value = payload;
+        authReturnScreen.value = screen.value;
+        authError.value = null;
+        authStep.value = "credentials";
+        authOpen.value = true;
+        return;
+      }
+      if (!payload.creatorSignatureDataUrl) {
+        showToast(copy.create.signatureRequired);
+        return;
+      }
+      const sessionInput = { ...payload, creatorNickname: user.nickname };
+
+      const fingerprint = JSON.stringify([user.id, payload.title, payload.challenge, payload.stake]);
+      if (!createAttempt || createAttempt.fingerprint !== fingerprint) createAttempt = { id: requestId(), fingerprint };
       const response = editingAgreementId.value
-        ? await api.updateAgreement(editingAgreementId.value, sessionInput)
-        : await api.createAgreement(sessionInput);
+        ? await api.updateAgreement(editingAgreementId.value, sessionInput, editingRevision.value!)
+        : await api.createAgreement(sessionInput, createAttempt.id);
+      if (currentUser.value?.id !== user.id) return;
       currentUser.value = {
         ...user,
         signatureDataUrl: payload.creatorSignatureDataUrl
@@ -316,11 +347,19 @@ export function usePlaybitFlow() {
       agreements.value = [response.agreement, ...agreements.value.filter((item) => item.id !== response.agreement.id)];
       activeAgreementId.value = response.agreement.id;
       editingAgreementId.value = response.agreement.id;
+      editingRevision.value = response.agreement.revision;
 
       contractBackScreen.value = "create";
       screen.value = "contract";
-    } catch {
-      showToast(copy.create.createFailed);
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 409 && editingAgreementId.value) {
+        const response = await api.getAgreement(editingAgreementId.value).catch(() => null);
+        if (response) {
+          upsertAgreement(response.agreement);
+          screen.value = "contract";
+        }
+        showToast(copy.contract.changedReview);
+      } else showToast(copy.create.createFailed);
     } finally {
       createLoading.value = false;
     }
@@ -348,47 +387,83 @@ export function usePlaybitFlow() {
       return;
     }
     resultLoading.value = true;
+    const id = activeAgreement.value.id;
+    const userId = currentUser.value?.id;
     try {
-      const response = await api.recordAgreementResult(activeAgreement.value.id, winnerId);
+      const response = await api.recordAgreementResult(id, winnerId);
+      if (currentUser.value?.id !== userId || activeAgreementId.value !== id) return;
       upsertAgreement(response.agreement);
       await refreshCoupons();
     } catch {
+      if (currentUser.value?.id !== userId || activeAgreementId.value !== id) return;
       await refreshActiveAgreement(true);
-      if (activeAgreement.value?.winnerId === winnerId) return;
+      if (activeAgreement.value?.winnerId === winnerId) {
+        screen.value = "settlement";
+        void refreshCoupons();
+        return;
+      }
       showToast(copy.session.stateSyncFailed);
       return;
     } finally {
       resultLoading.value = false;
     }
 
-    screen.value = "settlement";
+    if (currentUser.value?.id === userId && activeAgreementId.value === id) screen.value = "settlement";
   }
 
   async function addBoost(label: string) {
-    if (!activeAgreement.value) {
+    if (!activeAgreement.value || boostLoading.value) {
       return;
     }
+    boostLoading.value = true;
+    const id = activeAgreement.value.id;
+    const userId = currentUser.value?.id;
     try {
-      const response = await api.addBoost(activeAgreement.value.id, label);
+      const response = await api.addBoost(id, label);
+      if (currentUser.value?.id !== userId || activeAgreementId.value !== id) return;
       upsertAgreement(response.agreement);
     } catch {
+      await refreshActiveAgreement(true);
       showToast(copy.session.boostFailed);
-    }
+    } finally { boostLoading.value = false; }
   }
 
   async function confirmBoost(boostId: string) {
-    if (!activeAgreement.value) {
+    if (!activeAgreement.value || boostLoading.value) {
       return;
     }
+    boostLoading.value = true;
+    const id = activeAgreement.value.id;
+    const userId = currentUser.value?.id;
     try {
-      const response = await api.confirmBoost(activeAgreement.value.id, boostId);
+      const response = await api.confirmBoost(id, boostId);
+      if (currentUser.value?.id !== userId || activeAgreementId.value !== id) return;
       upsertAgreement(response.agreement);
     } catch {
+      await refreshActiveAgreement(true);
       showToast(copy.session.boostFailed);
-    }
+    } finally { boostLoading.value = false; }
+  }
+
+  async function withdrawBoost(boostId: string) {
+    if (!activeAgreement.value || boostLoading.value) return;
+    const id = activeAgreement.value.id;
+    const userId = currentUser.value?.id;
+    boostLoading.value = true;
+    try {
+      const response = await api.withdrawBoost(id, boostId);
+      if (currentUser.value?.id !== userId || activeAgreementId.value !== id) return;
+      upsertAgreement(response.agreement);
+      showToast(copy.session.boostWithdrawn);
+    } catch {
+      if (currentUser.value?.id !== userId || activeAgreementId.value !== id) return;
+      await refreshActiveAgreement(true);
+      showToast(copy.session.boostWithdrawFailed);
+    } finally { boostLoading.value = false; }
   }
 
   function upsertAgreement(agreement: Agreement) {
+    if (removedAgreementIds.has(agreement.id)) return;
     const existing = agreements.value.find((candidate) => candidate.id === agreement.id);
     if (existing && agreement.revision < existing.revision) {
       return;
@@ -403,10 +478,9 @@ export function usePlaybitFlow() {
     ensureIdentity,
     refreshAgreements,
     refreshCoupons,
-    upsertAgreement,
-    setScreen: (nextScreen) => { screen.value = nextScreen; }
+    upsertAgreement
   });
-  const { refreshGrace, requestGraceWaiver, respondGraceWaiver, fulfillCustomAgreement } = graceFlow;
+  const { refreshGrace, requestGraceWaiver, respondGraceWaiver } = graceFlow;
   const flipFlow = useFlipFlow({
     agreements,
     coupons,
@@ -456,10 +530,11 @@ export function usePlaybitFlow() {
         additions: [...(agreement.stake.additions ?? [])]
       };
       createDraft.creatorSignatureDataUrl = initiator?.signatureDataUrl ?? "";
+      editingRevision.value = agreement.revision;
       screen.value = "create";
       return;
     }
-    screen.value = contractBackScreen.value;
+    screen.value = contractBackScreen.value === "create" ? "home" : contractBackScreen.value;
   }
 
   function openCertificate(
@@ -529,10 +604,7 @@ export function usePlaybitFlow() {
 
   async function deleteAgreement(agreement: Agreement) {
     const user = currentUser.value;
-    const isInitiator = agreement.participants.some(
-      (participant) => participant.role === "initiator" && participant.userId === user?.id
-    );
-    if (!user || agreement.ownerUserId !== user.id || !isInitiator || ["fulfilled", "waived"].includes(agreement.status)) {
+    if (!user || !canDeleteAgreement(agreement, user.id)) {
       return;
     }
 
@@ -548,17 +620,24 @@ export function usePlaybitFlow() {
 
     try {
       await api.deleteAgreement(agreement.id);
-      agreements.value = agreements.value.filter((item) => item.id !== agreement.id);
-      coupons.value = coupons.value.filter((coupon) => coupon.agreementId !== agreement.id);
-      if (activeAgreementId.value === agreement.id) {
-        activeAgreementId.value = null;
-        editingAgreementId.value = null;
-        screen.value = "home";
-      }
+      removeAgreementLocally(agreement.id);
       showToast(copy.history.deleteSuccess);
     } catch {
       showToast(copy.history.deleteFailed);
     }
+  }
+
+  function removeAgreementLocally(id: string) {
+    removedAgreementIds.add(id);
+    agreements.value = agreements.value.filter(item => item.id !== id);
+    coupons.value = coupons.value.filter(coupon => coupon.agreementId !== id);
+    if (activeAgreementId.value === id) {
+      activeAgreementId.value = null;
+      editingAgreementId.value = null;
+      editingRevision.value = null;
+      screen.value = "home";
+    }
+    void refreshGrace();
   }
 
   function openVouchers() {
@@ -604,48 +683,55 @@ export function usePlaybitFlow() {
   }
 
   async function signSession(payload: SignAgreementInput) {
-    if (!activeShareCode.value) {
-      return;
-    }
-
-    const user = await ensureIdentity();
-    if (!user) {
-      pendingSignSignature.value = payload.signatureDataUrl;
-      authReturnScreen.value = "sign";
-      authError.value = null;
-      authStep.value = "credentials";
-      authOpen.value = true;
+    if (!activeShareCode.value || signLoading.value) {
       return;
     }
     signLoading.value = true;
-    authError.value = null;
     try {
+      const user = await ensureIdentity();
+      if (!user) {
+        pendingSignSignature.value = payload;
+        authReturnScreen.value = "sign";
+        authError.value = null;
+        authStep.value = "credentials";
+        authOpen.value = true;
+        return;
+      }
+      authError.value = null;
       const response = await api.signShare(activeShareCode.value, payload);
+      if (currentUser.value?.id !== user.id) return;
       currentUser.value = {
         ...user,
         signatureDataUrl: payload.signatureDataUrl
       };
       upsertAgreement(response.agreement);
       await refreshCoupons();
+      if (currentUser.value?.id !== user.id) return;
       pendingSignSignature.value = null;
+      contractBackScreen.value = "home";
       screen.value = "contract";
     } catch (error) {
       if (error instanceof ApiRequestError && [403, 409].includes(error.status)) {
         await restorePendingShareAgreement();
         showSharedAgreement();
       }
-      showToast(copy.contract.signFailed);
+      showToast(error instanceof ApiRequestError && error.code === "AGREEMENT_CHANGED"
+        ? copy.contract.changedReview : copy.contract.signFailed);
     } finally {
       signLoading.value = false;
     }
   }
 
   async function continuePendingSignature(shareRestored: boolean) {
-    const signatureDataUrl = pendingSignSignature.value;
+    const signature = pendingSignSignature.value;
     pendingSignSignature.value = null;
-    if (shareRestored && signatureDataUrl && activeAgreement.value?.status === "pending_signature" &&
+    if (shareRestored && signature && activeAgreement.value?.status === "pending_signature" &&
       !activeAgreement.value.participants.some((participant) => participant.userId === currentUser.value?.id)) {
-      await signSession({ signatureDataUrl });
+      if (activeAgreement.value.revision !== signature.revision) {
+        showToast(copy.contract.changedReview);
+        return;
+      }
+      await signSession(signature);
     }
   }
 
@@ -750,6 +836,11 @@ export function usePlaybitFlow() {
     pendingFlipCouponId.value = null;
     activeAgreementId.value = null;
     editingAgreementId.value = null;
+    editingRevision.value = null;
+    createAttempt = null;
+    pendingCreatePayload.value = null;
+    pendingSignSignature.value = null;
+    resetCreateDraft();
     activeVoucherId.value = null;
     screen.value = "home";
   }
@@ -782,6 +873,15 @@ export function usePlaybitFlow() {
   }
 
   function handleRealtimeEvent(event: AgreementRealtimeEvent) {
+    if (event.type === "agreement.deleted") {
+      if (event.agreementId === activeAgreementId.value) {
+        removeAgreementLocally(event.agreementId);
+        showToast(copy.contract.removed);
+      }
+      return;
+    }
+    if (event.agreement.id !== activeAgreementId.value || !currentUser.value ||
+      !event.agreement.participants.some(person => person.userId === currentUser.value?.id)) return;
     upsertAgreement(event.agreement);
     if (["agreement", "game"].includes(screen.value) && event.agreement.winnerId) {
       screen.value = "settlement";
@@ -888,7 +988,10 @@ export function usePlaybitFlow() {
     window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     const shareCode = new URLSearchParams(window.location.search).get("share");
-    const user = await ensureIdentity();
+    const user = await ensureIdentity().catch(() => {
+      agreementsError.value = copy.home.overviewLoadFailedNote;
+      return null;
+    });
     const gameCode = new URLSearchParams(window.location.search).get("game");
     if (gameCode) { await gameFlow.load(gameCode); return; }
     const flipId = new URLSearchParams(window.location.search).get("flip");
@@ -923,6 +1026,7 @@ export function usePlaybitFlow() {
   });
 
   return {
+    boostLoading,
     gameFlow,
     resultLoading,
     activeCard,
@@ -957,6 +1061,7 @@ export function usePlaybitFlow() {
     createAgreement,
     deleteAgreement,
     confirmBoost,
+    withdrawBoost,
     drawCard,
     loginAccount,
     logoutAccount,
@@ -995,7 +1100,6 @@ export function usePlaybitFlow() {
     graceWaivers,
     requestGraceWaiver,
     respondGraceWaiver,
-    fulfillCustomAgreement,
     signSession,
     updateCreateDraft,
     updateProfile

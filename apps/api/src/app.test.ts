@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { randomUUID } from "node:crypto";
 import { dailyCards, drawCard } from "@playbit/cards";
 import { createPlaybitApp, createRepositories } from "./app.js";
 import { cardSchema, type Agreement, type Coupon, type User } from "@playbit/shared";
@@ -6,6 +7,9 @@ import { cardSchema, type Agreement, type Coupon, type User } from "@playbit/sha
 const app = createPlaybitApp(createRepositories(null));
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
+  if (path === "/agreements" && init?.method === "POST") {
+    init = { ...init, body: JSON.stringify({ requestId: randomUUID(), ...JSON.parse(init.body as string) }) };
+  }
   const response = await app.request(path, {
     ...init,
     headers: {
@@ -178,6 +182,7 @@ const updatedDraft = await json<{ agreement: Agreement }>(`/agreements/${created
   method: "PATCH",
   headers: auth(initiator.token),
   body: JSON.stringify({
+    revision: created.agreement.revision,
     source: "custom",
     creatorSignatureDataUrl: "data:image/png;base64,initiator-signature-updated",
     title: "编辑后的约定",
@@ -200,7 +205,7 @@ const selfSign = await app.request(`/share/${created.agreement.shareCode}/sign`,
     "Content-Type": "application/json",
     ...auth(initiator.token)
   },
-  body: JSON.stringify({ signatureDataUrl: "data:image/png;base64,self-signature" })
+  body: JSON.stringify({ revision: updatedDraft.agreement.revision, signatureDataUrl: "data:image/png;base64,self-signature" })
 });
 assert.equal(selfSign.status, 409);
 
@@ -208,7 +213,7 @@ const counterparty = await register("乙方", "counterparty@example.com");
 const signed = await json<{ agreement: Agreement }>(`/share/${created.agreement.shareCode}/sign`, {
   method: "POST",
   headers: auth(counterparty.token),
-  body: JSON.stringify({ nickname: "伪造的签署人", signatureDataUrl: "data:image/png;base64,counterparty-signature" })
+  body: JSON.stringify({ revision: updatedDraft.agreement.revision, nickname: "伪造的签署人", signatureDataUrl: "data:image/png;base64,counterparty-signature" })
 });
 
 assert.equal(signed.agreement.status, "active");
@@ -410,7 +415,7 @@ const winAgreementCreated = await json<{ agreement: Agreement }>("/agreements", 
 const winAgreementSigned = await json<{ agreement: Agreement }>(`/share/${winAgreementCreated.agreement.shareCode}/sign`, {
   method: "POST",
   headers: auth(counterparty.token),
-  body: JSON.stringify({ signatureDataUrl: "data:image/png;base64,counterparty-signature" })
+  body: JSON.stringify({ revision: winAgreementCreated.agreement.revision, signatureDataUrl: "data:image/png;base64,counterparty-signature" })
 });
 const winAgreementWinner = winAgreementSigned.agreement.participants.find((participant) => participant.userId === counterparty.user.id);
 assert.ok(winAgreementWinner);
@@ -506,7 +511,7 @@ async function recordCustomFulfillment(index: number) {
   const signedCustom = await json<{ agreement: Agreement }>(`/share/${createdCustom.agreement.shareCode}/sign`, {
     method: "POST",
     headers: auth(counterparty.token),
-    body: JSON.stringify({ signatureDataUrl: "data:image/png;base64,counterparty-signature" })
+    body: JSON.stringify({ revision: createdCustom.agreement.revision, signatureDataUrl: "data:image/png;base64,counterparty-signature" })
   });
   const customWinner = signedCustom.agreement.participants.find((participant) => participant.userId === counterparty.user.id);
   assert.ok(customWinner);
@@ -516,10 +521,14 @@ async function recordCustomFulfillment(index: number) {
     body: JSON.stringify({ winnerId: customWinner.id })
   });
   assert.equal(result.agreement.status, "result_recorded");
-  const completed = await json<{ agreement: Agreement; graceTickets: unknown[] }>(`/agreements/${result.agreement.id}/fulfill`, {
-    method: "POST",
-    headers: auth(initiator.token)
+  const issued = await json<{ coupons: Coupon[] }>("/coupons", { headers: auth(counterparty.token) });
+  const customCoupon = issued.coupons.find(coupon => coupon.agreementId === result.agreement.id)!;
+  assert.ok(customCoupon, "custom equity must issue a coupon");
+  await json(`/coupons/${customCoupon.id}/use`, {
+    method: "PATCH",
+    headers: auth(counterparty.token)
   });
+  const completed = await json<{ agreement: Agreement }>(`/agreements/${result.agreement.id}`, { headers: auth(initiator.token) });
   assert.equal(completed.agreement.status, "fulfilled");
 }
 

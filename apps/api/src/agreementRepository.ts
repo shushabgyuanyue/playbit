@@ -1,4 +1,4 @@
-import { agreements } from "./db/schema.js";
+import { agreements, graceTickets, graceWaivers } from "./db/schema.js";
 import { stakeSchema, type Agreement } from "@playbit/shared";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -63,6 +63,9 @@ export function agreementFromRow(row: AgreementRow): Agreement {
 
 class MemoryAgreementRepository {
   private agreements = new Map<string, Agreement>();
+  private deletionListeners = new Set<(id: string) => void>();
+
+  onDelete(listener: (id: string) => void) { this.deletionListeners.add(listener); }
 
   async create(agreement: Agreement): Promise<Agreement> {
     if (this.agreements.has(agreement.id)) throw new AgreementRevisionConflict();
@@ -84,7 +87,10 @@ class MemoryAgreementRepository {
     return Array.from(this.agreements.values()).find((agreement) => agreement.shareCode === shareCode) ?? null;
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, expectedRevision: number): Promise<boolean> {
+    const current = this.agreements.get(id);
+    if (current && current.revision !== expectedRevision) throw new AgreementRevisionConflict();
+    if (current) for (const listener of this.deletionListeners) listener(id);
     return this.agreements.delete(id);
   }
 
@@ -137,12 +143,20 @@ class PostgresAgreementRepository {
     return row ? agreementFromRow(row) : null;
   }
 
-  async delete(id: string): Promise<boolean> {
-    const deleted = await this.db
-      .delete(agreements)
-      .where(eq(agreements.id, id))
-      .returning({ id: agreements.id });
-    return deleted.length > 0;
+  async delete(id: string, expectedRevision: number): Promise<boolean> {
+    return this.db.transaction(async tx => {
+      const [current] = await tx.select().from(agreements).where(eq(agreements.id, id)).for("update");
+      if (!current) return false;
+      if (current.revision !== expectedRevision) throw new AgreementRevisionConflict();
+      // Cascading deletion removes waiver requests; release their earned tickets first.
+      await tx.update(graceTickets).set({ status: "available" }).where(and(
+        eq(graceTickets.status, "reserved"),
+        sql`${graceTickets.id} in (select ${graceWaivers.ticketId} from ${graceWaivers}
+          where ${graceWaivers.agreementId} = ${id} and ${graceWaivers.status} = 'pending')`
+      ));
+      await tx.delete(agreements).where(eq(agreements.id, id));
+      return true;
+    });
   }
 
   async update(agreement: Agreement, expectedRevision = agreement.revision): Promise<Agreement> {

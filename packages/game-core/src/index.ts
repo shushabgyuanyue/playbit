@@ -1,7 +1,17 @@
-import type { Agreement, Boost, Card, Coupon, CreateAgreementInput, CreateGameInput, Flip, Participant, StakeAddition, UpdateAgreementInput } from "@playbit/shared";
+import type { Agreement, Boost, Card, Coupon, CreateAgreementInput, CreateGameInput, Flip, Participant, StakeAddition } from "@playbit/shared";
 
 function makeId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function hasCouponEquity(agreement: Pick<Agreement, "stake">): boolean {
+  return agreement.stake.type === "coupon" || agreement.stake.type === "custom";
+}
+
+export function canDeleteAgreement(agreement: Agreement, userId: string | null): boolean {
+  return Boolean(userId) && agreement.ownerUserId === userId &&
+    agreement.participants.some(person => person.role === "initiator" && person.userId === userId) &&
+    ["pending_signature", "pending_confirmation", "active"].includes(agreement.status);
 }
 
 export function createAgreement(input: CreateAgreementInput, creatorUserId: string): Agreement {
@@ -68,7 +78,7 @@ export function joinGame(agreement: Agreement, user: { id: string; nickname: str
 
 export function updateAgreementDraft(
   agreement: Agreement,
-  input: UpdateAgreementInput,
+  input: CreateAgreementInput,
   creatorUserId: string
 ): Agreement {
   if (agreement.status !== "pending_signature") {
@@ -188,6 +198,18 @@ export function addBoost(agreement: Agreement, proposerId: string, label: string
     ...agreement,
     boosts: [...agreement.boosts, boost]
   };
+}
+
+export function withdrawBoost(agreement: Agreement, boostId: string, participantId: string): Agreement {
+  if (agreement.status !== "active") throw new Error("BOOST_REQUIRES_ACTIVE_AGREEMENT");
+  const boost = agreement.boosts.find(item => item.id === boostId);
+  if (!boost) throw new Error("BOOST_NOT_FOUND");
+  if (boost.proposerId !== participantId) throw new Error("BOOST_WITHDRAW_FORBIDDEN");
+  if (agreement.participants.every(person => boost.confirmedBy.includes(person.id)) ||
+    agreement.stake.additions.some(addition => addition.boostId === boostId)) {
+    throw new Error("BOOST_ALREADY_CONFIRMED");
+  }
+  return { ...agreement, boosts: agreement.boosts.filter(item => item.id !== boostId) };
 }
 
 export function confirmBoost(agreement: Agreement, boostId: string, participantId: string): Agreement {

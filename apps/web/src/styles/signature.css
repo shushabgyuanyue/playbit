@@ -108,9 +108,9 @@
   display: grid;
   gap: 6px;
   min-height: 88px;
-  border: 1px solid rgba(23, 43, 77, 0.16);
-  border-radius: var(--pb-radius-sm);
-  background: var(--pb-overlay-white-muted);
+  border: 0;
+  border-top: 1px solid var(--pb-line);
+  background: transparent;
   padding: 9px 10px 11px;
 }
 

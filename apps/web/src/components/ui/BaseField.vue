@@ -13,6 +13,7 @@ const props = defineProps<{
   spellcheck?: boolean;
   autofocus?: boolean;
   disabled?: boolean;
+  maxlength?: number;
   error?: string;
 }>();
 
@@ -43,6 +44,7 @@ const emit = defineEmits<{
       :spellcheck="props.spellcheck"
       :autofocus="props.autofocus"
       :disabled="props.disabled"
+      :maxlength="props.maxlength"
       :aria-invalid="Boolean(props.error)"
       @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
     />
@@ -59,6 +61,7 @@ const emit = defineEmits<{
       :spellcheck="props.spellcheck"
       :autofocus="props.autofocus"
       :disabled="props.disabled"
+      :maxlength="props.maxlength"
       :aria-invalid="Boolean(props.error)"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />

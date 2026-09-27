@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
+import { canDeleteAgreement } from "@playbit/game-core";
 import type { Agreement, AgreementStatus } from "@playbit/shared";
 import { ChevronRight, Trash2 } from "lucide-vue-next";
 import { computed, onUnmounted, ref, watch } from "vue";
@@ -104,9 +105,7 @@ function getCounterparty(agreement: Agreement) {
 }
 
 function canDelete(agreement: Agreement) {
-  return agreement.ownerUserId === props.currentUserId &&
-    agreement.participants.some((participant) => participant.role === "initiator" && participant.userId === props.currentUserId) &&
-    agreement.status !== "fulfilled" && agreement.status !== "waived";
+  return canDeleteAgreement(agreement, props.currentUserId);
 }
 
 function loadMore() {

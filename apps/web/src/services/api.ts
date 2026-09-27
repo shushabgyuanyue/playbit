@@ -120,10 +120,10 @@ export const api = {
       body: JSON.stringify({ previousIds })
     });
   },
-  createAgreement(payload: CreateAgreementInput) {
+  createAgreement(payload: CreateAgreementInput, requestId: string) {
     return request<{ agreement: Agreement }>("/agreements", {
       method: "POST",
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ ...payload, requestId })
     });
   },
   createGame(payload: CreateGameInput) {
@@ -132,10 +132,10 @@ export const api = {
   joinGame(shareCode: string, revision: number) {
     return request<{ agreement: Agreement }>(`/games/${shareCode}/join`, { method: "POST", body: JSON.stringify({ revision }) });
   },
-  updateAgreement(id: string, payload: CreateAgreementInput) {
+  updateAgreement(id: string, payload: CreateAgreementInput, revision: number) {
     return request<{ agreement: Agreement }>(`/agreements/${id}`, {
       method: "PATCH",
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ ...payload, revision })
     });
   },
   deleteAgreement(id: string) {
@@ -170,6 +170,7 @@ export const api = {
       onEvent(JSON.parse(message.data) as AgreementRealtimeEvent);
     };
     source.addEventListener("agreement.updated", handleEvent);
+    source.addEventListener("agreement.deleted", handleEvent);
     source.onopen = () => onOpen?.();
     source.onerror = () => {
       onError?.();
@@ -177,6 +178,7 @@ export const api = {
 
     return () => {
       source.removeEventListener("agreement.updated", handleEvent);
+      source.removeEventListener("agreement.deleted", handleEvent);
       source.onopen = null;
       source.onerror = null;
       source.close();
@@ -208,6 +210,9 @@ export const api = {
       method: "POST"
     });
   },
+  withdrawBoost(id: string, boostId: string) {
+    return request<{ agreement: Agreement }>(`/agreements/${id}/boost/${boostId}`, { method: "DELETE" });
+  },
   listCoupons() {
     return request<{ coupons: Coupon[] }>("/coupons");
   },
@@ -218,11 +223,6 @@ export const api = {
   },
   listGrace() {
     return request<{ tickets: GraceTicket[]; waivers: GraceWaiver[] }>("/grace");
-  },
-  fulfillAgreement(id: string) {
-    return request<{ agreement: Agreement; graceTickets: GraceTicket[] }>(`/agreements/${id}/fulfill`, {
-      method: "POST"
-    });
   },
   requestWaiver(ticketId: string, couponId: string) {
     return request<{ waiver: GraceWaiver }>(`/grace/${ticketId}/waivers`, {

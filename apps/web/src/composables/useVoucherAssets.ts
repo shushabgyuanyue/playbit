@@ -1,4 +1,5 @@
 import { copy } from "@playbit/content";
+import { hasCouponEquity } from "@playbit/game-core";
 import type { Agreement, Coupon, AgreementStatus } from "@playbit/shared";
 import { computed, type MaybeRefOrGetter, toValue } from "vue";
 import type {
@@ -102,7 +103,7 @@ function buildRealVoucherItems(agreements: Agreement[], coupons: Coupon[], curre
     .filter((agreement) => {
       const loser = agreement.participants.find((participant) => participant.id === agreement.loserId);
       return (
-        agreement.stake.type === "coupon" &&
+        hasCouponEquity(agreement) &&
         agreement.status === "result_recorded" &&
         !couponAgreementIds.has(agreement.id) &&
         loser?.userId === currentUserId

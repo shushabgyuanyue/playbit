@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Agreement, Coupon, Stake } from "@playbit/shared";
-import { BadgePlus, CheckCircle2, ChevronDown, ChevronUp } from "lucide-vue-next";
+import { BadgePlus, Check, CheckCircle2, ChevronDown, ChevronUp, X } from "lucide-vue-next";
 import { computed, nextTick, ref, watch } from "vue";
 import ResultPicker from "./game/ResultPicker.vue";
 import { buildVoucherItems } from "../composables/useVoucherAssets";
@@ -28,6 +28,7 @@ const emit = defineEmits<{
   settle: [winnerId: string];
   addBoost: [label: string];
   confirmBoost: [boostId: string];
+  withdrawBoost: [boostId: string];
 }>();
 
 const boostOpen = ref(false);
@@ -40,7 +41,6 @@ const boostStake = ref<Stake>({
   fulfilled: false,
   additions: []
 });
-const customStakeLabel = copy.stakes.presets.find((preset) => preset.type === "custom")?.label ?? copy.stakes.custom;
 const currentParticipantId = computed(
   () => props.agreement.participants.find((participant) => participant.userId === props.currentUserId)?.id ?? null
 );
@@ -57,7 +57,7 @@ const agreementVouchers = computed(() => buildVoucherItems(
 ));
 const hasSeparateChallenge = computed(() => props.agreement.challenge.trim() !== props.agreement.title.trim());
 const boostIncomplete = computed(() =>
-  boostStake.value.type === "custom" && boostStake.value.label.trim() === customStakeLabel
+  !boostStake.value.label.trim()
 );
 
 function isBoostConfirmed(boost: Agreement["boosts"][number]) {
@@ -81,7 +81,7 @@ function canConfirmBoost(boost: Agreement["boosts"][number]) {
 }
 
 async function openBoostPicker() {
-  if (!canAddBoost.value) {
+  if (!canAddBoost.value || props.loading) {
     return;
   }
   boostOpen.value = true;
@@ -91,7 +91,7 @@ async function openBoostPicker() {
 
 function submitBoost() {
   const label = boostStake.value.label.trim();
-  if (!label || boostIncomplete.value) {
+  if (!label || boostIncomplete.value || props.loading) {
     return;
   }
   emit("addBoost", label);
@@ -158,7 +158,10 @@ watch(
             <span>{{ copy.session.currentStake }}</span>
           </div>
           <div class="session-equity-grid">
-            <MiniEquityTicket v-for="equity in currentEquities" :key="equity.id" :label="equity.label" :custom="equity.custom" />
+            <div v-for="equity in currentEquities" :key="equity.id" class="session-equity-mark">
+              <MiniEquityTicket :label="equity.label" :custom="equity.custom" />
+              <strong :title="equity.label">{{ equity.label }}</strong>
+            </div>
           </div>
           <details v-for="equity in currentEquities.filter(item => item.label.length > 14)" :key="equity.id" class="session-equity-detail">
             <summary>{{ copy.session.equityDetails }} · {{ equity.label.slice(0, 12) }}…</summary><p>{{ equity.label }}</p>
@@ -209,7 +212,7 @@ watch(
             <button
               type="button"
               class="session-boost-trigger"
-              :disabled="!canAddBoost"
+              :disabled="!canAddBoost || props.loading"
               :aria-expanded="boostOpen"
               @click="openBoostPicker"
             >
@@ -221,18 +224,35 @@ watch(
           <div v-if="pendingBoosts.length" class="session-boost-list">
             <div v-for="boost in pendingBoosts" :key="boost.id" class="session-equity-item">
               <MiniEquityTicket :label="boost.label" />
+              <strong class="session-pending-equity" :title="boost.label">{{ boost.label }}</strong>
               <small class="session-panel-meta">{{ boostStatusLabel(boost) }}</small>
               <details v-if="boost.label.length > 14" class="session-equity-detail">
                 <summary>{{ copy.session.equityDetails }}</summary><p>{{ boost.label }}</p>
               </details>
-              <BaseButton
-                v-if="canConfirmBoost(boost)"
-                size="sm"
-                variant="outline"
-                @click="emit('confirmBoost', boost.id)"
-              >
-                {{ copy.session.boostConfirm }}
-              </BaseButton>
+              <div v-if="canConfirmBoost(boost) || boost.proposerId === currentParticipantId" class="session-boost-actions">
+                <button
+                  v-if="canConfirmBoost(boost)"
+                  type="button"
+                  class="session-icon-action session-icon-action-confirm"
+                  :disabled="props.loading"
+                  :aria-label="copy.session.boostConfirm"
+                  :title="copy.session.boostConfirm"
+                  @click="emit('confirmBoost', boost.id)"
+                >
+                  <Check :size="17" stroke-width="2.4" aria-hidden="true" />
+                </button>
+                <button
+                  v-else-if="boost.proposerId === currentParticipantId"
+                  type="button"
+                  class="session-icon-action session-icon-action-withdraw"
+                  :disabled="props.loading"
+                  :aria-label="copy.session.boostWithdraw"
+                  :title="copy.session.boostWithdraw"
+                  @click="emit('withdrawBoost', boost.id)"
+                >
+                  <X :size="17" stroke-width="2.4" aria-hidden="true" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -242,7 +262,7 @@ watch(
               class="session-boost-submit"
               size="sm"
               variant="danger"
-              :disabled="!boostStake.label.trim() || boostIncomplete"
+              :disabled="!boostStake.label.trim() || boostIncomplete || props.loading"
               @click="submitBoost"
             >
               {{ copy.session.boostSubmit }}

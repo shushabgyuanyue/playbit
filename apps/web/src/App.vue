@@ -39,6 +39,7 @@ const {
   profileError,
   cardLoading,
   createLoading,
+  boostLoading,
   contractBackScreen,
   certificateKind,
   certificateAction,
@@ -65,6 +66,7 @@ const {
   gameFlow,
   resultLoading,
   confirmBoost,
+  withdrawBoost,
   openAccount,
   openCreate,
   openAgreementById,
@@ -89,7 +91,6 @@ const {
   recordFlipOutcome,
   requestGraceWaiver,
   respondGraceWaiver,
-  fulfillCustomAgreement,
   refreshActiveAgreement,
   refreshAgreements,
   registerAccount,
@@ -103,9 +104,6 @@ const activeVoucher = computed(() =>
   buildVoucherItems(agreements.value, coupons.value, currentUser.value?.id ?? null).find(
     (voucher) => voucher.id === activeVoucherId.value
   ) ?? null
-);
-const settlementCoupon = computed(() =>
-  activeAgreement.value ? coupons.value.find((coupon) => coupon.agreementId === activeAgreement.value?.id && !coupon.sourceFlipId) ?? null : null
 );
 const activeCoupon = computed(() =>
   coupons.value.find((coupon) => coupon.id === activeVoucher.value?.couponId) ?? null
@@ -230,6 +228,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :agreement="activeAgreement ?? null"
         :flip="null"
         :kind="certificateKind"
+        :current-user-id="currentUser?.id"
         :auto-action="certificateAction"
         @back="closeCertificate"
         @home="screen = 'home'"
@@ -262,22 +261,20 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :coupons="coupons"
         :current-user-id="currentUser?.id ?? null"
         @back="screen = 'contract'"
-        :loading="resultLoading"
+        :loading="resultLoading || boostLoading"
         @home="screen = 'home'"
         @settle="recordAgreementResult"
         @add-boost="addBoost"
         @confirm-boost="confirmBoost"
+        @withdraw-boost="withdrawBoost"
       />
       <SettlementScreen
         v-else-if="screen === 'settlement' && activeAgreement"
         :agreement="activeAgreement"
-        :coupon="settlementCoupon"
         :current-user-id="currentUser?.id ?? null"
         :show-back="contractBackScreen === 'history' || contractBackScreen === 'vouchers' || contractBackScreen === 'voucherDetail'"
         @back="screen = contractBackScreen"
         @open-vouchers="openVouchers"
-        @open-voucher="openVoucherDetail"
-        @fulfill="fulfillCustomAgreement(activeAgreement?.id ?? '')"
         @home="screen = 'home'"
       />
       <FlipScreen

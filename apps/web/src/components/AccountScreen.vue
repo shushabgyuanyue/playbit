@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { copy } from "@playbit/content";
+import { inputLimits } from "@playbit/shared";
 import type { Agreement, UpdateProfileInput, User } from "@playbit/shared";
 import { Check, LogOut, Pencil, ShieldCheck, X } from "lucide-vue-next";
 import BaseBadge from "./ui/BaseBadge.vue";
@@ -102,7 +103,7 @@ function saveProfile() {
     editError.value = copy.auth.profileNicknameRequired;
     return;
   }
-  if (nickname.length > 24) {
+  if (Array.from(nickname).length > inputLimits.nickname) {
     editError.value = copy.auth.profileNicknameTooLong;
     return;
   }
@@ -268,6 +269,7 @@ function resetAvatar() {
           name="nickname"
           autocomplete="nickname"
           :disabled="editorBusy"
+          :maxlength="inputLimits.nickname"
           :error="editError || props.profileError || ''"
         />
         <p class="account-edit-hint">{{ copy.auth.profileHint }}</p>

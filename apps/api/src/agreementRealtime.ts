@@ -12,6 +12,11 @@ export class AgreementRealtimeHub {
     });
   }
 
+  publishDeletion(agreementId: string) {
+    this.publish(agreementId, { type: "agreement.deleted", agreementId });
+    this.subscribers.delete(agreementId);
+  }
+
   subscribe(agreement: Agreement, subscriber: Subscriber) {
     const agreementSubscribers = this.subscribers.get(agreement.id) ?? new Set<Subscriber>();
     agreementSubscribers.add(subscriber);

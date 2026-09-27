@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import { Download, Link2, LoaderCircle, MessageCircle, X } from "lucide-vue-next";
+import { Download, Link2, LoaderCircle, Share2, X } from "lucide-vue-next";
 import type { ShareIntent, SharePayload } from "../composables/playbitFlowHelpers";
 import { computed, ref, watch } from "vue";
 import { useShareActions } from "../composables/useShareActions";
@@ -30,8 +30,6 @@ const sharing = ref(false);
 const qrLoading = ref(false);
 const qrFailed = ref(false);
 const retry = ref(0);
-const localPreview = computed(() => link.value && ["localhost", "127.0.0.1", "[::1]"].includes(new URL(link.value).hostname));
-
 watch([() => props.show, link, retry], async ([show, url], _previous, onCleanup) => {
   let cancelled = false;
   onCleanup(() => { cancelled = true; });
@@ -59,8 +57,10 @@ async function shareImage() {
   sharing.value = true;
   feedback.value = copy.share.nativeHint;
   try {
-    if (navigator.share && navigator.canShare?.({ files: [inviteFile.value] })) {
-      await navigator.share({ files: [inviteFile.value], title: panelTitle.value });
+    const share = navigator.share;
+    const canShareFiles = typeof share === "function" && (!navigator.canShare || navigator.canShare({ files: [inviteFile.value] }));
+    if (canShareFiles) {
+      await share.call(navigator, { files: [inviteFile.value], title: panelTitle.value });
     } else {
       const anchor = document.createElement("a");
       anchor.href = qrImage.value;
@@ -115,13 +115,9 @@ async function shareImage() {
       </section>
 
       <div class="share-channel-grid">
-        <button type="button" class="share-channel" :disabled="!inviteFile || sharing" @click="shareImage">
-          <MessageCircle :size="20" aria-hidden="true" />
-          <strong>{{ copy.share.channels.wechat }}</strong><small>{{ copy.share.wechatAction }}</small>
-        </button>
-        <button type="button" class="share-channel" :disabled="!inviteFile || sharing" @click="shareImage">
-          <MessageCircle :size="20" aria-hidden="true" />
-          <strong>{{ copy.share.channels.whatsapp }}</strong><small>{{ copy.share.whatsappAction }}</small>
+        <button type="button" class="share-channel share-channel-primary" :disabled="!inviteFile || sharing" @click="shareImage">
+          <Share2 :size="20" aria-hidden="true" />
+          <strong>{{ copy.share.channels.system }}</strong><small>{{ copy.share.systemAction }}</small>
         </button>
         <button type="button" class="share-channel" :disabled="!link || copying" @click="copyLink()">
           <Link2 :size="20" aria-hidden="true" />
@@ -133,7 +129,6 @@ async function shareImage() {
         <p>{{ feedback }}</p>
         <input v-if="link" :value="link" readonly :aria-label="copy.share.linkLabel" @focus="($event.target as HTMLInputElement).select()" />
       </div>
-      <p v-if="localPreview" class="share-sheet-caption">{{ copy.share.localPreview }}</p>
     </section>
   </van-popup>
 </template>

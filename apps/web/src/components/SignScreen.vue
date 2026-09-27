@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import type { Agreement, User } from "@playbit/shared";
+import type { Agreement, SignAgreementInput, User } from "@playbit/shared";
 import { FileSignature } from "lucide-vue-next";
 import ContractDocument from "./ContractDocument.vue";
 import AgreementNotice from "./ui/AgreementNotice.vue";
@@ -19,7 +19,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   home: [];
-  sign: [payload: { signatureDataUrl: string }];
+  sign: [payload: SignAgreementInput];
 }>();
 
 const signatureDataUrl = ref(props.user?.signatureDataUrl ?? "");
@@ -83,7 +83,7 @@ watch(
         size="lg"
         :loading="props.loading"
         :disabled="!signatureDataUrl"
-        @click="emit('sign', { signatureDataUrl })"
+        @click="emit('sign', { signatureDataUrl, revision: props.agreement.revision })"
       >
         <FileSignature :size="18" />
         {{ copy.sign.action }}

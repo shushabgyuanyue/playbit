@@ -1,8 +1,14 @@
 import { z } from "zod";
 
+export const inputLimits = {
+  nickname: 20,
+  agreementTitle: 50,
+  customEquity: 20
+} as const;
+
 export const participantSchema = z.object({
   id: z.string(),
-  nickname: z.string().min(1).max(24),
+  nickname: z.string().min(1).max(inputLimits.nickname),
   role: z.enum(["initiator", "counterparty"]),
   userId: z.string().nullable().default(null),
   confirmed: z.boolean().default(false),
@@ -14,7 +20,7 @@ export const avatarDataUrlSchema = z.string().max(50000)
 
 export const userSchema = z.object({
   id: z.string(),
-  nickname: z.string().min(1).max(24),
+  nickname: z.string().min(1).max(inputLimits.nickname),
   email: z.string().email().nullable(),
   avatarDataUrl: avatarDataUrlSchema.nullable().default(null),
   signatureDataUrl: z.string().max(50000).nullable().default(null),
@@ -40,13 +46,17 @@ export const stakeSchema = z.object({
   label: z.string().trim().min(1).max(80),
   fulfilled: z.boolean().default(false),
   additions: z.array(stakeAdditionSchema).default([])
+}).superRefine((value, context) => {
+  if (value.type === "custom" && Array.from(value.label).length > inputLimits.customEquity) {
+    context.addIssue({ code: z.ZodIssueCode.too_big, origin: "string", maximum: inputLimits.customEquity, inclusive: true, message: "Custom equity is too long" });
+  }
 });
 
 export const couponSchema = z.object({
   id: z.string(),
   agreementId: z.string(),
   sourceFlipId: z.string().nullable().default(null),
-  name: z.string().min(1).max(80),
+  name: z.string().min(1).max(323),
   description: z.string().min(1).max(180),
   issuerUserId: z.string().nullable(),
   issuerNickname: z.string(),
@@ -128,7 +138,7 @@ export const recordFlipResultSchema = z.object({ winnerUserId: z.string().min(1)
 export const agreementSchema = z.object({
   id: z.string(),
   ownerUserId: z.string().nullable().default(null),
-  title: z.string(),
+  title: z.string().max(inputLimits.agreementTitle),
   source: z.enum(["custom", "card"]),
   participants: z.array(participantSchema).min(1),
   challenge: z.string(),
@@ -152,46 +162,57 @@ export type AgreementRealtimeEvent =
   | {
       type: "agreement.updated";
       agreement: z.infer<typeof agreementSchema>;
+    }
+  | {
+      type: "agreement.deleted";
+      agreementId: string;
     };
 
 export const createAgreementSchema = z.object({
   source: z.enum(["custom", "card"]),
-  creatorNickname: z.string().min(1).max(24).optional(),
+  creatorNickname: z.string().min(1).max(inputLimits.nickname).optional(),
   creatorSignatureDataUrl: z.string().min(1).max(50000),
-  title: z.string().trim().min(1).max(48),
+  title: z.string().trim().min(1).max(inputLimits.agreementTitle),
   challenge: z.string().trim().min(1).max(180).optional(),
-  stake: stakeSchema,
+  stake: stakeSchema.refine(value => !value.fulfilled && value.additions.length === 0,
+    "New stakes cannot include fulfillment or confirmed amendments"),
   cardId: z.string().nullable().optional()
 });
 
 // Draft edits keep the same validated shape as creation, but have a separate
 // contract so callers cannot accidentally treat an update as a new record.
-export const updateAgreementSchema = createAgreementSchema;
+export const createAgreementRequestSchema = createAgreementSchema.extend({ requestId: z.string().uuid() });
+export const updateAgreementSchema = createAgreementSchema.extend({ revision: z.number().int().positive() });
 
 export const createGameSchema = z.object({
   requestId: z.string().uuid(),
   cardId: z.string().min(1),
-  stake: z.object({ type: z.enum(["coupon", "custom"]), label: z.string().trim().min(1).max(80) })
+  stake: z.object({ type: z.enum(["coupon", "custom"]), label: z.string().trim().min(1).max(80) }).superRefine((value, context) => {
+    if (value.type === "custom" && Array.from(value.label).length > inputLimits.customEquity) {
+      context.addIssue({ code: z.ZodIssueCode.too_big, origin: "string", maximum: inputLimits.customEquity, inclusive: true, message: "Custom equity is too long" });
+    }
+  })
 });
 export const joinGameSchema = z.object({ revision: z.number().int().positive() });
 export type CreateGameInput = z.infer<typeof createGameSchema>;
 
 export const signAgreementSchema = z.object({
+  revision: z.number().int().positive(),
   signatureDataUrl: z.string().min(1).max(50000)
 });
 
 export const createBoostSchema = z.object({
-  label: z.string().min(1).max(80)
+  label: z.string().trim().min(1).max(80)
 });
 
 export const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(72),
-  nickname: z.string().min(1).max(24)
+  nickname: z.string().min(1).max(inputLimits.nickname)
 });
 
 export const updateProfileSchema = z.object({
-  nickname: z.string().trim().min(1).max(24),
+  nickname: z.string().trim().min(1).max(inputLimits.nickname),
   avatarDataUrl: avatarDataUrlSchema.nullable().optional()
 });
 

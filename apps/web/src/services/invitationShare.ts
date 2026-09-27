@@ -69,9 +69,13 @@ export async function invitationCard(payload: SharePayload, heading: string, hin
   lines(ctx, payload.title, 360, 260, 596, 42, 3);
   ctx.fillStyle = "#4b5b73"; ctx.font = "23px system-ui, sans-serif";
   lines(ctx, hint, 360, 402, 596, 34, 2);
-  ctx.drawImage(qr, 120, 484, 480, 480);
+  ctx.drawImage(qr, 150, 500, 420, 420);
+  ctx.fillStyle = "#2565ae";
+  ctx.font = "600 22px system-ui, sans-serif";
+  ctx.fillText(copy.app.name, 360, 952);
+  ctx.fillStyle = "#7b8798";
   ctx.font = "18px system-ui, sans-serif";
-  ctx.fillText(new URL(payload.url).host, 360, 969);
+  ctx.fillText(new URL(payload.url).host, 360, 978);
   const image = canvas.toDataURL("image/png");
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error("Image unavailable")), "image/png"));
   return { image, file: new File([blob], "playbit-invitation.png", { type: "image/png" }) };
