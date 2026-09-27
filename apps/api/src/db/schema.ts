@@ -15,6 +15,7 @@ import type { Boost, Card, Participant, Stake } from "@playbit/shared";
 export const agreementSource = pgEnum("agreement_source", ["custom", "card"]);
 export const agreementStatus = pgEnum("agreement_status", [
   "pending_signature",
+  "pending_confirmation",
   "active",
   "result_recorded",
   "fulfilled",
@@ -31,6 +32,7 @@ export const users = pgTable("users", {
   email: text("email").unique(),
   passwordHash: text("password_hash"),
   signatureDataUrl: text("signature_data_url"),
+  avatarDataUrl: text("avatar_data_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });
 
@@ -60,6 +62,7 @@ export const agreements = pgTable("agreements", {
   challenge: text("challenge").notNull(),
   stake: jsonb("stake").$type<Stake>().notNull(),
   cardId: text("card_id"),
+  gameCard: jsonb("game_card").$type<Card>(),
   status: agreementStatus("status").notNull(),
   winnerId: text("winner_id"),
   loserId: text("loser_id"),

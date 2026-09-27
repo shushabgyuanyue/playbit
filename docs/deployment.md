@@ -72,6 +72,22 @@ Vercel reads `vercel.json` from the repository root:
 
 After Vercel gives you a domain, update Railway `WEB_ORIGIN` to that exact domain.
 
+Invitation QR codes use the current frontend URL by default, including its path.
+Set `VITE_PUBLIC_SITE_URL=https://<your-public-domain>/` at build time when preview
+domains should invite people to a canonical production site. Never set it to the
+API domain, localhost, or a deployment protected by a login wall. The canonical
+site must use the same API/database as the app creating the invitation. QR codes
+carry `?share=`, `?game=`, or `?flip=` and require a reachable HTTPS frontend and API.
+Before release, scan all three invitation types from a second phone on mobile data,
+open them logged out, and complete signing/joining after login. Local QR decoding
+does not establish public-network reachability.
+
+Image invitations use Web Share file support on HTTPS. The operating system chooses
+available destinations and the user chooses the recipient. Ordinary web pages cannot
+force WeChat/WhatsApp to receive an image or silently send it to a contact. Browsers
+without file sharing download the same invitation card for sending from the photo
+library; copy-link remains available. No unsupported app URL scheme is used.
+
 ## Local Commands
 
 ```bash

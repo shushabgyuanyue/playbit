@@ -8,7 +8,7 @@
     "start": "tsx src/index.ts",
     "build": "tsc",
     "check": "tsc --noEmit",
-    "test": "tsx src/app.test.ts",
+    "test": "tsx src/app.test.ts && tsx src/games.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },

@@ -64,6 +64,20 @@
       "when": 1790276636161,
       "tag": "0008_daffy_giant_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790494792766,
+      "tag": "0009_happy_khan",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790504696788,
+      "tag": "0010_normal_the_enforcers",
+      "breakpoints": true
     }
   ]
 }

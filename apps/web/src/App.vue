@@ -5,6 +5,7 @@ import CertificateScreen from "./components/CertificateScreen.vue";
 import ContractScreen from "./components/ContractScreen.vue";
 import CreateBetScreen from "./components/CreateBetScreen.vue";
 import DrawCardScreen from "./components/DrawCardScreen.vue";
+import GameRoundScreen from "./components/game/GameRoundScreen.vue";
 import FlipScreen from "./components/FlipScreen.vue";
 import HistoryScreen from "./components/HistoryScreen.vue";
 import HomeScreen from "./components/HomeScreen.vue";
@@ -18,6 +19,7 @@ import VoucherDetailScreen from "./components/VoucherDetailScreen.vue";
 import { dailyCards } from "@playbit/cards";
 import type { GraceWaiver } from "@playbit/shared";
 import { usePlaybitFlow } from "./composables/usePlaybitFlow";
+import { buildFlipSharePayload, type ShareIntent } from "./composables/playbitFlowHelpers";
 import { buildVoucherItems } from "./composables/useVoucherAssets";
 import { computed, provide, ref } from "vue";
 
@@ -46,11 +48,12 @@ const {
   createDraft,
   currentUser,
   agreementRefreshing,
+  agreementsLoading,
+  agreementsError,
   agreements,
   sharePayload,
   signLoading,
   screen,
-  copyShareText,
   clearAuthError,
   closeAuthSheet,
   createAgreement,
@@ -59,9 +62,9 @@ const {
   loginAccount,
   logoutAccount,
   addBoost,
-  beginCardUpgrade,
+  gameFlow,
+  resultLoading,
   confirmBoost,
-  nativeShare,
   openAccount,
   openCreate,
   openAgreementById,
@@ -74,7 +77,6 @@ const {
   openVoucherCertificate,
   closeCertificate,
   closeFlip,
-  openFlipCertificate,
   openVoucherDetail,
   openVoucherFlip,
   retryVoucherFlip,
@@ -85,11 +87,11 @@ const {
   respondToFlip,
   refreshFlip,
   recordFlipOutcome,
-  shareFlip,
   requestGraceWaiver,
   respondGraceWaiver,
   fulfillCustomAgreement,
   refreshActiveAgreement,
+  refreshAgreements,
   registerAccount,
   recordAgreementResult,
   signSession,
@@ -130,10 +132,18 @@ const isGraceWaiverRequester = computed(() => Boolean(
   currentUser.value && activeGraceWaiver.value?.requesterUserId === currentUser.value.id
 ));
 const shareSheetOpen = ref(false);
-const shareIntent = ref<"sign" | "general">("general");
+const shareIntent = ref<ShareIntent>("general");
+const invitationPayload = computed(() => shareIntent.value === "flip"
+  ? (activeFlip.value ? buildFlipSharePayload(activeFlip.value) : null)
+  : sharePayload.value);
+const { busy: gameBusy, loading: gameLoading, error: gameError, draft: gameDraft, inviteCode: gameCode, needsLogin: gameNeedsLogin } = gameFlow;
+function refreshGame() {
+  const code = activeAgreement.value?.source === 'card' ? activeAgreement.value.shareCode : gameCode.value;
+  if (code) void gameFlow.load(code);
+}
 const activeNoticeIndex = ref(0);
 
-function openShare(intent: "sign" | "general" = "general") {
+function openShare(intent: ShareIntent = "general") {
   shareIntent.value = intent;
   shareSheetOpen.value = true;
 }
@@ -161,6 +171,8 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         v-if="screen === 'home'"
         :user="currentUser"
         :agreements="agreements"
+        :agreements-loading="agreementsLoading"
+        :agreements-error="agreementsError"
         :featured-cards="featuredCards"
         :coupon-count="activeCouponCount"
         @create="openCreate"
@@ -168,6 +180,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         @play-featured="openFeaturedCard"
         @history="openHistory"
         @open-agreement="(agreement) => openAgreementFrom(agreement, 'home')"
+        @refresh-agreements="refreshAgreements"
         @notice="openNotice"
         @account="openAccount"
         @vouchers="openVouchers"
@@ -213,9 +226,9 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         @open-document="(action) => openCertificate('agreement', action)"
       />
       <CertificateScreen
-        v-else-if="screen === 'certificate' && (activeAgreement || (certificateKind === 'flip' && activeFlip))"
+        v-else-if="screen === 'certificate' && activeAgreement"
         :agreement="activeAgreement ?? null"
-        :flip="certificateKind === 'flip' ? activeFlip : null"
+        :flip="null"
         :kind="certificateKind"
         :auto-action="certificateAction"
         @back="closeCertificate"
@@ -226,18 +239,30 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :card="activeCard"
         :user="currentUser"
         :loading="cardLoading"
+        :create-loading="gameBusy"
+        :stake="gameDraft"
+        :error="gameError"
         @back="screen = 'home'"
         @home="screen = 'home'"
         @draw="drawCard"
-        @upgrade="beginCardUpgrade"
-        @create-agreement="createAgreement"
+        @update-stake="gameDraft = $event"
+        @create-game="gameFlow.create"
       />
+      <GameRoundScreen v-else-if="screen === 'game'"
+        :agreement="activeAgreement?.source === 'card' ? activeAgreement : null"
+        :current-user-id="currentUser?.id ?? null" :loading="gameLoading"
+        :busy="gameBusy || resultLoading" :refreshing="agreementRefreshing" :error="gameError"
+        :needs-login="gameNeedsLogin" @login="gameFlow.login"
+        @back="screen = 'home'" @home="screen = 'home'" @join="gameFlow.join"
+        @share="openShare('game')" @refresh="refreshGame" @record="recordAgreementResult"
+        @certificate="openCertificate('agreement')" />
       <SessionScreen
         v-else-if="screen === 'agreement' && activeAgreement"
         :agreement="activeAgreement"
         :coupons="coupons"
         :current-user-id="currentUser?.id ?? null"
         @back="screen = 'contract'"
+        :loading="resultLoading"
         @home="screen = 'home'"
         @settle="recordAgreementResult"
         @add-boost="addBoost"
@@ -251,6 +276,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :show-back="contractBackScreen === 'history' || contractBackScreen === 'vouchers' || contractBackScreen === 'voucherDetail'"
         @back="screen = contractBackScreen"
         @open-vouchers="openVouchers"
+        @open-voucher="openVoucherDetail"
         @fulfill="fulfillCustomAgreement(activeAgreement?.id ?? '')"
         @home="screen = 'home'"
       />
@@ -267,9 +293,9 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         @accept="respondToFlip"
         @refresh="refreshFlip"
         @record-result="recordFlipOutcome"
-        @share="shareFlip"
-        @certificate="openFlipCertificate"
+        @share="openShare('flip')"
         @view-vouchers="openVouchers"
+        @open-voucher="openVoucherDetail"
       />
       <HistoryScreen
         v-else-if="screen === 'history'"
@@ -343,10 +369,8 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
     />
     <ShareSheet
       v-model:show="shareSheetOpen"
-      :payload="sharePayload"
+      :payload="invitationPayload"
       :intent="shareIntent"
-      @native-share="nativeShare"
-      @copy="copyShareText"
     />
   </main>
 </template>

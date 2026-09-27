@@ -115,12 +115,17 @@ onUnmounted(() => {
       </ContractDocument>
     </div>
 
-    <LifeActionBar v-if="signed">
+    <LifeActionBar>
       <BaseButton size="lg" :disabled="!signed" @click="emit('start')">
         <ArrowRight :size="18" />
-        {{ signed ? copy.contract.enterSession : copy.contract.waiting }}
+        {{ copy.contract.enterSession }}
       </BaseButton>
+      <p v-if="!signed" class="life-section-caption contract-next-hint">{{ copy.contract.waiting }}</p>
     </LifeActionBar>
 
   </section>
 </template>
+
+<style scoped>
+.contract-next-hint { margin: 0; text-align: center; }
+</style>

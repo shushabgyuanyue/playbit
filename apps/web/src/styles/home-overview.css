@@ -6,9 +6,81 @@
   align-items: stretch;
   gap: var(--pb-space-md);
   min-height: 108px;
+  border: 1px solid rgba(37, 101, 174, 0.1);
   border-radius: var(--pb-radius-lg);
   background: var(--pb-surface-ticket);
-  box-shadow: var(--pb-shadow-ticket);
+  box-shadow: var(--pb-shadow-ticket), 0 4px 12px rgba(23, 43, 77, 0.035);
+}
+.home-overview-state {
+  display: flex;
+  min-height: 108px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-color: rgba(37, 101, 174, 0.1);
+  color: var(--pb-text-2);
+  padding: var(--pb-space-lg);
+  text-align: center;
+}
+.home-overview-state[data-state="error"] {
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: center;
+  background: linear-gradient(135deg, #fff 0%, #fff8f5 100%);
+}
+.home-overview-state-title {
+  color: var(--pb-text-1);
+  font-size: var(--pb-font-md);
+  font-weight: var(--pb-weight-semibold);
+  line-height: 20px;
+}
+.home-overview-state-note {
+  color: var(--pb-text-2);
+  font-size: var(--pb-font-xs);
+  line-height: 16px;
+}
+.home-overview-state-action {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: var(--pb-radius-sm);
+  background: transparent;
+  color: var(--pb-blue);
+  padding: 0;
+  font: inherit;
+  font-size: var(--pb-font-xs);
+  font-weight: var(--pb-weight-semibold);
+  cursor: pointer;
+}
+.home-overview-state-action:disabled { cursor: wait; opacity: 0.55; }
+.home-overview-state-icon { color: var(--pb-blue); }
+.home-overview-state::before,
+.home-overview-state::after { display: none; }
+.home-overview-inline-state {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-caption);
+  line-height: 16px;
+}
+.home-overview-inline-state button {
+  border: 0;
+  border-bottom: 1px solid rgba(37, 101, 174, 0.24);
+  background: transparent;
+  color: var(--pb-blue);
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.is-spinning { animation: home-overview-spin 0.9s linear infinite; }
+@keyframes home-overview-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .is-spinning { animation: none; }
 }
 .home-overview-content::before,
 .home-overview-content::after {
@@ -80,6 +152,8 @@
   line-height: 22px;
   font-variant-numeric: tabular-nums;
 }
+.home-overview-stat[data-tone="settling"] > strong { color: var(--pb-ink-pending); }
+.home-overview-stat[data-tone="finished"] > strong { color: var(--pb-text-2); }
 .home-overview-record {
   position: relative;
   display: flex;
@@ -95,6 +169,23 @@
   text-align: left;
   cursor: pointer;
 }
+.home-overview-record::before {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: rgba(37, 101, 174, 0.28);
+  content: "";
+}
+.home-overview-record[data-status="result_recorded"]::before { background: rgba(166, 106, 34, 0.32); }
+.home-overview-record[data-status="fulfilled"]::before,
+.home-overview-record[data-status="waived"]::before { background: rgba(98, 111, 128, 0.25); }
+.home-overview-record[data-status="empty"] {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 250, 244, 0.6));
+}
+.home-overview-record[data-status="empty"]::before { background: rgba(174, 69, 59, 0.24); }
 .home-overview-record:focus-visible {
   outline: 2px solid var(--pb-blue);
   outline-offset: 3px;
@@ -141,13 +232,18 @@
   font-weight: var(--pb-weight-medium);
   line-height: 16px;
 }
-.home-overview-empty { gap: 5px; }
+.home-overview-empty { gap: 6px; }
 .home-overview-empty-note {
   color: var(--pb-text-2);
   font-size: var(--pb-font-xs);
   line-height: 18px;
 }
-.home-overview-empty .home-overview-action { margin-top: 4px; }
+.home-overview-empty .home-overview-action {
+  width: fit-content;
+  margin-top: 4px;
+  border-bottom: 1px solid rgba(37, 101, 174, 0.3);
+  padding-bottom: 2px;
+}
 @media (max-width: 360px) {
   .home-overview-record { padding-inline: 12px; }
   .home-overview-record-heading,

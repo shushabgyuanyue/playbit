@@ -1,5 +1,4 @@
 import type { AuthRepository } from "../authRepository.js";
-import { dailyCards } from "@playbit/cards";
 import type { CouponRepository } from "../couponRepository.js";
 import { canViewAgreement, isParticipant, agreementParticipantIds, requireCurrentUser, requireAgreementParticipant } from "../http/auth.js";
 import { AgreementRevisionConflict, type AgreementRepository } from "../agreementRepository.js";
@@ -40,9 +39,7 @@ export function registerAgreementRoutes(
       return currentUser;
     }
     const payload = createAgreementSchema.parse(await context.req.json());
-    if (payload.source === "card" && !dailyCards.some((card) => card.id === payload.cardId && card.mode === "versus")) {
-      return context.json({ message: "This card cannot be used for an agreement" }, 422);
-    }
+    if (payload.source !== "custom") return context.json({ message: "Use the game invitation flow" }, 422);
     const agreement = createAgreement(
       {
         ...payload,
@@ -101,9 +98,7 @@ export function registerAgreementRoutes(
     }
 
     const payload = updateAgreementSchema.parse(await context.req.json());
-    if (payload.source === "card" && !dailyCards.some((card) => card.id === payload.cardId && card.mode === "versus")) {
-      return context.json({ message: "This card cannot be used for an agreement" }, 422);
-    }
+    if (agreement.source !== "custom" || payload.source !== "custom") return context.json({ message: "Games cannot be edited as contracts" }, 409);
 
     try {
       const draft = updateAgreementDraft(
@@ -275,6 +270,7 @@ export function registerAgreementRoutes(
     }
 
     const payload = signAgreementSchema.parse(await context.req.json());
+    if (agreement.source !== "custom") return context.json({ message: "Use the game confirmation flow" }, 409);
     const initiator = agreement.participants.find((participant) => participant.role === "initiator");
     const counterparty = agreement.participants.find((participant) => participant.role === "counterparty");
     if (initiator?.userId === currentUser.id) {
@@ -330,8 +326,7 @@ export function registerAgreementRoutes(
 
     const settled = recordAgreementResult(agreement, payload.winnerId, currentUser.id);
     try {
-      const updated = await agreements.update(settled, agreement.revision);
-      await coupons.upsertForAgreement(updated);
+      const updated = await coupons.recordResult(settled, agreement.revision);
       realtime.publishAgreement(updated);
       return context.json({ agreement: updated });
     } catch (error) {

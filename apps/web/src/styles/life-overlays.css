@@ -1,19 +1,6 @@
 .life-sheet-popup {
   overflow: hidden;
   background: var(--pb-fill-card);
-  z-index: 2001 !important;
-}
-
-.van-overlay {
-  z-index: 2000 !important;
-}
-
-.stake-picker-popup {
-  z-index: 4001 !important;
-}
-
-.stake-picker-overlay {
-  z-index: 4000 !important;
 }
 
 .life-sheet-popup.van-popup--bottom {

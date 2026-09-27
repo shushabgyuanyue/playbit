@@ -33,7 +33,7 @@ let loadTimer: number | undefined;
 
 const filterOptions = computed(() => [
   { key: "all" as const, label: copy.history.statusTabs.all, count: props.agreements.length },
-  { key: "pending_signature" as const, label: copy.history.statusTabs.pending, count: countByStatus("pending_signature") },
+  { key: "pending_signature" as const, label: copy.history.statusTabs.pending, count: countByStatus("pending_signature") + countByStatus("pending_confirmation") },
   { key: "active" as const, label: copy.history.statusTabs.active, count: countByStatus("active") },
   { key: "result_recorded" as const, label: copy.history.statusTabs.result, count: countByStatus("result_recorded") },
   { key: "finished" as const, label: copy.history.statusTabs.finished, count: props.agreements.filter(isFinished).length }
@@ -82,7 +82,7 @@ function isFinished(agreement: Agreement) {
 function matchesFilter(agreement: Agreement, filter: HistoryFilter) {
   return filter === "all" || filter === "finished"
     ? filter === "all" || isFinished(agreement)
-    : agreement.status === filter;
+    : filter === "pending_signature" ? ["pending_signature", "pending_confirmation"].includes(agreement.status) : agreement.status === filter;
 }
 
 function monthKey(value: string) {
@@ -100,7 +100,7 @@ function getCounterparty(agreement: Agreement) {
   const other = props.currentUserId
     ? agreement.participants.find((participant) => participant.userId !== props.currentUserId)
     : agreement.participants.find((participant) => participant.role === "counterparty");
-  return other?.nickname ?? copy.contract.fallbackCounterparty;
+  return other?.nickname ?? (agreement.source === "card" ? copy.game.opponent : copy.contract.fallbackCounterparty);
 }
 
 function canDelete(agreement: Agreement) {
@@ -211,6 +211,7 @@ onUnmounted(() => {
                       </BaseBadge>
                     </div>
                     <div class="history-item-subline">
+                      <span>{{ agreement.source === 'card' ? copy.game.kind : copy.contract.navTitle }}</span>
                       <span>{{ copy.history.counterparty }} · {{ getCounterparty(agreement) }}</span>
                       <span>{{ getEffectiveStakeLabel(agreement) }}</span>
                     </div>

@@ -1,4 +1,8 @@
-import "vant/lib/index.css";
+import "vant/es/popup/style/index.mjs";
+import "vant/es/list/style/index.mjs";
+import "vant/es/empty/style/index.mjs";
+import "vant/es/toast/style/index.mjs";
+import "vant/es/dialog/style/index.mjs";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/product-primitives.css";
@@ -24,7 +28,7 @@ import "./styles/signature.css";
 import "./styles/create.css";
 
 import { createApp } from "vue";
-import Vant from "vant";
+import { Empty, List, Popup } from "vant";
 import App from "./App.vue";
 
-createApp(App).use(Vant).mount("#app");
+createApp(App).use(Popup).use(List).use(Empty).mount("#app");

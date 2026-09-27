@@ -12,6 +12,7 @@ const props = defineProps<{
   inputmode?: "text" | "email" | "numeric";
   spellcheck?: boolean;
   autofocus?: boolean;
+  disabled?: boolean;
   error?: string;
 }>();
 
@@ -41,6 +42,7 @@ const emit = defineEmits<{
       :autocomplete="props.autocomplete"
       :spellcheck="props.spellcheck"
       :autofocus="props.autofocus"
+      :disabled="props.disabled"
       :aria-invalid="Boolean(props.error)"
       @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
     />
@@ -56,6 +58,7 @@ const emit = defineEmits<{
       :inputmode="props.inputmode"
       :spellcheck="props.spellcheck"
       :autofocus="props.autofocus"
+      :disabled="props.disabled"
       :aria-invalid="Boolean(props.error)"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />

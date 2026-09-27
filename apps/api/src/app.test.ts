@@ -58,6 +58,47 @@ const profileUpdate = await app.request("/auth/me", {
 assert.equal(profileUpdate.status, 200);
 assert.equal((await profileUpdate.json() as { user: User }).user.nickname, "花花");
 const togetherCard = dailyCards.find((card) => card.mode === "together");
+// A real one-pixel JPEG exercises the same bounded data URL as the browser upload.
+const profileAvatar = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD8qqKKKAP/2Q==";
+const avatarUpdate = await json<{ user: User }>("/auth/me", {
+  method: "PATCH", headers: auth(profileUser.token),
+  body: JSON.stringify({ nickname: "Avatar user", avatarDataUrl: profileAvatar, id: initiator.user.id })
+});
+assert.equal(avatarUpdate.user.avatarDataUrl, profileAvatar);
+assert.equal(avatarUpdate.user.id, profileUser.user.id);
+assert.equal((await json<{ user: User }>("/auth/me", { headers: auth(initiator.token) })).user.avatarDataUrl, null);
+const renamedProfile = await json<{ user: User }>("/auth/me", {
+  method: "PATCH", headers: auth(profileUser.token), body: JSON.stringify({ nickname: "Renamed" })
+});
+assert.equal(renamedProfile.user.avatarDataUrl, profileAvatar);
+const profileLogin = await json<{ user: User; token: string }>("/auth/login", {
+  method: "POST", body: JSON.stringify({ email: "profile@example.com", password: "password123" })
+});
+assert.equal(profileLogin.user.avatarDataUrl, profileAvatar);
+assert.equal((await json<{ user: User }>("/auth/me", { headers: auth(profileLogin.token) })).user.avatarDataUrl, profileAvatar);
+for (const invalidAvatar of ["https://example.com/avatar.jpg", "data:image/svg+xml;base64,PHN2Zz4=", "data:image/jpeg;base64,invalid", profileAvatar + "A".repeat(50000)]) {
+  const response = await app.request("/auth/me", {
+    method: "PATCH", headers: { "Content-Type": "application/json", ...auth(profileUser.token) },
+    body: JSON.stringify({ nickname: "Must not save", avatarDataUrl: invalidAvatar })
+  });
+  assert.equal(response.status, 400);
+}
+assert.equal((await json<{ user: User }>("/auth/me", { headers: auth(profileUser.token) })).user.nickname, "Renamed");
+const unauthenticatedAvatar = await app.request("/auth/me", {
+  method: "PATCH", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ nickname: "Anonymous", avatarDataUrl: profileAvatar })
+});
+assert.equal(unauthenticatedAvatar.status, 401);
+const oversizedAvatar = await app.request("/auth/me", {
+  method: "PATCH", headers: { "Content-Type": "application/json", ...auth(profileUser.token) },
+  body: JSON.stringify({ nickname: "Oversized", avatarDataUrl: "A".repeat(61000) })
+});
+assert.equal(oversizedAvatar.status, 413);
+const resetProfile = await json<{ user: User }>("/auth/me", {
+  method: "PATCH", headers: auth(profileUser.token),
+  body: JSON.stringify({ nickname: "Renamed", avatarDataUrl: null })
+});
+assert.equal(resetProfile.user.avatarDataUrl, null);
 assert.ok(togetherCard);
 const invalidCardAgreement = await app.request("/agreements", {
   method: "POST",

@@ -9,6 +9,7 @@ import type {
   CreateAgreementInput,
   LoginInput,
   RegisterInput,
+  UpdateProfileInput,
   AgreementRealtimeEvent,
   SignAgreementInput,
   Stake,
@@ -23,8 +24,8 @@ import {
   defaultStake,
   type SharePayload
 } from "./playbitFlowHelpers";
-import { useShareActions } from "./useShareActions";
 import { useFlipFlow, useGraceFlow } from "./useEquityFeatures";
+import { useGameFlow } from "./useGameFlow";
 
 export type CreateBetDraft = {
   title: string;
@@ -48,7 +49,7 @@ export function usePlaybitFlow() {
   const activeVoucherId = ref<string | null>(null);
   const contractBackScreen = ref<Screen>("home");
   const certificateBackScreen = ref<Screen>("home");
-  const certificateKind = ref<"agreement" | "result" | "fulfillment" | "waiver" | "flip">("agreement");
+  const certificateKind = ref<"agreement" | "result" | "fulfillment" | "waiver">("agreement");
   const certificateAction = ref<"save" | "share" | null>(null);
   const authReturnScreen = ref<Screen>("home");
   const editingAgreementId = ref<string | null>(null);
@@ -56,11 +57,14 @@ export function usePlaybitFlow() {
   const cardLoading = ref(false);
   const createLoading = ref(false);
   const signLoading = ref(false);
+  const resultLoading = ref(false);
   const pendingSignSignature = ref<string | null>(null);
   const authLoading = ref(false);
   const profileLoading = ref(false);
   const profileError = ref<string | null>(null);
   const agreementRefreshing = ref(false);
+  const agreementsLoading = ref(false);
+  const agreementsError = ref<string | null>(null);
   const activeShareCode = ref<string | null>(null);
   const pendingFlipId = ref<string | null>(null);
   const pendingFlipCouponId = ref<string | null>(null);
@@ -78,7 +82,8 @@ export function usePlaybitFlow() {
   const sharePayload = computed<SharePayload | null>(() =>
     activeAgreement.value ? buildSharePayload(activeAgreement.value) : null
   );
-  const { copyShareText, nativeShare } = useShareActions(sharePayload);
+  const gameFlow = useGameFlow({ activeCard, activeAgreement, screen, user: currentUser,
+    requireAccount, upsert: upsertAgreement, open: openAgreement });
 
   async function ensureIdentity() {
     if (currentUser.value) {
@@ -135,6 +140,7 @@ export function usePlaybitFlow() {
     pendingSignSignature.value = null;
     pendingCreatePayload.value = null;
     pendingFlipCouponId.value = null;
+    gameFlow.clearPending();
   }
 
   function clearAuthError() {
@@ -148,6 +154,7 @@ export function usePlaybitFlow() {
   }
 
   function openDraw() {
+    gameFlow.error.value = "";
     screen.value = "draw";
     if (!activeCard.value) {
       void drawCard();
@@ -155,6 +162,7 @@ export function usePlaybitFlow() {
   }
 
   function openFeaturedCard(card: Card) {
+    gameFlow.error.value = "";
     activeCard.value = card;
     if (!drawnCardIds.value.includes(card.id)) {
       drawnCardIds.value = [...drawnCardIds.value, card.id];
@@ -162,25 +170,34 @@ export function usePlaybitFlow() {
     screen.value = "draw";
   }
 
-  function beginCardUpgrade() {
-    requireAccount("draw");
-  }
-
   function openHistory() {
     requireAccount("history");
   }
 
+  let agreementsRequestInFlight = false;
+
   async function refreshAgreements() {
-    const user = await ensureIdentity();
-    if (!user) {
-      agreements.value = [];
+    if (agreementsRequestInFlight) {
       return;
     }
+
+    agreementsRequestInFlight = true;
+    agreementsLoading.value = true;
+    agreementsError.value = null;
     try {
+      const user = await ensureIdentity();
+      if (!user) {
+        agreements.value = [];
+        return;
+      }
+
       const response = await api.listAgreements();
       agreements.value = response.agreements;
     } catch {
-      agreements.value = [];
+      agreementsError.value = copy.home.overviewLoadFailedNote;
+    } finally {
+      agreementsRequestInFlight = false;
+      agreementsLoading.value = false;
     }
   }
 
@@ -228,6 +245,10 @@ export function usePlaybitFlow() {
     try {
       const response = await api.syncAgreement(activeAgreementId.value);
       upsertAgreement(response.agreement);
+      if (["game", "agreement"].includes(screen.value) && response.agreement.winnerId) {
+        screen.value = "settlement";
+        void refreshCoupons();
+      }
     } catch {
       // Keep the current contract visible if the network is temporarily unavailable.
     } finally {
@@ -247,6 +268,11 @@ export function usePlaybitFlow() {
 
   function showSharedAgreement() {
     const agreement = activeAgreement.value;
+    if (agreement?.source === "card") {
+      gameFlow.inviteCode.value = agreement.shareCode;
+      openAgreement(agreement);
+      return;
+    }
     if (!agreement || !currentUser.value) {
       screen.value = "sign";
       return;
@@ -291,7 +317,7 @@ export function usePlaybitFlow() {
       activeAgreementId.value = response.agreement.id;
       editingAgreementId.value = response.agreement.id;
 
-      contractBackScreen.value = payload.source === "card" ? "draw" : "create";
+      contractBackScreen.value = "create";
       screen.value = "contract";
     } catch {
       showToast(copy.create.createFailed);
@@ -301,6 +327,7 @@ export function usePlaybitFlow() {
   }
 
   async function drawCard() {
+    if (cardLoading.value) return;
     cardLoading.value = true;
 
     try {
@@ -317,18 +344,21 @@ export function usePlaybitFlow() {
   }
 
   async function recordAgreementResult(winnerId: string) {
-    if (!activeAgreement.value) {
+    if (!activeAgreement.value || resultLoading.value) {
       return;
     }
-
+    resultLoading.value = true;
     try {
       const response = await api.recordAgreementResult(activeAgreement.value.id, winnerId);
       upsertAgreement(response.agreement);
       await refreshCoupons();
     } catch {
       await refreshActiveAgreement(true);
+      if (activeAgreement.value?.winnerId === winnerId) return;
       showToast(copy.session.stateSyncFailed);
       return;
+    } finally {
+      resultLoading.value = false;
     }
 
     screen.value = "settlement";
@@ -394,12 +424,17 @@ export function usePlaybitFlow() {
   });
   const {
     activeFlip, voucherFlip, voucherFlipLoading, voucherFlipError, flipBusy,
-    loadVoucherFlips, startFlip, loadFlip, respondToFlip, refreshFlip, recordFlipOutcome, shareFlip
+    loadVoucherFlips, startFlip, loadFlip, respondToFlip, refreshFlip, recordFlipOutcome
   } = flipFlow;
 
   function openAgreement(agreement: Agreement) {
     activeAgreementId.value = agreement.id;
-    screen.value = agreement.winnerId ? "settlement" : agreement.status === "active" ? "agreement" : "contract";
+    if (agreement.source === "card") {
+      gameFlow.error.value = agreement.gameCard ? "" : copy.game.failed;
+      gameFlow.needsLogin.value = false;
+      gameFlow.inviteCode.value = agreement.shareCode;
+    }
+    screen.value = agreement.winnerId ? "settlement" : agreement.source === "card" ? "game" : agreement.status === "active" ? "agreement" : "contract";
   }
 
   function openAgreementFrom(agreement: Agreement, backScreen: Screen = "home") {
@@ -460,14 +495,6 @@ export function usePlaybitFlow() {
       }
       showToast(copy.vouchers.openFailed);
     }
-  }
-
-  function openFlipCertificate() {
-    if (!activeFlip.value) return;
-    certificateBackScreen.value = screen.value;
-    certificateKind.value = "flip";
-    certificateAction.value = null;
-    screen.value = "certificate";
   }
 
   function closeCertificate() {
@@ -635,7 +662,7 @@ export function usePlaybitFlow() {
 
     authOpen.value = false;
     authStep.value = "credentials";
-    screen.value = flipRestored ? "flip" : returnScreen;
+    screen.value = returnScreen === "flip" && !flipRestored ? "home" : returnScreen;
     if (shareRestored) showSharedAgreement();
     if (returnScreen === "draw" && !activeCard.value) {
       void drawCard();
@@ -647,6 +674,7 @@ export function usePlaybitFlow() {
     if (pendingFlipCoupon) {
       await startFlip(pendingFlipCoupon);
     }
+    await gameFlow.resume();
     authReturnScreen.value = "home";
   }
 
@@ -690,15 +718,15 @@ export function usePlaybitFlow() {
     }
   }
 
-  async function updateProfile(nickname: string) {
+  async function updateProfile(payload: UpdateProfileInput) {
     const user = currentUser.value;
-    if (!user || !nickname.trim() || profileLoading.value) {
+    if (!user || !payload.nickname.trim() || profileLoading.value) {
       return;
     }
     profileLoading.value = true;
     profileError.value = null;
     try {
-      const response = await api.updateProfile({ nickname: nickname.trim() });
+      const response = await api.updateProfile({ ...payload, nickname: payload.nickname.trim() });
       currentUser.value = response.user;
       showToast(copy.auth.profileSaved);
     } catch {
@@ -709,6 +737,7 @@ export function usePlaybitFlow() {
   }
 
   function logoutAccount() {
+    gameFlow.reset();
     stopSessionRealtime();
     api.clearAuthToken();
     currentUser.value = null;
@@ -745,14 +774,16 @@ export function usePlaybitFlow() {
   function shouldUseSessionRealtime() {
     return Boolean(
       currentUser.value &&
+        document.visibilityState === "visible" &&
         activeAgreement.value &&
-        ["contract", "agreement", "settlement"].includes(screen.value)
+        ["contract", "agreement", "settlement", "game"].includes(screen.value) &&
+        activeAgreement.value.participants.some(person => person.userId === currentUser.value?.id)
     );
   }
 
   function handleRealtimeEvent(event: AgreementRealtimeEvent) {
     upsertAgreement(event.agreement);
-    if (screen.value === "agreement" && event.agreement.winnerId) {
+    if (["agreement", "game"].includes(screen.value) && event.agreement.winnerId) {
       screen.value = "settlement";
       void refreshCoupons();
     }
@@ -818,6 +849,14 @@ export function usePlaybitFlow() {
   }
 
   function refreshWhenVisible() {
+    if (document.visibilityState !== "visible") { stopSessionRealtime(); return; }
+    if (screen.value === "flip") void refreshFlip();
+    if (["vouchers", "voucherDetail"].includes(screen.value)) {
+      void refreshCoupons().then(() => {
+        if (screen.value === "voucherDetail" && activeVoucherId.value) void loadVoucherFlips(activeVoucherId.value);
+      });
+    }
+    if (shouldUseSessionRealtime()) startSessionRealtime();
     if (
       (document.visibilityState === "visible" || document.hasFocus()) &&
       activeAgreementId.value &&
@@ -838,11 +877,20 @@ export function usePlaybitFlow() {
     }
   );
 
+  watch(screen, (nextScreen, previousScreen) => {
+    if (nextScreen === "home" && previousScreen !== "home") {
+      void refreshAgreements();
+      void refreshCoupons();
+    }
+  });
+
   onMounted(async () => {
     window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     const shareCode = new URLSearchParams(window.location.search).get("share");
     const user = await ensureIdentity();
+    const gameCode = new URLSearchParams(window.location.search).get("game");
+    if (gameCode) { await gameFlow.load(gameCode); return; }
     const flipId = new URLSearchParams(window.location.search).get("flip");
     if (flipId) {
       pendingFlipId.value = flipId;
@@ -875,6 +923,8 @@ export function usePlaybitFlow() {
   });
 
   return {
+    gameFlow,
+    resultLoading,
     activeCard,
     activeAgreement,
     activeVoucherId,
@@ -898,19 +948,18 @@ export function usePlaybitFlow() {
     createDraft,
     currentUser,
     agreementRefreshing,
+    agreementsLoading,
+    agreementsError,
     agreements,
     sharePayload,
     signLoading,
     screen,
-    copyShareText,
     createAgreement,
     deleteAgreement,
     confirmBoost,
     drawCard,
-    beginCardUpgrade,
     loginAccount,
     logoutAccount,
-    nativeShare,
     closeAuthSheet,
     clearAuthError,
     openAccount,
@@ -919,12 +968,12 @@ export function usePlaybitFlow() {
     openDraw,
     openFeaturedCard,
     openHistory,
+    refreshAgreements,
     openAgreement,
     openAgreementFrom,
     returnFromContract,
     openCertificate,
     openVoucherCertificate,
-    openFlipCertificate,
     closeCertificate,
     closeFlip,
     openVoucherDetail,
@@ -942,7 +991,6 @@ export function usePlaybitFlow() {
     respondToFlip,
     refreshFlip,
     recordFlipOutcome,
-    shareFlip,
     graceTickets,
     graceWaivers,
     requestGraceWaiver,

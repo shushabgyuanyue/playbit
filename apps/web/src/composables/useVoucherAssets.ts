@@ -182,6 +182,7 @@ function formatDate(value: string) {
 function formatAgreementStatus(status: AgreementStatus) {
   const text: Record<AgreementStatus, string> = {
     pending_signature: copy.vouchers.agreementStatuses.pending_signature,
+    pending_confirmation: copy.vouchers.agreementStatuses.pending_confirmation,
     active: copy.vouchers.agreementStatuses.active,
     result_recorded: copy.vouchers.agreementStatuses.result_recorded,
     fulfilled: copy.vouchers.agreementStatuses.fulfilled,

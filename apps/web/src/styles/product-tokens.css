@@ -1,5 +1,14 @@
 :root {
   --pb-canvas-product: var(--pb-fill-card);
+  --pb-shadow-game-card: 0 2px 0 rgba(23, 43, 77, 0.05), 0 8px 20px rgba(23, 43, 77, 0.07);
+  --pb-shadow-game-stack: 0 3px 8px rgba(23, 43, 77, 0.08);
+  --pb-game-card-reading-veil: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.5) 42%, rgba(255, 255, 255, 0.7) 78%, rgba(255, 255, 255, 0.25));
+  --pb-surface-game-stage: linear-gradient(180deg, #f0f6ff 0, #fbfcff 220px, #ffffff 650px);
+  --pb-surface-result-coral: linear-gradient(140deg, #fff4f5, #fbdde5);
+  --pb-surface-result-blue: linear-gradient(140deg, #effcff, #d8effa);
+  --pb-surface-game-controls: linear-gradient(180deg, rgba(255, 255, 255, 0.88), #ffffff 70%);
+  --pb-shadow-game-action: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 2px 0 rgba(174, 69, 59, 0.12), 0 4px 10px rgba(174, 69, 59, 0.12);
+  --pb-line-action-highlight: rgba(255, 255, 255, 0.55);
   --pb-ink-blue: #2565ae;
   --pb-ink-coral: #ae453b;
   --pb-ink-gold: #90601c;
@@ -14,6 +23,7 @@
   --pb-surface-stake-sheet: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
   --pb-surface-notice-icon: linear-gradient(145deg, #edf5ff, #e5efff);
   --pb-action-share-gradient: linear-gradient(110deg, #267fdf, #1769c4);
+  --pb-action-hero-gradient: linear-gradient(110deg, #ffb56d 0%, #ff7354 38%, #f64050 72%, #d2609d 100%);
   --pb-action-home-blue: #328ee1;
   --pb-social-green: #16b35f;
   --pb-social-blue: #1683ff;
@@ -53,8 +63,8 @@
   --pb-grace-gold-deep: #765515;
   --pb-grace-line: rgba(180, 135, 45, 0.42);
   --pb-perforation: rgba(22, 119, 255, 0.18);
-  --pb-shadow-image-bar: inset 0 -1px 0 rgba(255, 255, 255, 0.28),
-    0 2px 0 rgba(8, 32, 66, 0.08), 0 4px 9px rgba(8, 32, 66, 0.12);
+  --pb-shadow-sticky-bar: inset 0 -1px 0 rgba(23, 43, 77, 0.06),
+    0 2px 0 rgba(23, 43, 77, 0.025), 0 4px 9px rgba(23, 43, 77, 0.06);
   --pb-watermark-seal-opacity: 0.1;
   --pb-watermark-mascot-opacity: 0.16;
   --pb-font-caption: 10px;

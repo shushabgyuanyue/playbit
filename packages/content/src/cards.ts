@@ -4,6 +4,9 @@ export const cardCatalog: Card[] = [
   {
     id: "turtle-soup-water",
     name: "海龟汤：那杯水",
+    tone: "gold",
+    hook: "他要一杯水，却等来了一把枪。",
+    steps: ["一个人走进酒吧，要了一杯水。酒保却拿枪指着他。他说了声谢谢，转身走了。为什么？", "选一人先看谜底，其余人提问。主持人只能回答：是、不是、无关。"],
     category: "challenge",
     mode: "together",
     participantMin: 2,
@@ -16,6 +19,9 @@ export const cardCatalog: Card[] = [
   {
     id: "turtle-soup-elevator",
     name: "海龟汤：雨天直达",
+    tone: "gold",
+    hook: "同一部电梯，下雨才肯送他回家。",
+    steps: ["一个人住十楼。晴天坐电梯到七楼再爬楼，雨天却能直达十楼。为什么？", "选一人先看谜底，其余人提问。主持人只能回答：是、不是、无关。"],
     category: "challenge",
     mode: "together",
     participantMin: 2,
@@ -28,6 +34,9 @@ export const cardCatalog: Card[] = [
   {
     id: "twenty-one",
     name: "数到 21",
+    tone: "blue",
+    hook: "离终点最近的人，可能最不想赢。",
+    steps: ["两人轮流从 1 往上报数，每次连续报 1、2 或 3 个数。", "对方报到 4，你可以只报 5，也可以报 5、6、7。想办法把 21 留给对方。"],
     category: "challenge",
     mode: "versus",
     participantMin: 2,
@@ -39,6 +48,9 @@ export const cardCatalog: Card[] = [
   {
     id: "two-truths-one-lie",
     name: "三句话，一句假的",
+    tone: "blue",
+    hook: "本人提供，未必属实。",
+    steps: ["说三件关于自己的事：两件真的，一件编的。", "对方最多追问两个问题，然后指出哪句是假的。下一局交换角色。"],
     category: "challenge",
     mode: "versus",
     participantMin: 2,
@@ -50,6 +62,8 @@ export const cardCatalog: Card[] = [
   {
     id: "no-yes-no",
     name: "不能说是，也不能说不是",
+    tone: "coral",
+    hook: "今天，每句话都得绕个弯。",
     category: "challenge",
     mode: "versus",
     participantMin: 2,
@@ -61,6 +75,8 @@ export const cardCatalog: Card[] = [
   {
     id: "five-second-three",
     name: "五秒说三个",
+    tone: "gold",
+    hook: "脑子：会了。嘴：等一下。",
     category: "challenge",
     mode: "versus",
     participantMin: 2,
@@ -72,6 +88,9 @@ export const cardCatalog: Card[] = [
   {
     id: "wrong-answers-only",
     name: "只许答错",
+    tone: "coral",
+    hook: "知道答案，也不能说对。",
+    steps: ["一人连续问简单问题，另一人在两秒内故意答错。一分钟后交换角色。", "比如问：冰箱是干什么的？你可以答：给周末保鲜。"],
     category: "challenge",
     mode: "versus",
     participantMin: 2,
@@ -83,6 +102,8 @@ export const cardCatalog: Card[] = [
   {
     id: "say-anything-but-whatever",
     name: "别说随便",
+    tone: "gold",
+    hook: "你的随便，今天暂停营业。",
     category: "rule",
     mode: "together",
     participantMin: 2,
@@ -94,6 +115,8 @@ export const cardCatalog: Card[] = [
   {
     id: "eye-contact-no-smile",
     name: "谁先笑谁输",
+    tone: "coral",
+    hook: "你先别笑，我是认真的。",
     category: "challenge",
     mode: "versus",
     participantMin: 2,
@@ -105,6 +128,8 @@ export const cardCatalog: Card[] = [
   {
     id: "twenty-questions",
     name: "二十问",
+    tone: "blue",
+    hook: "你脑子里的那个人，我认识吗？",
     category: "challenge",
     mode: "together",
     participantMin: 2,

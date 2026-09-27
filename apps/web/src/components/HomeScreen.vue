@@ -10,10 +10,13 @@ import SectionHeading from "./ui/SectionHeading.vue";
 import HomeAnnouncement from "./home/HomeAnnouncement.vue";
 import HomeAgreementOverview from "./home/HomeAgreementOverview.vue";
 import HomeAccountBar from "./home/HomeAccountBar.vue";
+import HomeHero from "./home/HomeHero.vue";
 
 const props = defineProps<{
   user: User | null;
   agreements: Agreement[];
+  agreementsLoading: boolean;
+  agreementsError: string | null;
   featuredCards: Card[];
   couponCount: number;
 }>();
@@ -23,6 +26,7 @@ const emit = defineEmits<{
   draw: [];
   history: [];
   openAgreement: [agreement: Agreement];
+  refreshAgreements: [];
   notice: [index: number];
   account: [];
   vouchers: [];
@@ -33,13 +37,8 @@ const emit = defineEmits<{
 
 <template>
   <section class="life-page home-page">
-    <HomeAccountBar :nickname="props.user?.nickname" @account="emit('account')" />
-    <header class="home-hero">
-      <h1 class="home-visually-hidden">{{ copy.app.name }}</h1>
-      <button type="button" class="home-hero-cta" :aria-label="copy.home.heroAction" @click="emit('create')">
-        <span class="home-visually-hidden">{{ copy.home.heroAction }}</span>
-      </button>
-    </header>
+    <HomeAccountBar :nickname="props.user?.nickname" :avatar-data-url="props.user?.avatarDataUrl" :authenticated="Boolean(props.user)" @account="emit('account')" />
+    <HomeHero @create="emit('create')" @draw="emit('draw')" />
 
     <div class="life-page-content home-product-content">
       <nav class="home-function-grid" :aria-label="copy.home.functionsLabel">
@@ -52,6 +51,7 @@ const emit = defineEmits<{
         <button type="button" class="home-function-item" @click="emit('draw')">
           <span class="home-function-icon home-function-icon-game">
             <img :src="gameIcon" width="32" height="32" alt="" />
+            <span class="home-function-badge home-function-game-badge" aria-hidden="true">{{ copy.home.startGame }}</span>
           </span>
           <strong>{{ copy.home.functions.game }}</strong>
         </button>
@@ -75,9 +75,12 @@ const emit = defineEmits<{
       <HomeAgreementOverview
         :agreements="props.agreements"
         :current-user-id="props.user?.id ?? null"
+        :loading="props.agreementsLoading"
+        :error="props.agreementsError"
         @create="emit('create')"
         @history="emit('history')"
         @open="emit('openAgreement', $event)"
+        @refresh="emit('refreshAgreements')"
       />
 
       <section class="home-games-section">

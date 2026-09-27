@@ -4,13 +4,11 @@ import type { Agreement, Coupon } from "@playbit/shared";
 import { Download, Share2 } from "lucide-vue-next";
 import { computed, ref } from "vue";
 import BaseButton from "./ui/BaseButton.vue";
-import BaseBadge from "./ui/BaseBadge.vue";
 import CertificateScreen from "./CertificateScreen.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import VoucherTicket from "./ui/VoucherTicket.vue";
 import { buildVoucherItems } from "../composables/useVoucherAssets";
-import { getEffectiveStakeLabel, getLoserName, getWinnerName } from "../utils/sessionDisplay";
 
 type CertificateActions = {
   busy: boolean;
@@ -29,16 +27,12 @@ const emit = defineEmits<{
   back: [];
   home: [];
   openVouchers: [];
+  openVoucher: [id: string];
   fulfill: [];
 }>();
 
 const certificateRef = ref<CertificateActions | null>(null);
 
-const winner = computed(() => getWinnerName(props.agreement));
-const loser = computed(() => getLoserName(props.agreement));
-const resultRecorder = computed(
-  () => props.agreement.participants.find((participant) => participant.userId === props.agreement.resultRecorderUserId)?.nickname ?? copy.common.unavailable
-);
 const fulfilled = computed(() => props.agreement.status === "fulfilled" || props.agreement.stake.fulfilled);
 const waived = computed(() => props.agreement.status === "waived");
 const isCouponStake = computed(() => props.agreement.stake.type === "coupon");
@@ -59,7 +53,6 @@ const voucher = computed(() =>
     (item) => item.agreementId === props.agreement.id
   ) ?? null
 );
-const effectiveStake = computed(() => getEffectiveStakeLabel(props.agreement));
 const certificateKind = computed<"result" | "fulfillment" | "waiver">(() => {
   if (waived.value) return "waiver";
   if (fulfilled.value) return "fulfillment";
@@ -90,33 +83,24 @@ async function shareResult() {
     />
 
     <div class="life-page-content service-flow-content">
-      <section class="life-panel settlement-summary-panel">
-        <div class="settlement-summary-heading">
-          <div>
-            <span class="settlement-summary-kicker">{{ copy.settlement.title }}</span>
-            <h2 class="life-section-title">{{ props.agreement.title }}</h2>
-          </div>
-          <BaseBadge :tone="fulfilled || waived ? 'success' : 'pending'">
-            {{ waived ? copy.settlement.waived : fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}
-          </BaseBadge>
-        </div>
-        <ul class="life-info-list">
-          <li><span>{{ copy.settlement.winner }}</span><strong>{{ winner }}</strong></li>
-          <li><span>{{ copy.settlement.loser }}</span><strong>{{ loser }}</strong></li>
-          <li><span>{{ copy.settlement.recorder }}</span><strong>{{ resultRecorder }}</strong></li>
-          <li><span>{{ copy.settlement.stake }}</span><strong>{{ effectiveStake }}</strong></li>
-          <li>
-            <span>{{ copy.settlement.status }}</span>
-            <strong>{{ waived ? copy.settlement.waived : fulfilled ? copy.settlement.fulfilled : copy.settlement.pending }}</strong>
-          </li>
-        </ul>
-        <p class="life-section-caption">{{ copy.settlement.resultRecorder }}</p>
+      <section
+        class="settlement-certificate-panel"
+        :aria-label="certificateKind === 'fulfillment'
+          ? copy.certificate.fulfillmentTitle
+          : certificateKind === 'waiver' ? copy.certificate.waiverTitle : copy.certificate.resultTitle"
+      >
+        <CertificateScreen
+          ref="certificateRef"
+          :agreement="props.agreement"
+          :flip="null"
+          :kind="certificateKind"
+          :embedded="true"
+        />
       </section>
 
-      <section v-if="voucher" class="life-panel settlement-voucher-panel">
+      <section v-if="voucher" class="settlement-voucher-panel">
         <div class="settlement-section-heading">
           <h2 class="life-section-title">{{ issueTitle }}</h2>
-          <span class="settlement-section-meta">{{ voucher.timeText }}</span>
         </div>
         <VoucherTicket
           :kind="voucher.kind"
@@ -125,7 +109,7 @@ async function shareResult() {
           :watermark="voucher.status === 'used' ? 'rabbit' : 'panda'"
           :interactive="true"
           :aria-label="copy.settlement.openVouchers"
-          @click="emit('openVouchers')"
+          @click="emit('openVoucher', voucher.id)"
         >
           <template #value>
             <strong>{{ voucher.benefitTitle }}</strong>
@@ -150,23 +134,6 @@ async function shareResult() {
         >
           {{ copy.settlement.completeCustom }}
         </BaseButton>
-      </section>
-
-      <section class="settlement-certificate-panel" aria-labelledby="settlement-certificate-title">
-        <div class="settlement-certificate-heading">
-          <div>
-            <span class="settlement-summary-kicker">{{ copy.certificate.eyebrow }}</span>
-            <h2 id="settlement-certificate-title" class="life-section-title">{{ copy.certificate.resultTitle }}</h2>
-          </div>
-          <span class="settlement-certificate-mark">{{ copy.certificate.resultStatus }}</span>
-        </div>
-        <CertificateScreen
-          ref="certificateRef"
-          :agreement="props.agreement"
-          :flip="null"
-          :kind="certificateKind"
-          :embedded="true"
-        />
       </section>
     </div>
 

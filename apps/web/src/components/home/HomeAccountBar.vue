@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
 import { copy } from "@playbit/content";
-import BrandMascot from "../ui/BrandMascot.vue";
+import UserAvatar from "../ui/UserAvatar.vue";
 
-defineProps<{ nickname?: string }>();
+defineProps<{ nickname?: string; authenticated: boolean; avatarDataUrl?: string | null }>();
 const emit = defineEmits<{ account: [] }>();
 const scrolled = ref(false);
 const updateScroll = () => { scrolled.value = window.scrollY > 24; };
@@ -21,13 +21,13 @@ onUnmounted(() => window.removeEventListener("scroll", updateScroll));
       {{ copy.app.name }}
       <span
         class="home-auth-status-dot"
-        :class="{ active: Boolean(nickname) }"
-        :title="nickname ? copy.auth.statusSignedIn : copy.auth.statusGuest"
+        :class="{ active: authenticated }"
+        :title="authenticated ? copy.auth.statusSignedIn : copy.auth.statusGuest"
       />
     </span>
     <button type="button" class="home-account-action" :aria-label="copy.home.accountAction" @click="emit('account')">
       <span class="home-account-avatar">
-        <BrandMascot variant="panda-logo" width="38" height="40" />
+        <UserAvatar :src="avatarDataUrl" :guest="!authenticated" />
       </span>
       <span class="home-account-label">{{ nickname ?? copy.home.accountGuestLabel }}</span>
     </button>

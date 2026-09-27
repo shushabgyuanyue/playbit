@@ -31,7 +31,7 @@ export function agreementParticipantIds(agreement: { participants: Array<{ id: s
 }
 
 export function canViewAgreement(agreement: Agreement, userId: string | null): boolean {
-  if (agreement.status === "pending_signature") {
+  if (["pending_signature", "pending_confirmation"].includes(agreement.status)) {
     return true;
   }
   return userId !== null && isParticipant(agreement, userId);

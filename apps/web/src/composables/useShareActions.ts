@@ -1,47 +1,29 @@
 import { copy } from "@playbit/content";
 import { showToast } from "vant";
-import type { ComputedRef } from "vue";
+import { computed, ref, watch, type ComputedRef } from "vue";
 import type { SharePayload } from "./playbitFlowHelpers";
+import { invitationUrl } from "../services/invitationShare";
 
-export async function copyWithFeedback(text: string): Promise<boolean> {
-  try {
-    if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
-    await navigator.clipboard.writeText(text);
-    showToast(copy.share.copied);
-    return true;
-  } catch {
-    showToast(copy.share.copyFailed);
-    return false;
-  }
-}
+export function useShareActions(payload: ComputedRef<SharePayload | null>) {
+  const feedback = ref("");
+  const copying = ref(false);
+  const link = computed(() => invitationUrl(payload.value?.url));
+  watch(link, () => { feedback.value = ""; });
 
-export function useShareActions(sharePayload: ComputedRef<SharePayload | null>) {
-  async function copyShareText() {
-    if (!sharePayload.value) {
-      return;
-    }
-
-    await copyWithFeedback(sharePayload.value.text);
-  }
-
-  async function nativeShare() {
-    if (!sharePayload.value || !navigator.share) {
-      await copyShareText();
-      return;
-    }
-
+  async function copyLink() {
+    if (!link.value || copying.value) return;
+    const currentLink = link.value;
+    copying.value = true;
     try {
-      await navigator.share(sharePayload.value);
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        return;
-      }
-      await copyShareText();
+      await navigator.clipboard.writeText(currentLink);
+      if (link.value !== currentLink) return;
+      showToast(copy.share.copied);
+    } catch {
+      if (link.value === currentLink) feedback.value = copy.share.copyFailed;
+    } finally {
+      copying.value = false;
     }
   }
 
-  return {
-    copyShareText,
-    nativeShare
-  };
+  return { link, copying, feedback, copyLink };
 }

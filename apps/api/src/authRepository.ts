@@ -1,5 +1,5 @@
 import { authSessions, users } from "./db/schema.js";
-import type { LoginInput, RegisterInput, User } from "@playbit/shared";
+import type { LoginInput, RegisterInput, UpdateProfileInput, User } from "@playbit/shared";
 import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
@@ -45,6 +45,7 @@ function fromUserRow(row: UserRow): User {
     id: row.id,
     nickname: row.nickname,
     email: row.email,
+    avatarDataUrl: row.avatarDataUrl,
     signatureDataUrl: row.signatureDataUrl,
     createdAt: row.createdAt.toISOString()
   };
@@ -77,6 +78,7 @@ class MemoryAuthRepository {
       email: input.email,
       passwordHash: hashPassword(input.password),
       signatureDataUrl: null,
+      avatarDataUrl: null,
       createdAt: new Date()
     };
     this.users.set(nextUser.id, nextUser);
@@ -110,12 +112,13 @@ class MemoryAuthRepository {
     }
   }
 
-  async updateNickname(userId: string, nickname: string): Promise<User | null> {
+  async updateProfile(userId: string, input: UpdateProfileInput): Promise<User | null> {
     const user = this.users.get(userId);
     if (!user) {
       return null;
     }
-    const updated = { ...user, nickname };
+    const updated = { ...user, nickname: input.nickname,
+      avatarDataUrl: input.avatarDataUrl === undefined ? user.avatarDataUrl : input.avatarDataUrl };
     this.users.set(userId, updated);
     return fromUserRow(updated);
   }
@@ -187,10 +190,10 @@ class PostgresAuthRepository {
     await this.db.update(users).set({ signatureDataUrl }).where(eq(users.id, userId));
   }
 
-  async updateNickname(userId: string, nickname: string): Promise<User | null> {
+  async updateProfile(userId: string, input: UpdateProfileInput): Promise<User | null> {
     const [updated] = await this.db
       .update(users)
-      .set({ nickname })
+      .set({ nickname: input.nickname, avatarDataUrl: input.avatarDataUrl })
       .where(eq(users.id, userId))
       .returning();
     return updated ? fromUserRow(updated) : null;

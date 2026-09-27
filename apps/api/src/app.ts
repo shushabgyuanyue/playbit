@@ -6,6 +6,7 @@ import type { AgreementRepository } from "./agreementRepository.js";
 import { createAgreementRepository } from "./agreementRepository.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerCardRoutes } from "./routes/cards.js";
+import { registerGameRoutes } from "./routes/games.js";
 import { registerCouponRoutes } from "./routes/coupons.js";
 import { registerAgreementRoutes } from "./routes/agreements.js";
 import { AgreementRealtimeHub } from "./agreementRealtime.js";
@@ -61,6 +62,7 @@ export function createPlaybitApp(repositories: AppRepositories, webOrigins: stri
 
   registerAuthRoutes(app, repositories.auth);
   registerCardRoutes(app);
+  registerGameRoutes(app, repositories);
   registerAgreementRoutes(
     app,
     repositories.auth,

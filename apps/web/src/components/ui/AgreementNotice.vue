@@ -25,7 +25,6 @@ const noticeOpen = ref(false);
       position="bottom"
       teleport="body"
       class="life-sheet-popup agreement-notice-popup"
-      :z-index="3000"
     >
       <article class="agreement-notice-sheet">
         <div class="agreement-notice-handle" aria-hidden="true" />

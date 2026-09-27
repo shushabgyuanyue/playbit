@@ -85,6 +85,8 @@
   width: 62px;
   height: 62px;
   place-items: center;
+  padding: 0;
+  cursor: pointer;
   border: 1px solid rgba(182, 62, 66, 0.34);
   border-radius: 50%;
   background: linear-gradient(145deg, #fffdf9 0%, #fff4e6 100%);
@@ -100,11 +102,12 @@
   content: "";
 }
 
-.account-avatar-medallion .pb-brand-mascot {
+.account-avatar-medallion .account-profile-avatar {
   position: relative;
   z-index: 1;
   width: 48px;
   height: 48px;
+  border-radius: 50%;
   transform: rotate(4deg);
 }
 
@@ -443,6 +446,45 @@
   color: var(--pb-text-3);
   font-size: var(--pb-font-xs);
   line-height: 1.45;
+}
+
+.account-avatar-editor {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.account-avatar-preview {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  padding: 2px;
+  border: 1px solid var(--pb-line);
+  border-radius: 50%;
+  background: var(--pb-surface-stake-sheet);
+  cursor: pointer;
+}
+.account-avatar-controls { min-width: 0; }
+.account-avatar-controls button {
+  min-height: 44px;
+  margin-right: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--pb-blue);
+  font-size: var(--pb-font-sm);
+  font-weight: var(--pb-weight-semibold);
+  cursor: pointer;
+}
+.account-avatar-controls button:disabled { opacity: 0.5; cursor: default; }
+.account-avatar-controls p {
+  margin: 0;
+  color: var(--pb-text-3);
+  font-size: var(--pb-font-xs);
+}
+.account-avatar-error {
+  margin: 0;
+  color: var(--pb-red);
+  font-size: var(--pb-font-xs);
 }
 
 @media (max-width: 374px) {

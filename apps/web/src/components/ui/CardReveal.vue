@@ -1,22 +1,27 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import { Eye, EyeOff } from "lucide-vue-next";
+import { Eye } from "lucide-vue-next";
 import { ref } from "vue";
 import BaseButton from "./BaseButton.vue";
 
-defineProps<{ answer: string }>();
+defineProps<{ answer: string; disabled?: boolean }>();
 
 const visible = ref(false);
 </script>
 
 <template>
   <div class="card-reveal">
-    <BaseButton variant="outline" @click="visible = !visible">
-      <EyeOff v-if="visible" :size="16" aria-hidden="true" />
-      <Eye v-else :size="16" aria-hidden="true" />
-      {{ visible ? copy.draw.hideReveal : copy.draw.reveal }}
+    <BaseButton variant="outline" :disabled="disabled" :aria-expanded="visible" @click="visible = !visible">
+      <Eye :size="16" aria-hidden="true" />
+      {{ copy.draw.reveal }}
     </BaseButton>
-    <p v-if="visible" class="card-reveal-answer">{{ answer }}</p>
+    <van-popup v-model:show="visible" position="bottom" round teleport="body" class="life-sheet-popup">
+      <section class="card-reveal-sheet" role="region" :aria-label="copy.draw.reveal">
+        <h2>{{ copy.draw.reveal }}</h2>
+        <p>{{ answer }}</p>
+        <BaseButton variant="outline" @click="visible = false">{{ copy.draw.hideReveal }}</BaseButton>
+      </section>
+    </van-popup>
   </div>
 </template>
 
@@ -25,13 +30,7 @@ const visible = ref(false);
   margin-top: 16px;
 }
 
-.card-reveal-answer {
-  margin: 14px 0 0;
-  padding: 14px 16px;
-  border-left: 3px solid var(--pb-blue);
-  background: var(--pb-fill-soft);
-  font-size: var(--pb-font-md);
-  line-height: 1.65;
-  color: var(--pb-text-1);
-}
+.card-reveal-sheet { padding: 24px 20px calc(20px + env(safe-area-inset-bottom)); max-height: 75dvh; overflow-y: auto; }
+.card-reveal-sheet h2 { margin: 0; font-size: var(--pb-font-lg); color: var(--pb-text-1); }
+.card-reveal-sheet p { margin: 18px 0 24px; color: var(--pb-text-1); font-size: var(--pb-font-md); line-height: 1.85; }
 </style>

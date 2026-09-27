@@ -2,6 +2,7 @@ import { AuthAccountNotFound, type AuthRepository } from "../authRepository.js";
 import { getCurrentUser } from "../http/auth.js";
 import { loginSchema, registerSchema, updateProfileSchema } from "@playbit/shared";
 import type { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 export function registerAuthRoutes(app: Hono, auth: AuthRepository) {
   app.post("/auth/register", async (context) => {
@@ -43,13 +44,16 @@ export function registerAuthRoutes(app: Hono, auth: AuthRepository) {
     return context.json({ user });
   });
 
-  app.patch("/auth/me", async (context) => {
+  app.patch("/auth/me", bodyLimit({ maxSize: 60000 }), async (context) => {
     const currentUser = await getCurrentUser(context, auth);
     if (!currentUser) {
       return context.json({ message: "Authentication required" }, 401);
     }
-    const payload = updateProfileSchema.parse(await context.req.json());
-    const user = await auth.updateNickname(currentUser.id, payload.nickname);
+    const payload = updateProfileSchema.safeParse(await context.req.json().catch(() => null));
+    if (!payload.success) {
+      return context.json({ message: "Invalid profile" }, 400);
+    }
+    const user = await auth.updateProfile(currentUser.id, payload.data);
     if (!user) {
       return context.json({ message: "User not found" }, 404);
     }

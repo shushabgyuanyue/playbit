@@ -9,10 +9,14 @@ export const participantSchema = z.object({
   signatureDataUrl: z.string().max(50000).nullable().default(null)
 });
 
+export const avatarDataUrlSchema = z.string().max(50000)
+  .regex(/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/);
+
 export const userSchema = z.object({
   id: z.string(),
   nickname: z.string().min(1).max(24),
   email: z.string().email().nullable(),
+  avatarDataUrl: avatarDataUrlSchema.nullable().default(null),
   signatureDataUrl: z.string().max(50000).nullable().default(null),
   createdAt: z.string()
 });
@@ -65,12 +69,16 @@ export const cardSchema = z.object({
   participantMax: z.number().int().positive(),
   durationMinutes: z.number().int().positive().nullable(),
   content: z.string(),
+  hook: z.string().optional(),
+  steps: z.array(z.string()).optional(),
+  tone: z.enum(["coral", "blue", "gold"]).optional(),
   winCondition: z.string(),
   reveal: z.string().optional()
 });
 
 export const agreementStatusSchema = z.enum([
   "pending_signature",
+  "pending_confirmation",
   "active",
   "result_recorded",
   "fulfilled",
@@ -126,6 +134,7 @@ export const agreementSchema = z.object({
   challenge: z.string(),
   stake: stakeSchema,
   cardId: z.string().nullable(),
+  gameCard: cardSchema.nullable().default(null),
   status: agreementStatusSchema,
   winnerId: z.string().nullable(),
   loserId: z.string().nullable(),
@@ -159,6 +168,14 @@ export const createAgreementSchema = z.object({
 // contract so callers cannot accidentally treat an update as a new record.
 export const updateAgreementSchema = createAgreementSchema;
 
+export const createGameSchema = z.object({
+  requestId: z.string().uuid(),
+  cardId: z.string().min(1),
+  stake: z.object({ type: z.enum(["coupon", "custom"]), label: z.string().trim().min(1).max(80) })
+});
+export const joinGameSchema = z.object({ revision: z.number().int().positive() });
+export type CreateGameInput = z.infer<typeof createGameSchema>;
+
 export const signAgreementSchema = z.object({
   signatureDataUrl: z.string().min(1).max(50000)
 });
@@ -174,7 +191,8 @@ export const registerSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  nickname: z.string().trim().min(1).max(24)
+  nickname: z.string().trim().min(1).max(24),
+  avatarDataUrl: avatarDataUrlSchema.nullable().optional()
 });
 
 export const loginSchema = z.object({

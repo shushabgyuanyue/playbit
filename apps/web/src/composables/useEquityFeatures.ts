@@ -4,7 +4,6 @@ import { showConfirmDialog, showToast } from "vant";
 import { computed, ref, type Ref } from "vue";
 import { api, ApiRequestError } from "../services/api";
 import type { Screen } from "../types/screen";
-import { copyWithFeedback } from "./useShareActions";
 
 type FlipFlowOptions = {
   agreements: Ref<Agreement[]>;
@@ -196,17 +195,6 @@ export function useFlipFlow(options: FlipFlowOptions) {
     if (!activeFlip.value || flipBusy.value) return;
     flipBusy.value = true;
     flipVersion += 1;
-    try {
-      await showConfirmDialog({
-        title: copy.flip.confirmResultTitle,
-        message: winnerUserId === activeFlip.value.applicantUserId
-          ? copy.flip.confirmApplicantWon
-          : copy.flip.confirmApplicantLost
-      });
-    } catch {
-      flipBusy.value = false;
-      return;
-    }
     let shouldRefresh = false;
     try {
       const response = await api.recordFlipResult(activeFlip.value.id, winnerUserId);
@@ -223,27 +211,9 @@ export function useFlipFlow(options: FlipFlowOptions) {
     if (shouldRefresh) queueFlipRefresh();
   }
 
-  async function shareFlip() {
-    if (!activeFlip.value) return;
-    const url = new URL(window.location.href);
-    url.search = "";
-    url.searchParams.set("flip", activeFlip.value.id);
-    const payload = { title: copy.flip.navTitle, text: copy.flip.shareText, url: url.toString() };
-    try {
-      if (navigator.share) {
-        await navigator.share(payload);
-      } else {
-        await copyWithFeedback(`${payload.text}\n${payload.url}`);
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") return;
-      await copyWithFeedback(`${payload.text}\n${payload.url}`);
-    }
-  }
-
   return {
     activeFlip, voucherFlip, voucherFlipLoading, voucherFlipError, flipBusy,
-    loadVoucherFlips, startFlip, loadFlip, respondToFlip, refreshFlip, recordFlipOutcome, shareFlip
+    loadVoucherFlips, startFlip, loadFlip, respondToFlip, refreshFlip, recordFlipOutcome
   };
 }
 

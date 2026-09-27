@@ -3,6 +3,7 @@ import type {
   Card,
   Coupon,
   CreateAgreementInput,
+  CreateGameInput,
   LoginInput,
   RegisterInput,
   UpdateProfileInput,
@@ -115,6 +116,7 @@ export const api = {
   drawCard(previousIds: string[]) {
     return request<{ card: Card }>("/cards/draw", {
       method: "POST",
+      signal: AbortSignal.timeout(4000),
       body: JSON.stringify({ previousIds })
     });
   },
@@ -123,6 +125,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     });
+  },
+  createGame(payload: CreateGameInput) {
+    return request<{ agreement: Agreement }>("/games", { method: "POST", body: JSON.stringify(payload) });
+  },
+  joinGame(shareCode: string, revision: number) {
+    return request<{ agreement: Agreement }>(`/games/${shareCode}/join`, { method: "POST", body: JSON.stringify({ revision }) });
   },
   updateAgreement(id: string, payload: CreateAgreementInput) {
     return request<{ agreement: Agreement }>(`/agreements/${id}`, {

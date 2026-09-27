@@ -11,7 +11,7 @@ export class AgreementRevisionConflict extends Error {
   }
 }
 
-function toRow(agreement: Agreement): typeof agreements.$inferInsert {
+export function agreementToRow(agreement: Agreement): typeof agreements.$inferInsert {
   return {
     id: agreement.id,
     ownerUserId: agreement.ownerUserId,
@@ -22,6 +22,7 @@ function toRow(agreement: Agreement): typeof agreements.$inferInsert {
     challenge: agreement.challenge,
     stake: agreement.stake,
     cardId: agreement.cardId,
+    gameCard: agreement.gameCard,
     status: agreement.status,
     winnerId: agreement.winnerId,
     loserId: agreement.loserId,
@@ -35,7 +36,7 @@ function toRow(agreement: Agreement): typeof agreements.$inferInsert {
   };
 }
 
-function fromRow(row: AgreementRow): Agreement {
+export function agreementFromRow(row: AgreementRow): Agreement {
   return {
     id: row.id,
     ownerUserId: row.ownerUserId,
@@ -46,6 +47,7 @@ function fromRow(row: AgreementRow): Agreement {
     challenge: row.challenge,
     stake: stakeSchema.parse(row.stake),
     cardId: row.cardId,
+    gameCard: row.gameCard,
     status: row.status,
     winnerId: row.winnerId,
     loserId: row.loserId,
@@ -63,6 +65,7 @@ class MemoryAgreementRepository {
   private agreements = new Map<string, Agreement>();
 
   async create(agreement: Agreement): Promise<Agreement> {
+    if (this.agreements.has(agreement.id)) throw new AgreementRevisionConflict();
     this.agreements.set(agreement.id, agreement);
     return agreement;
   }
@@ -104,8 +107,8 @@ class PostgresAgreementRepository {
   constructor(private readonly db: PostgresJsDatabase) {}
 
   async create(agreement: Agreement): Promise<Agreement> {
-    const [row] = await this.db.insert(agreements).values(toRow(agreement)).returning();
-    return fromRow(row);
+    const [row] = await this.db.insert(agreements).values(agreementToRow(agreement)).returning();
+    return agreementFromRow(row);
   }
 
   async list(userId: string | null = null): Promise<Agreement[]> {
@@ -117,12 +120,12 @@ class PostgresAgreementRepository {
           where participant->>'userId' = ${userId}
         )`).orderBy(desc(agreements.createdAt))
       : query.orderBy(desc(agreements.createdAt)));
-    return rows.map(fromRow);
+    return rows.map(agreementFromRow);
   }
 
   async findById(id: string): Promise<Agreement | null> {
     const [row] = await this.db.select().from(agreements).where(eq(agreements.id, id)).limit(1);
-    return row ? fromRow(row) : null;
+    return row ? agreementFromRow(row) : null;
   }
 
   async findByShareCode(shareCode: string): Promise<Agreement | null> {
@@ -131,7 +134,7 @@ class PostgresAgreementRepository {
       .from(agreements)
       .where(eq(agreements.shareCode, shareCode))
       .limit(1);
-    return row ? fromRow(row) : null;
+    return row ? agreementFromRow(row) : null;
   }
 
   async delete(id: string): Promise<boolean> {
@@ -154,6 +157,7 @@ class PostgresAgreementRepository {
         challenge: agreement.challenge,
         stake: agreement.stake,
         cardId: agreement.cardId,
+        gameCard: agreement.gameCard,
         status: agreement.status,
         winnerId: agreement.winnerId,
         loserId: agreement.loserId,
@@ -169,7 +173,7 @@ class PostgresAgreementRepository {
     if (!row) {
       throw new AgreementRevisionConflict();
     }
-    return fromRow(row);
+    return agreementFromRow(row);
   }
 }
 

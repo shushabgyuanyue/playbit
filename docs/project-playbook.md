@@ -16,11 +16,31 @@ The two entry points are independent until the player chooses otherwise:
 - **开一盘** draws one curated game card. Players can start immediately,
   without accepting a platform verdict, creating an account, or making an
   agreement.
-- **添加权益** is an optional upgrade from a versus card into a persistent
-  Agreement: choose an equity, sign, and invite the other participant.
+- **加点彩头** persists a versus game: choose equity, invite a companion, and
+  confirm together. No signature or contract-creation page is involved.
 
 The anonymous card is ephemeral client state. Do not create a guest account,
 fake agreement, or database record just to let someone play a card.
+
+### Lightweight Game Stakes
+
+Game stakes are separate from the signing ceremony above.
+A versus card offers equity selection and a lightweight two-person
+confirmation, without routing through the full signature/document creation
+flow. Opening an invitation is anonymous; confirming persistent equity
+requires an account and resumes automatically after login. Do not mint anonymous
+assets or introduce a room lobby, room code, or separate ready/start gate.
+Both flows share equity ownership, issuance/redemption, invitation transport,
+and result-recording capabilities, while keeping their own confirmation steps.
+`useGameFlow` owns this sequence; `CreateBetScreen` owns signed contracts.
+
+Invitation sharing is QR-first for nearby companions, with WeChat and WhatsApp
+as the only named social destinations and copy-link as a utility. Invitations are
+image cards containing a QR code, shared through the OS file share sheet where
+available. The user selects the app and recipient; ordinary web pages cannot target
+a particular app with an image. Unsupported browsers download the card for manual
+sending. Neither action claims delivery. Signing, game, and flip invitations
+share the sheet but retain separate links, permissions, and acceptance actions.
 
 ## Product Boundaries
 
@@ -65,18 +85,29 @@ fake agreement, or database record just to let someone play a card.
 
 - `Agreement` is the sole persisted agreement aggregate. `PlayCard` is a
   curated prompt, not an agreement and not a database session.
-- Agreement states are `pending_signature -> active -> result_recorded ->
-  fulfilled`, with `waived` for an equity mutually waived through a 赖皮券.
+- Signed agreement states are `pending_signature -> active -> result_recorded ->
+  fulfilled`; games enter through `pending_confirmation` instead of signature.
+  Both support `waived` when their original equity is waived.
   A result is a participant-submitted record, never a platform judgment.
-- The initiator signs at creation; the share-link visitor becomes the
-  counterparty only when signing.
+- Contract initiators sign at creation; their visitor signs to join. Game
+  initiators choose a coupon, and visitors confirm it without signatures.
+  Both participants must have accounts before equity becomes active.
+- Game creation uses a per-attempt request identity, making network retries
+  idempotent. The server freezes the canonical versus card in `gameCard` and
+  normalizes custom game stakes into coupons. The game invitation is immutable;
+  joining checks the reviewed revision and atomically claims the remaining seat.
+  Creation through `/agreements` and signing cannot bypass game confirmation.
+- `?game=` invitations preview without login while awaiting confirmation.
+  After confirmation only the two participants may reopen them. A returning
+  participant on another device can log in to resume the same game.
 - Opening a share link as its initiator or an existing signatory resumes the
   Agreement instead of asking for another signature. A new signatory uses the
   account nickname; the signing request contains only the saved or drawn mark.
 - Each equity coupon links to one Agreement. Provider/holder actions derive
   from explicit user IDs, not array position or display text.
-- A coupon is issued only after a participant records a result. For point or
-  custom equity, retain the Agreement record without inventing a coupon.
+- Result recording and coupon issuance commit in one transaction. Game stakes,
+  including custom descriptions, issue coupons. Signed contracts retain the
+  existing separate point/custom fulfillment behavior.
 - The result reporter, winner, provider, and holder are explicit fields. Do not
   infer them from who opened a screen.
 

@@ -1,12 +1,14 @@
-.home-announcement-section { padding: 0 var(--pb-page-x); }
+.home-announcement-section {
+  padding: 0 var(--pb-page-x);
+  background: transparent;
+}
 .home-announcement-bar {
   display: flex;
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   border: 0;
-  border-bottom: 1px solid rgba(23, 43, 77, 0.05);
   background: transparent;
   color: var(--pb-text-1);
   padding: 0;
@@ -17,12 +19,12 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 5px;
-  padding-right: 10px;
-  border-right: 1px solid var(--pb-line);
-  color: var(--pb-blue);
+  padding-right: 2px;
+  color: var(--pb-text-2);
   font-size: var(--pb-font-sm);
   font-weight: 600;
 }
+.home-announcement-label svg { color: var(--pb-blue); }
 .home-announcement-viewport {
   position: relative;
   display: block;

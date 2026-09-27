@@ -1,47 +1,76 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
-import { Link2, MessageCircle, Send, Share2, UsersRound } from "lucide-vue-next";
-import type { SharePayload } from "../composables/playbitFlowHelpers";
-import { computed } from "vue";
+import { Download, Link2, LoaderCircle, MessageCircle, X } from "lucide-vue-next";
+import type { ShareIntent, SharePayload } from "../composables/playbitFlowHelpers";
+import { computed, ref, watch } from "vue";
+import { useShareActions } from "../composables/useShareActions";
+import { invitationCard } from "../services/invitationShare";
+import BaseButton from "./ui/BaseButton.vue";
 
 const props = withDefaults(defineProps<{
   show: boolean;
   payload: SharePayload | null;
-  intent?: "sign" | "general";
+  intent?: ShareIntent;
 }>(), {
   intent: "general"
 });
 
 const emit = defineEmits<{
   "update:show": [show: boolean];
-  nativeShare: [];
-  copy: [];
 }>();
 
-const channels = [
-  { key: "wechat", label: copy.share.channels.wechat, icon: MessageCircle, tone: "wechat" },
-  { key: "moments", label: copy.share.channels.moments, icon: UsersRound, tone: "moments" },
-  { key: "qq", label: copy.share.channels.qq, icon: Send, tone: "qq" },
-  { key: "weibo", label: copy.share.channels.weibo, icon: Share2, tone: "weibo" },
-  { key: "copy", label: copy.share.channels.copy, icon: Link2, tone: "copy" }
-] as const;
+const panelTitle = computed(() => props.intent === "sign" ? copy.share.signPanelTitle
+  : props.intent === "flip" ? copy.share.flipPanelTitle : props.intent === "game" ? copy.game.invite : copy.share.panelTitle);
+const panelHint = computed(() => props.intent === "sign" ? copy.share.signPanelHint
+  : props.intent === "flip" ? copy.share.flipPanelHint : props.intent === "game" ? copy.game.shareHint : copy.share.panelHint);
+const { link, copying, feedback, copyLink } = useShareActions(computed(() => props.payload));
+const qrImage = ref("");
+const inviteFile = ref<File | null>(null);
+const sharing = ref(false);
+const qrLoading = ref(false);
+const qrFailed = ref(false);
+const retry = ref(0);
+const localPreview = computed(() => link.value && ["localhost", "127.0.0.1", "[::1]"].includes(new URL(link.value).hostname));
 
-const panelTitle = computed(() => props.intent === "sign" ? copy.share.signPanelTitle : copy.share.panelTitle);
-const panelHint = computed(() => props.intent === "sign" ? copy.share.signPanelHint : copy.share.panelHint);
-const nativeShareLabel = computed(() => props.intent === "sign" ? copy.share.signNativeShare : copy.share.nativeShare);
+watch([() => props.show, link, retry], async ([show, url], _previous, onCleanup) => {
+  let cancelled = false;
+  onCleanup(() => { cancelled = true; });
+  qrImage.value = "";
+  inviteFile.value = null;
+  qrFailed.value = false;
+  qrLoading.value = false;
+  feedback.value = "";
+  if (!show) return;
+  if (!url) { qrFailed.value = true; return; }
+  qrLoading.value = true;
+  try {
+    if (!props.payload) throw new Error("Missing invitation");
+    const card = await invitationCard(props.payload, panelTitle.value, panelHint.value);
+    if (!cancelled) { qrImage.value = card.image; inviteFile.value = card.file; }
+  } catch {
+    if (!cancelled) qrFailed.value = true;
+  } finally {
+    if (!cancelled) qrLoading.value = false;
+  }
+}, { immediate: true });
 
-function channelLabel(key: (typeof channels)[number]["key"]) {
-  return key === "copy" && props.intent === "sign" ? copy.share.signCopy : copy.share.channels[key];
-}
-
-function copyAndClose() {
-  emit("copy");
-  emit("update:show", false);
-}
-
-function shareAndClose() {
-  emit("nativeShare");
-  emit("update:show", false);
+async function shareImage() {
+  if (!inviteFile.value || sharing.value) return;
+  sharing.value = true;
+  feedback.value = copy.share.nativeHint;
+  try {
+    if (navigator.share && navigator.canShare?.({ files: [inviteFile.value] })) {
+      await navigator.share({ files: [inviteFile.value], title: panelTitle.value });
+    } else {
+      const anchor = document.createElement("a");
+      anchor.href = qrImage.value;
+      anchor.download = inviteFile.value.name;
+      anchor.click();
+      feedback.value = copy.share.imageFallback;
+    }
+  } catch (error) {
+    feedback.value = error instanceof Error && error.name === "AbortError" ? "" : copy.share.imageShareFailed;
+  } finally { sharing.value = false; }
 }
 </script>
 
@@ -52,39 +81,59 @@ function shareAndClose() {
     position="bottom"
     teleport="body"
     class="life-sheet-popup share-sheet-popup"
+    role="dialog"
+    aria-modal="true"
+    :aria-label="panelTitle"
     @update:show="emit('update:show', $event)"
   >
     <section class="share-sheet">
       <header class="share-sheet-header">
-        <strong>{{ panelTitle }}</strong>
-        <p>{{ panelHint }}</p>
+        <div><h2>{{ panelTitle }}</h2><p>{{ panelHint }}</p></div>
+        <button type="button" class="share-close" :aria-label="copy.common.close" @click="emit('update:show', false)">
+          <X :size="19" aria-hidden="true" />
+        </button>
       </header>
 
-      <button type="button" class="share-native-button" :disabled="!payload" @click="shareAndClose">
-        <span>
-          <Share2 :size="18" />
-        </span>
-        {{ nativeShareLabel }}
-      </button>
+      <section class="share-invitation">
+        <div class="share-invitation-heading"><strong>{{ copy.share.qrTitle }}</strong><span>{{ copy.share.faceToFace }}</span></div>
+        <div class="share-qr share-invitation-preview" :aria-busy="qrLoading">
+          <img v-if="qrImage" :src="qrImage" :alt="copy.share.imageAlt" width="720" height="1000" />
+          <div v-else-if="qrLoading" class="share-qr-status" role="status">
+            <LoaderCircle :size="22" class="life-button-spinner" aria-hidden="true" /><span>{{ copy.share.qrLoading }}</span>
+          </div>
+          <div v-else-if="qrFailed" class="share-qr-status" role="status">
+            <span>{{ copy.share.qrFailed }}</span>
+            <BaseButton size="sm" variant="ghost" :disabled="!link" @click="retry++">{{ copy.share.retry }}</BaseButton>
+          </div>
+        </div>
+        <div class="share-qr-footer">
+          <span>{{ copy.share.qrHint }}</span>
+          <a v-if="qrImage" :href="qrImage" download="playbit-invitation.png" class="share-save">
+            <Download :size="15" aria-hidden="true" />{{ copy.share.saveQr }}
+          </a>
+        </div>
+      </section>
 
       <div class="share-channel-grid">
-        <button
-          v-for="channel in channels"
-          :key="channel.key"
-          type="button"
-          class="share-channel"
-          :class="`tone-${channel.tone}`"
-          :disabled="!payload"
-          @click="copyAndClose"
-        >
-          <span>
-            <component :is="channel.icon" :size="18" />
-          </span>
-          <strong>{{ channelLabel(channel.key) }}</strong>
+        <button type="button" class="share-channel" :disabled="!inviteFile || sharing" @click="shareImage">
+          <MessageCircle :size="20" aria-hidden="true" />
+          <strong>{{ copy.share.channels.wechat }}</strong><small>{{ copy.share.wechatAction }}</small>
+        </button>
+        <button type="button" class="share-channel" :disabled="!inviteFile || sharing" @click="shareImage">
+          <MessageCircle :size="20" aria-hidden="true" />
+          <strong>{{ copy.share.channels.whatsapp }}</strong><small>{{ copy.share.whatsappAction }}</small>
+        </button>
+        <button type="button" class="share-channel" :disabled="!link || copying" @click="copyLink()">
+          <Link2 :size="20" aria-hidden="true" />
+          <strong>{{ copy.share.channels.copy }}</strong><small>{{ copy.share.copyAction }}</small>
         </button>
       </div>
-
-      <p class="share-sheet-caption">{{ copy.share.channelHint }}</p>
+      <p class="share-sheet-caption">{{ copy.share.nativeHint }}</p>
+      <div v-if="feedback" class="share-feedback" role="status">
+        <p>{{ feedback }}</p>
+        <input v-if="link" :value="link" readonly :aria-label="copy.share.linkLabel" @focus="($event.target as HTMLInputElement).select()" />
+      </div>
+      <p v-if="localPreview" class="share-sheet-caption">{{ copy.share.localPreview }}</p>
     </section>
   </van-popup>
 </template>

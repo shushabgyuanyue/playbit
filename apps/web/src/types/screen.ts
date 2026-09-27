@@ -4,6 +4,7 @@ export type Screen =
   | "create"
   | "contract"
   | "draw"
+  | "game"
   | "agreement"
   | "settlement"
   | "certificate"

@@ -2,6 +2,7 @@
 @import "./home-account.css";
 @import "./home-games.css";
 @import "./home-overview.css";
+@import "./home-hero.css";
 
 .home-page {
   background: var(--pb-canvas-product);
@@ -10,10 +11,10 @@
 .home-hero {
   position: relative;
   width: 100%;
-  height: clamp(265px, 79vw, 385px);
+  height: clamp(230px, 68vw, 345px);
   flex: 0 0 auto;
   overflow: hidden;
-  background: var(--pb-action-home-blue) url("../assets/home-hero.webp") center / cover;
+  background: var(--pb-fill-card);
 }
 .home-visually-hidden {
   position: absolute;
@@ -25,30 +26,66 @@
 }
 .home-hero-cta {
   position: absolute;
-  top: 82.5%;
+  z-index: 1;
+  bottom: 22px;
   left: 50%;
-  width: clamp(112px, 28vw, 154px);
-  height: clamp(44px, 11vw, 60px);
+  display: inline-flex;
+  width: clamp(110px, 27vw, 142px);
+  height: clamp(34px, 8vw, 42px);
+  align-items: center;
+  justify-content: center;
   transform: translateX(-50%);
-  border: 0;
+  border: 1px solid rgba(255, 255, 255, 0.68);
   border-radius: 999px;
-  background: transparent;
+  background: var(--pb-action-hero-gradient);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), inset 0 -2px 4px rgba(117, 37, 111, 0.16),
+    0 3px 7px rgba(125, 56, 143, 0.15), 0 0 0 1px rgba(157, 108, 224, 0.08);
+  color: var(--pb-text-on-color);
   padding: 0;
   cursor: pointer;
+  font: inherit;
+  font-size: var(--pb-font-md);
+  font-weight: var(--pb-weight-bold);
+  letter-spacing: 0;
+  text-shadow: 0 1px 2px rgba(120, 38, 38, 0.25);
+  transition: filter var(--pb-motion-press) ease, transform var(--pb-motion-press) ease;
 }
-.home-hero-cta:active { background: var(--pb-overlay-white-press); }
+.home-hero-cta::before {
+  position: absolute;
+  top: 2px;
+  right: 9%;
+  left: 9%;
+  height: 44%;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 22% 25%, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.3) 14%, transparent 46%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.04) 76%, transparent);
+  content: "";
+  pointer-events: none;
+}
+.home-hero-cta::after {
+  position: absolute;
+  inset: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+}
+.home-hero-cta span { position: relative; z-index: 1; }
+.home-hero-cta:hover { filter: brightness(1.04); }
+.home-hero-cta:active { transform: translate(-50%, var(--pb-press-distance)); filter: brightness(var(--pb-press-brightness)); }
 .home-hero-cta:focus-visible { outline: 3px solid var(--pb-text-on-color); outline-offset: 3px; }
 .home-product-content {
   display: block;
   flex: 1 0 auto;
   padding: 0 0 calc(26px + env(safe-area-inset-bottom));
-  background: var(--pb-canvas-product);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 42%, #fffdfb 100%);
 }
 .home-function-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 15px 10px 11px;
-  background: var(--pb-fill-card);
+  background: rgba(255, 255, 255, 0.42);
 }
 .home-function-item {
   display: flex;
@@ -62,7 +99,9 @@
   background: transparent;
   color: var(--pb-text-1);
   padding: 2px 0;
+  transition: background-color var(--pb-motion-press) ease, opacity var(--pb-motion-press) ease;
 }
+.home-function-item:hover { background: rgba(232, 242, 255, 0.46); }
 .home-function-item:active { opacity: 0.72; }
 .home-function-item strong {
   font-size: var(--pb-font-base);
@@ -71,7 +110,14 @@
   white-space: nowrap;
 }
 .home-function-icon { position: relative; display: block; width: 32px; height: 32px; }
-.home-function-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.home-function-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: none;
+  mix-blend-mode: multiply;
+}
 .home-function-badge {
   position: absolute;
   top: -12px;
@@ -98,9 +144,18 @@
   border-top: 4px solid var(--pb-badge-start);
   border-right: 4px solid transparent;
 }
+.home-function-game-badge {
+  top: -13px;
+  right: -12px;
+  min-width: 34px;
+}
 .home-overview-section,
-.home-games-section { padding: 12px var(--pb-page-x) 8px; }
-.home-overview-section { padding-top: 5px; padding-bottom: 2px; }
+.home-games-section {
+  padding: 14px var(--pb-page-x) 10px;
+}
+.home-overview-section {
+  padding: 10px var(--pb-page-x) 10px;
+}
 .home-overview-section .pb-section-heading { margin-bottom: 0; }
 .home-page button:focus-visible { outline: 2px solid var(--pb-blue); outline-offset: 3px; }
 .home-page .home-hero button:focus-visible { outline-color: var(--pb-text-on-color); }

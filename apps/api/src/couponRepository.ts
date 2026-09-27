@@ -4,7 +4,7 @@ import { getEffectiveStakeLabel } from "@playbit/game-core";
 import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { randomBytes } from "node:crypto";
-import type { AgreementRepository } from "./agreementRepository.js";
+import { agreementFromRow, agreementToRow, AgreementRevisionConflict, type AgreementRepository } from "./agreementRepository.js";
 
 type CouponRow = typeof coupons.$inferSelect;
 
@@ -86,6 +86,13 @@ class MemoryCouponRepository {
   private coupons = new Map<string, Coupon>();
 
   constructor(private readonly agreements: AgreementRepository) {}
+
+  async recordResult(agreement: Agreement, revision: number): Promise<Agreement> {
+    const coupon = couponFromRecordedAgreement(agreement);
+    const updated = await this.agreements.update(agreement, revision);
+    if (coupon) this.coupons.set(coupon.id, coupon);
+    return updated;
+  }
 
   async upsertForAgreement(agreement: Agreement): Promise<Coupon | null> {
     const coupon = couponFromRecordedAgreement(agreement);
@@ -187,6 +194,18 @@ class MemoryCouponRepository {
 
 class PostgresCouponRepository {
   constructor(private readonly db: PostgresJsDatabase) {}
+
+  async recordResult(agreement: Agreement, revision: number): Promise<Agreement> {
+    const coupon = couponFromRecordedAgreement(agreement);
+    return this.db.transaction(async tx => {
+      const [row] = await tx.update(agreements).set({
+        ...agreementToRow(agreement), revision: revision + 1, updatedAt: new Date()
+      }).where(and(eq(agreements.id, agreement.id), eq(agreements.revision, revision), eq(agreements.status, "active"))).returning();
+      if (!row) throw new AgreementRevisionConflict();
+      if (coupon) await tx.insert(coupons).values(toRow(coupon));
+      return agreementFromRow(row);
+    });
+  }
 
   async upsertForAgreement(agreement: Agreement): Promise<Coupon | null> {
     const coupon = couponFromRecordedAgreement(agreement);

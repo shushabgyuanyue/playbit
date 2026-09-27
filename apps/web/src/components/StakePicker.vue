@@ -22,12 +22,13 @@ const props = defineProps<{
   title?: string;
   compact?: boolean;
   error?: string;
+  equityOnly?: boolean;
 }>();
 
 const presets = [
   ...(copy.stakes.presets as readonly StakePreset[]).filter((preset) => preset.type === "custom"),
   ...(copy.stakes.presets as readonly StakePreset[]).filter((preset) => preset.type !== "custom")
-];
+].filter(preset => !props.equityOnly || preset.type !== "point");
 const customPreset = presets.find((preset) => preset.type === "custom") ?? presets[presets.length - 1];
 const initialPreset = props.modelValue
   ? presets.find((item) => item.label === props.modelValue?.label && item.type === props.modelValue.type)
@@ -124,8 +125,6 @@ function kindForPreset(preset: StakePreset) {
       position="bottom"
       teleport="body"
       class="life-sheet-popup stake-picker-popup"
-      :z-index="4001"
-      overlay-class="stake-picker-overlay"
     >
       <section class="stake-picker-sheet">
         <div class="stake-sheet-handle" aria-hidden="true" />

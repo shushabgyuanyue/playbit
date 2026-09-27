@@ -35,13 +35,14 @@ const autoActionTimer = ref<number | null>(null);
 function title() {
   if (props.kind === "flip") return copy.certificate.flipTitle;
   if (props.kind === "waiver") return copy.certificate.waiverTitle;
-  if (props.kind === "agreement") return copy.contract.documentTitle;
+  if (props.kind === "agreement") return props.agreement?.source === "card" ? copy.game.gameCertificate : copy.contract.documentTitle;
   if (props.kind === "fulfillment") return copy.certificate.fulfillmentTitle;
   return copy.certificate.resultTitle;
 }
 
 type CertificatePalette = {
   blue: string;
+  gold: string;
   ink: string;
   muted: string;
   line: string;
@@ -248,6 +249,159 @@ async function renderAgreementDocument(
   ctx.fillText(getAgreementStatusLabel(agreement.status), 104, 1608);
 }
 
+function drawAwardFrame(ctx: CanvasRenderingContext2D, palette: CertificatePalette) {
+  const gradient = ctx.createLinearGradient(0, 0, 1080, 1440);
+  gradient.addColorStop(0, "#fffefa");
+  gradient.addColorStop(0.58, "#fffdf7");
+  gradient.addColorStop(1, "#fbf7eb");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 1080, 1440);
+
+  ctx.strokeStyle = palette.gold;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(36, 36, 1008, 1368);
+  ctx.strokeStyle = palette.frame;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(52, 52, 976, 1336);
+
+  ctx.strokeStyle = palette.gold;
+  ctx.lineWidth = 2;
+  const corners = [
+    [78, 78, 1, 1],
+    [1002, 78, -1, 1],
+    [78, 1362, 1, -1],
+    [1002, 1362, -1, -1]
+  ];
+  for (const [x, y, dx, dy] of corners) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + dy * 56);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + dx * 56, y);
+    ctx.moveTo(x + dx * 10, y + dy * 30);
+    ctx.lineTo(x + dx * 10, y + dy * 10);
+    ctx.lineTo(x + dx * 30, y + dy * 10);
+    ctx.stroke();
+  }
+}
+
+function drawAwardRule(ctx: CanvasRenderingContext2D, y: number, palette: CertificatePalette) {
+  ctx.strokeStyle = palette.gold;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(150, y);
+  ctx.lineTo(930, y);
+  ctx.stroke();
+  ctx.fillStyle = palette.gold;
+  ctx.save();
+  ctx.translate(540, y);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillRect(-5, -5, 10, 10);
+  ctx.restore();
+}
+
+function drawAwardCertificate(
+  ctx: CanvasRenderingContext2D,
+  agreement: Agreement,
+  palette: CertificatePalette
+) {
+  drawAwardFrame(ctx, palette);
+  const center = 540;
+  const certificateId = agreement.shareCode.toUpperCase();
+  const winner = agreement.winnerId ? getWinnerName(agreement) : copy.common.unavailable;
+  const provider = agreement.loserId ? getLoserName(agreement) : copy.common.unavailable;
+  const statusText = props.kind === "fulfillment"
+    ? copy.certificate.fulfilledStatus
+    : props.kind === "waiver"
+      ? copy.vouchers.waiverRecorded
+      : copy.certificate.waitingFulfillment;
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = palette.blue;
+  ctx.font = "700 28px system-ui, sans-serif";
+  ctx.fillText(copy.app.name, center, 132);
+  ctx.fillStyle = palette.muted;
+  ctx.font = "20px system-ui, sans-serif";
+  ctx.fillText(copy.certificate.eyebrow, center, 166);
+
+  ctx.fillStyle = palette.ink;
+  ctx.font = "700 62px 'Noto Serif SC', 'Songti SC', serif";
+  const titleHeight = drawText(ctx, title(), center, 286, 900, 78);
+  const ruleY = 286 + titleHeight + 30;
+  drawAwardRule(ctx, ruleY, palette);
+
+  const introY = ruleY + 68;
+  ctx.fillStyle = palette.muted;
+  ctx.font = "24px system-ui, sans-serif";
+  ctx.fillText(copy.certificate.awardIntro, center, introY);
+  ctx.fillStyle = palette.gold;
+  ctx.font = "600 22px system-ui, sans-serif";
+  ctx.fillText(copy.certificate.awardRecipient, center, introY + 55);
+
+  ctx.fillStyle = palette.blue;
+  ctx.font = "700 58px 'Noto Serif SC', 'Songti SC', serif";
+  const winnerHeight = drawText(ctx, winner, center, introY + 132, 860, 74);
+
+  ctx.fillStyle = palette.ink;
+  ctx.font = "500 28px system-ui, sans-serif";
+  const citationHeight = drawText(
+    ctx,
+    copy.certificate.awardCitation(agreement.title),
+    center,
+    introY + 132 + winnerHeight + 24,
+    850,
+    44
+  );
+
+  const detailStart = introY + 132 + winnerHeight + 24 + citationHeight + 70;
+  drawAwardRule(ctx, detailStart - 28, palette);
+
+  const rows: Array<[string, string]> = [
+    [copy.certificate.equity, getEffectiveStakeLabel(agreement)],
+    [copy.certificate.provider, provider],
+    [copy.certificate.status, statusText]
+  ];
+  let rowY = detailStart;
+  for (const [label, value] of rows) {
+    ctx.textAlign = "left";
+    ctx.fillStyle = palette.muted;
+    ctx.font = "22px system-ui, sans-serif";
+    ctx.fillText(label, 122, rowY + 25);
+    ctx.fillStyle = palette.ink;
+    ctx.font = "600 26px system-ui, sans-serif";
+    const valueHeight = drawText(ctx, value, 350, rowY + 24, 590, 38);
+    const rowHeight = Math.max(78, valueHeight + 24);
+    ctx.strokeStyle = palette.frame;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(122, rowY + rowHeight);
+    ctx.lineTo(958, rowY + rowHeight);
+    ctx.stroke();
+    rowY += rowHeight;
+  }
+
+  const sealY = Math.max(rowY + 88, 1160);
+  ctx.strokeStyle = palette.seal;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(840, sealY, 62, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(840, sealY, 53, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.textAlign = "center";
+  ctx.fillStyle = palette.seal;
+  ctx.font = "700 22px 'Noto Serif SC', 'Songti SC', serif";
+  drawText(ctx, copy.certificate.awardSeal, 840, sealY - 4, 92, 26);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = palette.muted;
+  ctx.font = "20px system-ui, sans-serif";
+  drawText(ctx, copy.certificate.disclaimer, center, 1320, 820, 30);
+  ctx.fillStyle = palette.muted;
+  ctx.font = "18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+  ctx.fillText(`${copy.certificate.signedAt}  ${certificateId}`, center, 1370);
+}
+
 async function renderCertificate() {
   const target = canvas.value;
   const ctx = target?.getContext("2d");
@@ -258,6 +412,7 @@ async function renderCertificate() {
   const styles = getComputedStyle(document.documentElement);
   const palette = {
     blue: styles.getPropertyValue("--pb-ink-blue").trim() || "#2565ae",
+    gold: styles.getPropertyValue("--pb-ink-gold").trim() || "#90601c",
     ink: styles.getPropertyValue("--pb-text-1").trim() || "#172b4d",
     muted: styles.getPropertyValue("--pb-text-3").trim() || "#8491a3",
     line: styles.getPropertyValue("--pb-line").trim() || "#e2e7ee",
@@ -268,8 +423,14 @@ async function renderCertificate() {
 
   target.width = 1080;
   target.height = 1440;
-  if (props.kind === "agreement") {
+  if (props.kind === "agreement" && agreement.source !== "card") {
     await renderAgreementDocument(target, ctx, agreement, palette);
+    return;
+  }
+
+  const gameConfirmation = props.kind === "agreement" && agreement.source === "card";
+  if (props.kind !== "flip" && !gameConfirmation) {
+    drawAwardCertificate(ctx, agreement, palette);
     return;
   }
 
@@ -308,14 +469,16 @@ async function renderCertificate() {
     ? agreement.participants.find((participant) => participant.userId === flip.winnerUserId)?.nickname ?? copy.common.unavailable
     : agreement.winnerId ? getWinnerName(agreement) : copy.common.unavailable;
   const provider = agreement.loserId ? getLoserName(agreement) : copy.common.unavailable;
-  const statusText = props.kind === "fulfillment"
-    ? copy.certificate.fulfilledStatus
-    : props.kind === "waiver"
-      ? copy.vouchers.waiverRecorded
-      : props.kind === "flip"
-        ? flip?.outcome === "applicant_won" ? copy.certificate.flipWonStatus : copy.certificate.flipLostStatus
-        : copy.certificate.waitingFulfillment;
-  const rows = props.kind === "flip" && flip
+  const statusText = gameConfirmation ? copy.game.joined : flip?.outcome === "applicant_won"
+    ? copy.certificate.flipWonStatus
+    : copy.certificate.flipLostStatus;
+  const rows = gameConfirmation ? [
+      [copy.game.title, agreement.title],
+      [copy.game.participant, agreement.participants.map(person => person.nickname).join(' · ')],
+      [copy.game.stakeTitle, getEffectiveStakeLabel(agreement)],
+      [copy.game.createdAt, agreementDate(agreement)],
+      [copy.certificate.status, getAgreementStatusLabel(agreement.status)]
+    ] : flip
     ? [
         [copy.certificate.agreement, agreement.title],
         [copy.certificate.challenge, flip.card.name],
@@ -328,7 +491,6 @@ async function renderCertificate() {
         [copy.certificate.winner, winner],
         [copy.certificate.provider, provider],
         [copy.certificate.equity, getEffectiveStakeLabel(agreement)],
-        ...(props.kind === "waiver" ? [[copy.certificate.effect, copy.vouchers.waived]] : []),
         [copy.certificate.status, statusText]
       ];
 
@@ -350,19 +512,6 @@ async function renderCertificate() {
     y += Math.max(104, usedHeight + 46);
   }
 
-  if (props.kind !== "flip") {
-    ctx.textAlign = "left";
-    ctx.fillStyle = palette.muted;
-    ctx.font = "22px system-ui, sans-serif";
-    ctx.fillText(copy.certificate.recordedBy, 104, y);
-    ctx.fillStyle = palette.ink;
-    ctx.font = "500 27px system-ui, sans-serif";
-    const recorder = agreement.participants.find(
-      (participant) => participant.userId === agreement.resultRecorderUserId
-    )?.nickname ?? copy.common.unavailable;
-    ctx.fillText(recorder, 104, y + 48);
-  }
-
   ctx.strokeStyle = palette.seal;
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -371,7 +520,7 @@ async function renderCertificate() {
   ctx.textAlign = "center";
   ctx.fillStyle = palette.seal;
   ctx.font = "600 24px system-ui, sans-serif";
-  ctx.fillText(copy.certificate.resultStatus, 864, 1188);
+  ctx.fillText(gameConfirmation ? copy.game.joined : copy.certificate.awardSeal, 864, 1188);
 
   ctx.textAlign = "center";
   ctx.fillStyle = palette.muted;
@@ -482,7 +631,7 @@ defineExpose({
     <LifeServiceHero
       v-if="!props.embedded"
       class="service-flow-hero"
-      :title="props.kind === 'agreement' ? copy.contract.documentTitle : copy.certificate.navTitle"
+      :title="props.kind === 'agreement' ? title() : copy.certificate.navTitle"
       :show-back="true"
       :show-home="true"
       :back-label="copy.common.back"
@@ -499,7 +648,7 @@ defineExpose({
     <LifeActionBar v-if="!props.autoAction && !props.embedded">
       <BaseButton variant="outline" size="lg" :loading="busy" @click="saveCertificate">
         <Download :size="18" />
-        {{ props.kind === "agreement" ? copy.contract.documentSave : copy.certificate.save }}
+        {{ props.kind === "agreement" && props.agreement?.source !== 'card' ? copy.contract.documentSave : copy.certificate.save }}
       </BaseButton>
       <BaseButton size="lg" :loading="busy" @click="shareCertificate">
         <Share2 :size="18" />
@@ -537,7 +686,8 @@ defineExpose({
 
 .certificate-preview-wrap.is-embedded .certificate-preview {
   width: min(100%, 420px);
-  box-shadow: var(--pb-shadow-certificate);
+  border-color: rgba(144, 96, 28, 0.28);
+  box-shadow: 0 8px 24px rgba(23, 43, 77, 0.12), 0 2px 0 rgba(144, 96, 28, 0.08);
 }
 
 .certificate-preview {

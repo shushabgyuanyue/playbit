@@ -5,7 +5,7 @@ import { AlertCircle, Check, Eye, EyeOff, LockKeyhole, RefreshCw, X } from "luci
 import { computed, reactive, ref, watch } from "vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseField from "./ui/BaseField.vue";
-import BrandMascot from "./ui/BrandMascot.vue";
+import UserAvatar from "./ui/UserAvatar.vue";
 
 const props = defineProps<{
   show: boolean;
@@ -124,7 +124,7 @@ function submit() {
 
       <div class="auth-sheet-brand">
         <span class="auth-sheet-brand-avatar">
-          <BrandMascot variant="panda-logo" width="42" height="42" />
+          <UserAvatar guest />
         </span>
         <span>
           <strong>{{ copy.app.name }}</strong>

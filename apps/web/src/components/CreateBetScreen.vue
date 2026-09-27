@@ -122,7 +122,7 @@ function finishSignature() {
   submit();
 }
 
-onMounted(focusTitle);
+onMounted(() => { void focusTitle(); });
 </script>
 
 <template>
@@ -208,7 +208,6 @@ onMounted(focusTitle);
       position="bottom"
       teleport="body"
       class="life-sheet-popup create-signature-popup"
-      :z-index="2001"
       @opened="refreshSignaturePad"
       @closed="finishSignature"
     >

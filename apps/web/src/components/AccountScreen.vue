@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { copy } from "@playbit/content";
-import type { Agreement, User } from "@playbit/shared";
+import type { Agreement, UpdateProfileInput, User } from "@playbit/shared";
 import { Check, LogOut, Pencil, ShieldCheck, X } from "lucide-vue-next";
 import BaseBadge from "./ui/BaseBadge.vue";
 import BaseButton from "./ui/BaseButton.vue";
 import BaseField from "./ui/BaseField.vue";
 import BrandSeal from "./ui/BrandSeal.vue";
-import BrandMascot from "./ui/BrandMascot.vue";
+import UserAvatar from "./ui/UserAvatar.vue";
+import { isAvatarFile, prepareAvatar } from "../services/avatar";
 import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 
@@ -22,15 +23,20 @@ const props = defineProps<{
 const emit = defineEmits<{
   back: [];
   logout: [];
-  "update-profile": [nickname: string];
+  "update-profile": [payload: UpdateProfileInput];
 }>();
 
 const editOpen = ref(false);
 const editNickname = ref(props.user.nickname);
 const editError = ref("");
+const editAvatar = ref<string | null>(null);
+const avatarInput = ref<HTMLInputElement | null>(null);
+const avatarBusy = ref(false);
+const avatarError = ref("");
+const editorBusy = computed(() => props.profileLoading || avatarBusy.value);
 
 const pendingCount = computed(() => props.agreements.filter((agreement) =>
-  ["pending_signature", "active", "result_recorded"].includes(agreement.status)
+  ["pending_signature", "pending_confirmation", "active", "result_recorded"].includes(agreement.status)
 ).length);
 
 const medals = computed(() => [
@@ -39,7 +45,7 @@ const medals = computed(() => [
     mark: "01",
     title: copy.auth.medals.firstAgreement,
     hint: copy.auth.medals.firstAgreementHint,
-    earned: props.agreements.length > 0
+    earned: props.agreements.some(agreement => agreement.source === 'custom')
   },
   {
     key: "keeper",
@@ -76,25 +82,57 @@ watch(
 );
 
 function openEditor() {
+  editAvatar.value = props.user.avatarDataUrl ?? null;
+  avatarError.value = "";
   editNickname.value = props.user.nickname;
   editError.value = "";
   editOpen.value = true;
 }
 
 function closeEditor() {
-  if (!props.profileLoading) {
+  if (!editorBusy.value) {
     editOpen.value = false;
   }
 }
 
 function saveProfile() {
+  if (editorBusy.value || avatarError.value) return;
   const nickname = editNickname.value.trim();
   if (!nickname) {
     editError.value = copy.auth.profileNicknameRequired;
     return;
   }
+  if (nickname.length > 24) {
+    editError.value = copy.auth.profileNicknameTooLong;
+    return;
+  }
   editError.value = "";
-  emit("update-profile", nickname);
+  emit("update-profile", { nickname, avatarDataUrl: editAvatar.value });
+}
+
+async function selectAvatar(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file || editorBusy.value) return;
+  avatarError.value = "";
+  if (!isAvatarFile(file)) {
+    avatarError.value = copy.auth.avatarInvalid;
+    return;
+  }
+  avatarBusy.value = true;
+  try {
+    editAvatar.value = await prepareAvatar(file);
+  } catch {
+    avatarError.value = copy.auth.avatarFailed;
+  } finally {
+    avatarBusy.value = false;
+  }
+}
+
+function resetAvatar() {
+  editAvatar.value = null;
+  avatarError.value = "";
 }
 </script>
 
@@ -116,10 +154,10 @@ function saveProfile() {
         <span class="account-profile-inner-rule" aria-hidden="true" />
         <BrandSeal class="account-profile-watermark" />
         <div class="account-profile-avatar-pane">
-          <span class="account-avatar-medallion">
-            <BrandMascot variant="panda-logo" width="54" height="54" />
+          <button type="button" class="account-avatar-medallion" :aria-label="copy.auth.changeAvatar" @click="openEditor">
+            <UserAvatar class="account-profile-avatar" :src="user.avatarDataUrl" />
             <small>PB</small>
-          </span>
+          </button>
           <span class="account-avatar-caption">{{ copy.auth.recordLabel }}</span>
         </div>
 
@@ -198,7 +236,7 @@ function saveProfile() {
       position="bottom"
       teleport="body"
       class="life-sheet-popup account-edit-popup"
-      :close-on-click-overlay="!props.profileLoading"
+      :close-on-click-overlay="!editorBusy"
     >
       <section class="account-edit-sheet">
         <div class="account-edit-handle" aria-hidden="true" />
@@ -207,20 +245,33 @@ function saveProfile() {
             <span>{{ copy.auth.account }}</span>
             <h2>{{ copy.auth.editProfile }}</h2>
           </div>
-          <button type="button" class="account-edit-close" :aria-label="copy.auth.close" @click="closeEditor">
+          <button type="button" class="account-edit-close" :aria-label="copy.auth.close" :disabled="editorBusy" @click="closeEditor">
             <X :size="18" aria-hidden="true" />
           </button>
         </header>
+        <div class="account-avatar-editor" :aria-busy="avatarBusy">
+          <button type="button" class="account-avatar-preview" :aria-label="copy.auth.changeAvatar" :disabled="editorBusy" @click="avatarInput?.click()">
+            <UserAvatar :src="editAvatar" />
+          </button>
+          <div class="account-avatar-controls">
+            <button type="button" :disabled="editorBusy" @click="avatarInput?.click()">{{ copy.auth.changeAvatar }}</button>
+            <button v-if="editAvatar || avatarError" type="button" :disabled="editorBusy" @click="resetAvatar">{{ copy.auth.resetAvatar }}</button>
+            <p role="status">{{ avatarBusy ? copy.auth.avatarProcessing : copy.auth.avatarHint }}</p>
+          </div>
+          <input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/webp" hidden :disabled="editorBusy" @change="selectAvatar" />
+        </div>
+        <p v-if="avatarError" class="account-avatar-error" role="alert">{{ avatarError }}</p>
         <BaseField
           v-model="editNickname"
           :label="copy.auth.nickname"
           :placeholder="copy.auth.nicknamePlaceholder"
           name="nickname"
           autocomplete="nickname"
+          :disabled="editorBusy"
           :error="editError || props.profileError || ''"
         />
         <p class="account-edit-hint">{{ copy.auth.profileHint }}</p>
-        <BaseButton size="lg" :loading="props.profileLoading" @click="saveProfile">
+        <BaseButton size="lg" :loading="props.profileLoading" :disabled="editorBusy || Boolean(avatarError)" @click="saveProfile">
           <Check :size="18" />
           {{ copy.auth.saveProfile }}
         </BaseButton>

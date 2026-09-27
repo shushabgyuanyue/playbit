@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Agreement, Coupon, Stake } from "@playbit/shared";
-import { BadgePlus, Check, CheckCircle2, ChevronDown, ChevronUp, Clock3 } from "lucide-vue-next";
+import { BadgePlus, CheckCircle2, ChevronDown, ChevronUp } from "lucide-vue-next";
 import { computed, nextTick, ref, watch } from "vue";
-import pandaPkBackground from "../assets/pk-panda.png";
-import rabbitPkBackground from "../assets/pk-rabbit.png";
+import ResultPicker from "./game/ResultPicker.vue";
 import { buildVoucherItems } from "../composables/useVoucherAssets";
-import { getEffectiveStakeLabel } from "../utils/sessionDisplay";
-import { formatVoucherBenefit, inferVoucherKind } from "../utils/voucherDisplay";
 import AgreementProgress from "./AgreementProgress.vue";
 import BaseBadge from "./ui/BaseBadge.vue";
 import BaseButton from "./ui/BaseButton.vue";
@@ -16,11 +13,13 @@ import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import StakePicker from "./StakePicker.vue";
 import VoucherTicket from "./ui/VoucherTicket.vue";
+import MiniEquityTicket from "./ui/MiniEquityTicket.vue";
 
 const props = defineProps<{
   agreement: Agreement;
   coupons: Coupon[];
   currentUserId: string | null;
+  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -41,15 +40,16 @@ const boostStake = ref<Stake>({
   fulfilled: false,
   additions: []
 });
-const selectedWinnerId = ref<string | null>(null);
 const customStakeLabel = copy.stakes.presets.find((preset) => preset.type === "custom")?.label ?? copy.stakes.custom;
 const currentParticipantId = computed(
   () => props.agreement.participants.find((participant) => participant.userId === props.currentUserId)?.id ?? null
 );
 const canAddBoost = computed(() => props.agreement.boosts.length < 3);
-const effectiveStake = computed(() => getEffectiveStakeLabel(props.agreement));
-const currentStakeBenefit = computed(() => formatVoucherBenefit(effectiveStake.value));
-const currentStakeKind = computed(() => inferVoucherKind(effectiveStake.value));
+const currentEquities = computed(() => [
+  { id: "base", label: props.agreement.stake.label, custom: props.agreement.stake.type === "custom" },
+  ...props.agreement.boosts.filter(isBoostConfirmed).map(boost => ({ id: boost.id, label: boost.label, custom: false }))
+]);
+const pendingBoosts = computed(() => props.agreement.boosts.filter(boost => !isBoostConfirmed(boost)));
 const agreementVouchers = computed(() => buildVoucherItems(
   [props.agreement],
   props.coupons.filter((coupon) => coupon.agreementId === props.agreement.id && Boolean(coupon.sourceFlipId)),
@@ -78,12 +78,6 @@ function canConfirmBoost(boost: Agreement["boosts"][number]) {
       !boost.confirmedBy.includes(currentParticipantId.value) &&
       boost.confirmedBy.length < props.agreement.participants.length
   );
-}
-
-function submitResult() {
-  if (selectedWinnerId.value) {
-    emit("settle", selectedWinnerId.value);
-  }
 }
 
 async function openBoostPicker() {
@@ -116,7 +110,6 @@ function formatDateTime(value: string) {
 watch(
   () => props.agreement.id,
   () => {
-    selectedWinnerId.value = null;
     boostOpen.value = false;
     resultOpen.value = false;
     vouchersOpen.value = false;
@@ -163,23 +156,13 @@ watch(
         <div class="session-brief-stake">
           <div class="session-brief-stake-heading">
             <span>{{ copy.session.currentStake }}</span>
-            <strong>{{ effectiveStake }}</strong>
           </div>
-          <VoucherTicket
-            class="session-current-ticket"
-            :kind="currentStakeKind"
-            status="pending"
-            size="mini"
-            watermark="panda"
-          >
-            <template #value>
-              <strong>{{ currentStakeBenefit.title }}</strong>
-              <span>{{ currentStakeBenefit.subtitle }}</span>
-            </template>
-            <div class="session-current-ticket-copy">
-              <strong>{{ effectiveStake }}</strong>
-            </div>
-          </VoucherTicket>
+          <div class="session-equity-grid">
+            <MiniEquityTicket v-for="equity in currentEquities" :key="equity.id" :label="equity.label" :custom="equity.custom" />
+          </div>
+          <details v-for="equity in currentEquities.filter(item => item.label.length > 14)" :key="equity.id" class="session-equity-detail">
+            <summary>{{ copy.session.equityDetails }} · {{ equity.label.slice(0, 12) }}…</summary><p>{{ equity.label }}</p>
+          </details>
         </div>
 
         <section v-if="agreementVouchers.length" class="session-linked-vouchers" aria-labelledby="linked-vouchers-title">
@@ -235,23 +218,13 @@ watch(
             </button>
           </header>
 
-          <div v-if="props.agreement.boosts.length" class="session-boost-list">
-            <VoucherTicket
-              v-for="boost in props.agreement.boosts"
-              :key="boost.id"
-              :kind="inferVoucherKind(boost.label)"
-              :status="isBoostConfirmed(boost) ? 'available' : 'pending'"
-              size="mini"
-              watermark="panda"
-            >
-              <template #value>
-                <strong>{{ formatVoucherBenefit(boost.label).title }}</strong>
-                <span>{{ formatVoucherBenefit(boost.label).subtitle }}</span>
-              </template>
-              <div class="session-boost-ticket-copy">
-                <strong>{{ boost.label }}</strong>
-                <small>{{ boostStatusLabel(boost) }}</small>
-              </div>
+          <div v-if="pendingBoosts.length" class="session-boost-list">
+            <div v-for="boost in pendingBoosts" :key="boost.id" class="session-equity-item">
+              <MiniEquityTicket :label="boost.label" />
+              <small class="session-panel-meta">{{ boostStatusLabel(boost) }}</small>
+              <details v-if="boost.label.length > 14" class="session-equity-detail">
+                <summary>{{ copy.session.equityDetails }}</summary><p>{{ boost.label }}</p>
+              </details>
               <BaseButton
                 v-if="canConfirmBoost(boost)"
                 size="sm"
@@ -260,17 +233,11 @@ watch(
               >
                 {{ copy.session.boostConfirm }}
               </BaseButton>
-              <span v-else-if="isBoostConfirmed(boost)" class="session-boost-ticket-status" aria-hidden="true">
-                <Check :size="14" />
-              </span>
-              <span v-else class="session-boost-ticket-status is-pending" aria-hidden="true">
-                <Clock3 :size="14" />
-              </span>
-            </VoucherTicket>
+            </div>
           </div>
 
           <div v-if="boostOpen" class="session-boost-editor">
-            <StakePicker ref="boostPicker" :title="copy.session.boost" compact @change="boostStake = $event" />
+            <StakePicker ref="boostPicker" :model-value="boostStake" :title="copy.session.boost" compact equity-only @change="boostStake = $event" />
             <BaseButton
               class="session-boost-submit"
               size="sm"
@@ -285,49 +252,14 @@ watch(
         </section>
       </section>
 
-      <section v-if="resultOpen" class="life-panel session-result-panel">
-        <header class="session-panel-header">
-          <div>
-            <h2 class="life-section-title">{{ copy.session.resultTitle }}</h2>
-          </div>
-        </header>
-        <div class="session-result-options" role="radiogroup" :aria-label="copy.session.resultTitle">
-          <button
-            v-for="participant in props.agreement.participants"
-            :key="participant.id"
-            type="button"
-            class="session-result-option"
-            :class="{ selected: selectedWinnerId === participant.id }"
-            :data-party="participant.role"
-            :style="{ '--session-result-art': `url(${participant.role === 'initiator' ? pandaPkBackground : rabbitPkBackground})` }"
-            role="radio"
-            :aria-checked="selectedWinnerId === participant.id"
-            @click="selectedWinnerId = participant.id"
-          >
-            <span class="session-result-radio" aria-hidden="true">
-              <Check v-if="selectedWinnerId === participant.id" :size="13" :stroke-width="3" />
-            </span>
-            <span class="session-result-person">
-              <small>{{ participant.role === "initiator" ? copy.contract.partyA : copy.contract.partyB }}</small>
-              <strong>{{ participant.nickname }}</strong>
-            </span>
-            <span class="session-result-label">{{ copy.session.winnerChoice }}</span>
-          </button>
-          <span v-if="props.agreement.participants.length > 1" class="session-result-vs" aria-hidden="true">VS</span>
-        </div>
-        <p class="session-result-disclaimer">{{ copy.session.resultDisclaimer }}</p>
-      </section>
     </div>
 
     <LifeActionBar>
-      <BaseButton v-if="!resultOpen" size="lg" @click="resultOpen = true">
-        <CheckCircle2 :size="18" />
-        {{ copy.session.settle }}
-      </BaseButton>
-      <BaseButton v-else size="lg" :disabled="!selectedWinnerId" @click="submitResult">
+      <BaseButton size="lg" :loading="props.loading" @click="resultOpen = true">
         <CheckCircle2 :size="18" />
         {{ copy.session.settle }}
       </BaseButton>
     </LifeActionBar>
+    <ResultPicker v-model:show="resultOpen" :participants="agreement.participants" :loading="props.loading" @submit="emit('settle', $event)" />
   </section>
 </template>
