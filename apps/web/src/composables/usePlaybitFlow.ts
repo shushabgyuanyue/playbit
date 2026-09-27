@@ -863,12 +863,24 @@ export function usePlaybitFlow() {
   let agreementSyncInFlight = false;
 
   function shouldUseSessionRealtime() {
+    const agreement = activeAgreement.value;
     return Boolean(
       currentUser.value &&
         document.visibilityState === "visible" &&
-        activeAgreement.value &&
-        ["contract", "agreement", "settlement", "game"].includes(screen.value) &&
-        activeAgreement.value.participants.some(person => person.userId === currentUser.value?.id)
+        agreement &&
+        !agreement.winnerId &&
+        ["pending_signature", "pending_confirmation", "active"].includes(agreement.status) &&
+        ["contract", "agreement", "game"].includes(screen.value) &&
+        agreement.participants.some(person => person.userId === currentUser.value?.id)
+    );
+  }
+
+  function shouldPollSessionFallback() {
+    const agreement = activeAgreement.value;
+    return Boolean(
+      agreement &&
+        !agreement.winnerId &&
+        ["pending_signature", "pending_confirmation", "active"].includes(agreement.status)
     );
   }
 
@@ -911,12 +923,17 @@ export function usePlaybitFlow() {
     const agreementId = activeAgreement.value.id;
     let realtimeConnected = false;
     const startFallbackPolling = () => {
-      if (realtimeConnected || syncTimer) {
+      if (realtimeConnected || syncTimer || !shouldPollSessionFallback()) {
         return;
       }
       void refreshActiveAgreement(true);
       const syncInterval = activeAgreement.value?.status === "pending_signature" ? 5_000 : 10_000;
       syncTimer = window.setInterval(() => {
+        if (!shouldPollSessionFallback()) {
+          window.clearInterval(syncTimer);
+          syncTimer = undefined;
+          return;
+        }
         void refreshActiveAgreement(true);
       }, syncInterval);
     };
@@ -941,11 +958,13 @@ export function usePlaybitFlow() {
       }
     );
     void refreshActiveAgreement(true);
-    realtimeFallbackTimer = window.setTimeout(() => {
-      if (!realtimeConnected) {
-        startFallbackPolling();
-      }
-    }, 8_000);
+    if (shouldPollSessionFallback()) {
+      realtimeFallbackTimer = window.setTimeout(() => {
+        if (!realtimeConnected) {
+          startFallbackPolling();
+        }
+      }, 8_000);
+    }
   }
 
   function refreshWhenVisible() {

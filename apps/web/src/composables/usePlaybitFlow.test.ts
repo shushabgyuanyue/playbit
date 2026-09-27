@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, nextTick, type App } from "vue";
-import { createAgreement, signCounterparty } from "@playbit/game-core";
+import { createAgreement, recordAgreementResult as settleAgreement, signCounterparty } from "@playbit/game-core";
 import type { Agreement, CreateAgreementInput, User } from "@playbit/shared";
 import { copy } from "@playbit/content";
 import { api, ApiRequestError } from "../services/api";
@@ -191,5 +191,31 @@ describe("contract flow recovery", () => {
       loserId: active.participants[1].id, revision: 2, resultRecorderUserId: user.id } });
     await flow.recordAgreementResult(winnerId);
     expect(flow.screen.value).toBe("settlement"); expect(api.recordAgreementResult).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not subscribe or sync a settled agreement", async () => {
+    await mount();
+    vi.useFakeTimers();
+    flow.currentUser.value = user;
+    const signed = signCounterparty(draft(), friend.nickname, friend.id, "signature");
+    const winnerId = signed.participants[0].id;
+    const settled = settleAgreement(signed, winnerId, user.id);
+    vi.mocked(api.subscribeAgreementEvents).mockImplementation((_id, _onEvent, onError) => {
+      onError?.();
+      return () => undefined;
+    });
+    vi.mocked(api.syncAgreement).mockRejectedValue(new Error("offline"));
+
+    flow.agreements.value = [settled];
+    flow.openAgreement(settled);
+    await flush();
+    expect(api.subscribeAgreementEvents).not.toHaveBeenCalled();
+    expect(api.syncAgreement).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    await flush();
+    expect(api.subscribeAgreementEvents).not.toHaveBeenCalled();
+    expect(api.syncAgreement).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
