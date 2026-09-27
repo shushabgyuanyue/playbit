@@ -160,38 +160,25 @@ async function drawResultCertificate(
   drawFittedCentered(ctx, recipientName, 561, 593, 540, 88, 42, serif, ink, 60, 1);
   drawFittedCentered(ctx, title, 561, 684, 520, 44, 22, serif, ink, 36, 2);
 
-  const values = [
-    challenger ? "未胜出" : "胜出",
-    peerName,
-    equity,
-  ];
-  const rowBaselines = [946, 1001, 1054];
+  const values = [peerName, equity];
+  const rowBaselines = [1001, 1054];
   values.forEach((value, index) => {
     drawFittedLeft(ctx, value, 423, rowBaselines[index], 480, index === 0 ? 29 : 28, 20, serif, ink, index === 0 ? "700" : "600");
   });
 
-  const signatureY = 1080;
+  const recorderBaseline = 1110;
   if (recorder?.signatureDataUrl) {
     try {
       const signature = await loadImage(recorder.signatureDataUrl);
-      drawImageContain(ctx, signature, 423, signatureY - 34, 210, 52);
+      drawImageContain(ctx, signature, 423, recorderBaseline - 24, 300, 48);
     } catch {
-      ctx.textAlign = "left";
-      ctx.fillStyle = ink;
-      ctx.font = `600 28px ${serif}`;
-      ctx.fillText(recorderName, 423, signatureY);
+      drawFittedLeft(ctx, recorderName, 423, recorderBaseline, 390, 28, 18, serif, ink);
     }
   } else {
-    ctx.textAlign = "left";
-    ctx.fillStyle = ink;
-    ctx.font = `600 28px ${serif}`;
-    ctx.fillText(recorderName, 423, signatureY);
+    drawFittedLeft(ctx, recorderName, 423, recorderBaseline, 390, 28, 18, serif, ink);
   }
 
-  ctx.textAlign = "left";
-  ctx.fillStyle = ink;
-  ctx.font = `500 30px ${hand}`;
-  ctx.fillText(dateLabel, 423, 1159);
+  drawFittedLeft(ctx, dateLabel, 423, 1165, 390, 30, 20, hand, ink, "500");
 }
 
 function drawLegacyAwardCertificate(canvas: HTMLCanvasElement, agreement: Agreement, kind: Exclude<AwardKind, "result">, userId?: string | null) {
