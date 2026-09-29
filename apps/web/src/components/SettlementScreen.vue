@@ -94,8 +94,7 @@ const certificateBusy = computed(() => certificateRef.value?.busy ?? false);
 async function saveAndShare() {
   const certificate = certificateRef.value;
   if (!certificate) return;
-  const saved = await certificate.saveCertificate();
-  if (saved) await certificate.shareCertificate();
+  await certificate.shareCertificate();
 }
 </script>
 

@@ -41,8 +41,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ back: []; home: []; "toggle-favorite": [] }>();
-const isVersus = computed(() => props.card?.mode === "versus");
 const isRanking = computed(() => Boolean(props.card && props.card.participantMax > 2));
+const isVersus = computed(() => props.card?.mode === "versus" && !isRanking.value);
 const resultWinner = computed(() => props.result?.kind === "winner" ? props.result.winnerLabel : null);
 const ranking = computed(() => props.result?.kind === "ranking" ? props.result.ranking : []);
 const resultChooserOpen = ref(false);

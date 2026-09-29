@@ -255,9 +255,10 @@ async function saveCertificate(): Promise<boolean> {
 async function shareCertificate(): Promise<boolean> {
   if (busy.value) return false;
   busy.value = true;
+  let file: File | null = null;
   try {
     await renderCertificate();
-    const file = await imageFile();
+    file = await imageFile();
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       await navigator.share({ title: title(), files: [file] });
     } else {
@@ -267,7 +268,13 @@ async function shareCertificate(): Promise<boolean> {
     return true;
   } catch (error) {
     if (!(error instanceof Error && error.name === "AbortError")) {
-      showToast(copy.certificate.failed);
+      if (file) {
+        save(file);
+        showToast(copy.certificate.shareUnavailable);
+        return true;
+      } else {
+        showToast(copy.certificate.failed);
+      }
     }
     return false;
   } finally {
