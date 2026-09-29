@@ -112,6 +112,7 @@ export const contentMetricSchema = z.object({
 
 export const contentOverviewSchema = z.object({
   generatedAt: z.string(),
+  l0s: z.array(l0MechanismSchema),
   counts: z.object({
     l0: z.number().int().nonnegative(),
     l1: z.number().int().nonnegative(),

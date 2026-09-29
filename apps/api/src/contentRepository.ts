@@ -18,6 +18,7 @@ import type {
   ContentLifecycle
 } from "@playbit/shared";
 import { contentReviewDecisionSchema, l2ReusePolicySchema } from "@playbit/shared";
+import { curatedDraftSeeds } from "./contentSeeds.js";
 
 type ContentRecord = { l1: L1Game; version: L1GameVersion; l2: L2Content; card: Card };
 type ExposureState = {
@@ -118,9 +119,13 @@ export interface ContentRepository {
 const l0Definitions: L0Mechanism[] = [
   { id: "l0-constraint", code: "L0-01", name: "约束冲突", definition: "本能想这么做，规则偏不让。", status: "formal" },
   { id: "l0-retrieval", code: "L0-02", name: "检索枯竭", definition: "给定范围轮流检索，越往后越难。", status: "formal" },
-  { id: "l0-mind", code: "L0-05", name: "心智博弈", definition: "给出信号，判断对方是真是假。", status: "formal" },
+  { id: "l0-accumulation", code: "L0-03", name: "累积负荷", definition: "前面的内容不断累积，复现并继续增加，最终超载。", status: "formal" },
   { id: "l0-reveal", code: "L0-04", name: "信息缺口", definition: "不断取得线索，直到未知答案揭晓。", status: "formal" },
-  { id: "l0-association", code: "L0-07", name: "联想重构", definition: "把看似无关的东西连成一个合理答案。", status: "formal" }
+  { id: "l0-mind", code: "L0-05", name: "心智博弈", definition: "给出信号，判断对方是真是假。", status: "formal" },
+  { id: "l0-self-disclosure", code: "L0-06", name: "自我揭示", definition: "抛出问题，暴露经历、态度或选择，彼此发现。", status: "formal" },
+  { id: "l0-association", code: "L0-07", name: "联想重构", definition: "把看似无关的东西连成一个合理答案。", status: "formal" },
+  { id: "l0-relay", code: "L0-08", name: "共创接力", definition: "一方创造一点，另一方接住，作品继续失控生长。", status: "formal" },
+  { id: "l0-sensory-action", code: "L0-09", name: "感知动作博弈", definition: "观察、预测并回应对方的动作，获得即时反馈。", status: "formal" }
 ];
 
 const defaultTools: ContentTool[] = [
@@ -133,8 +138,8 @@ function now() { return new Date().toISOString(); }
 
 function inferL0Ids(card: Card) {
   if (card.id.includes("turtle") || card.category === "hidden") return ["l0-reveal"];
-  if (card.id.includes("truth") || card.mode === "versus") return ["l0-mind"];
   if (card.id.includes("wrong")) return ["l0-constraint"];
+  if (card.id.includes("truth") || card.mode === "versus") return ["l0-mind"];
   if (card.category === "challenge") return ["l0-retrieval"];
   return ["l0-association"];
 }
@@ -797,6 +802,17 @@ export function createContentRepository(): ContentRepository {
     return true;
   }
 
+  for (const seed of curatedDraftSeeds) {
+    const l1 = createL1(seed.l1) ?? [...l1s.values()].find((item) => item.name === seed.l1.name || item.code === seed.l1.code);
+    if (!l1) continue;
+    const l2 = createL2({ ...seed.l2, l1Id: l1.id });
+    if (!l2) continue;
+    const record = records.get(l2.id);
+    if (!record) continue;
+    updateDraftVersion(record.version.id, seed.version);
+    updateL2(l2.id, (current) => ({ ...current }));
+  }
+
   return {
     next,
     startSession,
@@ -823,12 +839,13 @@ export function createContentRepository(): ContentRepository {
       const items = [...records.values()];
       return {
         generatedAt: now(),
+        l0s: l0Definitions,
         counts: {
           l0: l0Definitions.length,
           l1: l1s.size,
           l2: items.length,
           published: new Set(items.filter((item) => item.l1.lifecycle === "published").map((item) => item.l1.id)).size,
-          pendingReview: items.filter((item) => item.version.reviewStatus === "pending_review").length
+          pendingReview: items.filter((item) => item.version.reviewStatus === "pending_review" || item.l2.status === "pending_review").length
         },
         metrics: metrics(),
         tools: defaultTools

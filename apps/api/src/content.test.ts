@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { dailyCards } from "@playbit/cards";
 import { createPlaybitApp, createRepositories } from "./app.js";
+import { curatedDraftSeeds } from "./contentSeeds.js";
 
 const app = createPlaybitApp(createRepositories(null));
 
@@ -108,12 +109,20 @@ assert.notEqual(afterCompletion.card.id, next.card.id);
 assert.notEqual(afterCompletion.card.l1Id, next.card.l1Id);
 
 const overview = await json<{ counts: { l1: number; l2: number }; metrics: Array<{ starts: number; l1Id: string }> }>("/studio/overview");
-assert.equal(overview.counts.l1, new Set(dailyCards.map((card) => card.id.startsWith("turtle-soup-") ? "l1_turtle_soup" : `l1_${card.id}`)).size);
-assert.equal(overview.counts.l2, dailyCards.length);
+assert.equal(overview.counts.l1, new Set([
+  ...dailyCards.map((card) => card.id.startsWith("turtle-soup-") ? "海龟汤" : card.name),
+  ...curatedDraftSeeds.map((seed) => seed.l1.name)
+]).size);
+assert.equal(overview.counts.l2, dailyCards.length + curatedDraftSeeds.length);
 assert.equal(new Set(overview.metrics.map((metric) => metric.l1Id)).size, overview.counts.l1);
 assert.ok(overview.metrics.some((metric) => metric.starts > 0));
 
-const content = await json<{ items: Array<{ l1: { id: string }; version: { id: string; reviewStatus: string } }> }>("/studio/content");
+const content = await json<{ items: Array<{ l1: { id: string; name: string; l0Ids: string[] }; version: { id: string; reviewStatus: string }; l2: { status: string; payload: { source?: string } } }> }>("/studio/content");
+const wrongAnswers = content.items.find((item) => item.l1.name === "只许答错");
+assert.equal(wrongAnswers?.l1.l0Ids[0], "l0-constraint");
+const imported = content.items.filter((item) => item.l2.payload.source === "playbit_cards_rating_curated_v4.xlsx / 游戏卡评分");
+assert.equal(imported.length, curatedDraftSeeds.length);
+assert.ok(imported.every((item) => item.l2.status === "draft"));
 const first = content.items[0];
 const created = await json<{ version: { id: string; reviewStatus: string } }>(`/studio/l1/${first.l1.id}/versions`, {
   method: "POST",

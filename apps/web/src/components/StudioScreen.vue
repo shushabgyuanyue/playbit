@@ -48,6 +48,17 @@ const workflowBusy = ref(false);
 const workflowMessage = ref("");
 const overview = ref<ContentOverview>({
   generatedAt: new Date().toISOString(),
+  l0s: [
+    { id: "l0-constraint", code: "L0-01", name: "约束冲突", definition: "本能想这么做，规则偏不让。", status: "formal" },
+    { id: "l0-retrieval", code: "L0-02", name: "检索枯竭", definition: "给定范围轮流检索，越往后越难。", status: "formal" },
+    { id: "l0-accumulation", code: "L0-03", name: "累积负荷", definition: "前面的内容不断累积并继续增加。", status: "formal" },
+    { id: "l0-reveal", code: "L0-04", name: "信息缺口", definition: "不断取得线索，直到未知答案揭晓。", status: "formal" },
+    { id: "l0-mind", code: "L0-05", name: "心智博弈", definition: "给出信号，判断对方是真是假。", status: "formal" },
+    { id: "l0-self-disclosure", code: "L0-06", name: "自我揭示", definition: "抛出问题，暴露经历或态度。", status: "formal" },
+    { id: "l0-association", code: "L0-07", name: "联想重构", definition: "把看似无关的东西连成合理答案。", status: "formal" },
+    { id: "l0-relay", code: "L0-08", name: "共创接力", definition: "一方创造，另一方接住并继续。", status: "formal" },
+    { id: "l0-sensory-action", code: "L0-09", name: "感知动作博弈", definition: "观察、预测并回应对方的动作。", status: "formal" }
+  ],
   counts: { l0: 9, l1: dailyCards.length, l2: dailyCards.length, published: dailyCards.length, pendingReview: 3 },
   metrics: [],
   tools: [
@@ -100,17 +111,19 @@ const createForm = ref({
   tone: "blue" as "coral" | "blue" | "gold",
   minPlayers: 2,
   maxPlayers: 2,
-  durationMinutes: 5
+  durationMinutes: 5,
+  l0Id: "l0-association"
 });
 const draftEditable = computed(() => ["draft", "changes_requested"].includes(selected.value?.status ?? ""));
 const l2Editable = computed(() => ["draft", "changes_requested"].includes(selected.value?.l2Status ?? ""));
 const filteredRows = computed(() => rows.value.filter((row) => {
   const matchesSearch = !search.value || `${row.name} ${row.hook} ${row.rule}`.toLowerCase().includes(search.value.toLowerCase());
-  const matchesFilter = filter.value === "all" || row.status === filter.value;
+  const matchesFilter = filter.value === "all" || row.status === filter.value || row.l2Status === filter.value;
   return matchesSearch && matchesFilter;
 }));
 const statusLabel = (status: string) => ({ draft: "草稿", pending_review: "待审核", published: "已发布", approved: "已通过", changes_requested: "待修改", paused: "已暂停", retired: "已淘汰" }[status] ?? status);
 const statusClass = (status: string) => `studio-status-${status}`;
+const reviewRows = computed(() => rows.value.filter((row) => row.status === "pending_review" || row.l2Status === "pending_review"));
 const activeMetric = computed(() => overview.value.metrics.length ? overview.value.metrics : rows.value.map((row) => ({
   l1Id: row.id,
   l1Name: row.name,
@@ -259,7 +272,7 @@ function versionPayload() {
 }
 
 function resetCreateForm() {
-  createForm.value = { code: "", name: "", title: "", hook: "", rule: "", completionCondition: "", contentType: "prompt", mode: "together", category: "challenge", tone: "blue", minPlayers: 2, maxPlayers: 2, durationMinutes: 5 };
+  createForm.value = { code: "", name: "", title: "", hook: "", rule: "", completionCondition: "", contentType: "prompt", mode: "together", category: "challenge", tone: "blue", minPlayers: 2, maxPlayers: 2, durationMinutes: 5, l0Id: "l0-association" };
 }
 
 async function createNewContent() {
@@ -270,7 +283,7 @@ async function createNewContent() {
     const l1 = await api.createStudioL1({
       code: form.code.trim(),
       name: form.name.trim(),
-      l0Ids: ["l0-association"],
+      l0Ids: [form.l0Id],
       minPlayers: Math.max(1, Number(form.minPlayers)),
       maxPlayers: Math.max(Number(form.minPlayers), Number(form.maxPlayers)),
       durationMin: Math.max(1, Number(form.durationMinutes)),
@@ -278,7 +291,7 @@ async function createNewContent() {
       outcomeModel: form.mode === "versus" ? "self_reported_winner" : "shared_completion",
       tags: [form.mode === "versus" ? "对决" : "共创"]
     });
-    await api.createStudioL2({
+    const createdL2 = await api.createStudioL2({
       l1Id: l1.l1.id,
       title: form.title.trim(),
       contentType: form.contentType,
@@ -287,6 +300,8 @@ async function createNewContent() {
     });
     const content = await api.listStudioContent();
     applyContent(content.items);
+    const createdRow = rows.value.find((row) => row.l1Id === l1.l1.id && row.l2Id === createdL2.l2.id);
+    if (createdRow) selectedId.value = createdRow.id;
     showCreateForm.value = false;
     activeSection.value = "lab";
     workflowMessage.value = "新的玩法和内容包已创建为草稿，可以继续编辑并提交审核";
@@ -431,18 +446,18 @@ onMounted(async () => {
           <div class="studio-welcome"><div><span class="studio-eyebrow">CONTENT PULSE · 2026.09.30</span><h2>把好玩的玩法，<em>交给对的人。</em></h2><p>从 Agent 发现，到人工审核，再到每一局的复盘。今天先看看内容池在哪里，下一张卡该往哪里走。</p></div><div class="studio-welcome-actions"><button type="button" class="studio-button studio-button-primary" @click="selectSection('lab')"><Beaker :size="16" />进入卡片实验室</button><button type="button" class="studio-button studio-button-light" @click="selectSection('review')"><CheckCircle2 :size="16" />处理审核</button></div></div>
           <div class="studio-section-heading"><div><span class="studio-eyebrow">CONTENT MAP</span><h2>内容池状态</h2></div><span class="studio-muted">刚刚更新</span></div>
           <div class="studio-stat-strip"><div><span>核心机制 L0</span><strong>{{ overview.counts.l0 }}</strong><small>已整理</small></div><div><span>玩法骨架 L1</span><strong>{{ overview.counts.l1 }}</strong><small>可继续研发</small></div><div><span>内容实例 L2</span><strong>{{ overview.counts.l2 }}</strong><small>当前版本</small></div><div class="studio-stat-highlight"><span>待人工判断</span><strong>{{ overview.counts.pendingReview }}</strong><small>需要你的决定</small></div></div>
-          <div class="studio-grid-two"><section class="studio-panel"><div class="studio-panel-heading"><div><span class="studio-eyebrow">REVIEW QUEUE</span><h3>审核队列</h3></div><button type="button" class="studio-text-button" @click="selectSection('review')">查看全部 <ChevronRight :size="14" /></button></div><div class="studio-review-list"><button v-for="row in rows.slice(0, 3)" :key="row.id" type="button" class="studio-review-item" @click="selectedId = row.id; selectSection('review')"><span class="studio-review-mark"><Archive :size="15" /></span><span><strong>{{ row.name }}</strong><small>{{ row.hook }}</small></span><span class="studio-status" :class="statusClass(row.status)">{{ statusLabel(row.status) }}</span><ChevronRight :size="15" /></button></div></section><section class="studio-panel studio-panel-blue"><div class="studio-panel-heading"><div><span class="studio-eyebrow">DISTRIBUTION HEALTH</span><h3>分发健康度</h3></div><BarChart3 :size="17" class="studio-panel-icon" /></div><div class="studio-health-score"><strong>84</strong><span>/ 100</span><small>内容供给稳定，继续补充 L0-02 的新鲜样本</small></div><div class="studio-health-bars"><div><span>内容新鲜度</span><i><b style="width: 78%" /></i><strong>78%</strong></div><div><span>可玩完成率</span><i><b style="width: 68%" /></i><strong>68%</strong></div><div><span>工具可用率</span><i><b style="width: 96%" /></i><strong>96%</strong></div></div></section></div>
+          <div class="studio-grid-two"><section class="studio-panel"><div class="studio-panel-heading"><div><span class="studio-eyebrow">REVIEW QUEUE</span><h3>审核队列</h3></div><button type="button" class="studio-text-button" @click="selectSection('review')">查看全部 <ChevronRight :size="14" /></button></div><div class="studio-review-list"><button v-for="row in reviewRows.slice(0, 3)" :key="row.id" type="button" class="studio-review-item" @click="selectedId = row.id; selectSection('review')"><span class="studio-review-mark"><Archive :size="15" /></span><span><strong>{{ row.name }}</strong><small>{{ row.hook }}</small></span><span class="studio-status" :class="statusClass(row.status === 'pending_review' ? row.status : row.l2Status)">{{ row.status === 'pending_review' ? 'L1 · ' : 'L2 · ' }}{{ statusLabel(row.status === 'pending_review' ? row.status : row.l2Status) }}</span><ChevronRight :size="15" /></button><div v-if="!reviewRows.length" class="studio-review-empty">当前没有待你判断的版本</div></div></section><section class="studio-panel studio-panel-blue"><div class="studio-panel-heading"><div><span class="studio-eyebrow">DISTRIBUTION HEALTH</span><h3>分发健康度</h3></div><BarChart3 :size="17" class="studio-panel-icon" /></div><div class="studio-health-score"><strong>84</strong><span>/ 100</span><small>内容供给稳定，继续补充 L0-02 的新鲜样本</small></div><div class="studio-health-bars"><div><span>内容新鲜度</span><i><b style="width: 78%" /></i><strong>78%</strong></div><div><span>可玩完成率</span><i><b style="width: 68%" /></i><strong>68%</strong></div><div><span>工具可用率</span><i><b style="width: 96%" /></i><strong>96%</strong></div></div></section></div>
         </section>
 
         <section v-else-if="activeSection === 'library' || activeSection === 'review'" class="studio-library">
           <div class="studio-create-strip"><div><span class="studio-eyebrow">NEW PLAYABLE</span><strong>从一个玩法骨架开始</strong><small>创建 L1 与第一条结构化内容，默认进入草稿</small></div><button type="button" class="studio-button studio-button-primary" @click="showCreateForm = !showCreateForm"><Sparkles :size="16" />{{ showCreateForm ? "收起" : "新建玩法" }}</button></div>
           <form v-if="showCreateForm" class="studio-create-form" @submit.prevent="createNewContent">
             <div class="studio-form-heading"><div><span class="studio-eyebrow">L1 + L2 DRAFT</span><h3>创建一张可玩的新卡</h3></div><span>发布前都可以继续编辑</span></div>
-            <div class="studio-form-grid"><label>玩法编码<input v-model="createForm.code" required placeholder="例如 word_chain" /></label><label>玩法名称<input v-model="createForm.name" required placeholder="例如 反向接话" /></label><label>卡面标题<input v-model="createForm.title" required placeholder="用户会看到的内容标题" /></label><label>卡面 Hook<input v-model="createForm.hook" placeholder="一句让人想马上开始的话" /></label><label class="studio-form-wide">主持人规则<textarea v-model="createForm.rule" required rows="3" placeholder="现场如何开始和进行" /></label><label class="studio-form-wide">结束条件<textarea v-model="createForm.completionCondition" required rows="2" placeholder="何时算完成或分出结果" /></label><label>内容类型<select v-model="createForm.contentType"><option value="prompt">提示题</option><option value="truth">真相题</option><option value="sequence">顺序题</option><option value="environment">现场生成</option></select></label><label>模式<select v-model="createForm.mode"><option value="together">一起完成</option><option value="versus">双方对决</option></select></label><label>人数下限<input v-model.number="createForm.minPlayers" min="1" type="number" /></label><label>人数上限<input v-model.number="createForm.maxPlayers" min="1" type="number" /></label><label>预计分钟<input v-model.number="createForm.durationMinutes" min="1" type="number" /></label><label>卡面色调<select v-model="createForm.tone"><option value="coral">暖红</option><option value="blue">淡蓝</option><option value="gold">淡黄</option></select></label></div>
-            <div class="studio-create-actions"><span>默认挂接联想重构机制，工具和复用策略可在后续版本调整</span><button type="submit" class="studio-button studio-button-primary" :disabled="workflowBusy"><Send :size="15" />创建草稿</button></div>
+            <div class="studio-form-grid"><label>玩法编码<input v-model="createForm.code" required placeholder="例如 word_chain" /></label><label>玩法名称<input v-model="createForm.name" required placeholder="例如 反向接话" /></label><label>核心机制<select v-model="createForm.l0Id" required><option v-for="mechanism in overview.l0s" :key="mechanism.id" :value="mechanism.id">{{ mechanism.code }} · {{ mechanism.name }}</option></select></label><label>卡面标题<input v-model="createForm.title" required placeholder="用户会看到的内容标题" /></label><label>卡面 Hook<input v-model="createForm.hook" placeholder="一句让人想马上开始的话" /></label><label class="studio-form-wide">主持人规则<textarea v-model="createForm.rule" required rows="3" placeholder="现场如何开始和进行" /></label><label class="studio-form-wide">结束条件<textarea v-model="createForm.completionCondition" required rows="2" placeholder="何时算完成或分出结果" /></label><label>内容类型<select v-model="createForm.contentType"><option value="prompt">提示题</option><option value="truth">真相题</option><option value="sequence">顺序题</option><option value="environment">现场生成</option></select></label><label>模式<select v-model="createForm.mode"><option value="together">一起完成</option><option value="versus">双方对决</option></select></label><label>人数下限<input v-model.number="createForm.minPlayers" min="1" type="number" /></label><label>人数上限<input v-model.number="createForm.maxPlayers" min="1" type="number" /></label><label>预计分钟<input v-model.number="createForm.durationMinutes" min="1" type="number" /></label><label>卡面色调<select v-model="createForm.tone"><option value="coral">暖红</option><option value="blue">淡蓝</option><option value="gold">淡黄</option></select></label></div>
+            <div class="studio-create-actions"><span>先选择核心机制，工具和复用策略可在卡片实验室继续调整</span><button type="submit" class="studio-button studio-button-primary" :disabled="workflowBusy"><Send :size="15" />创建草稿</button></div>
           </form>
           <div class="studio-library-toolbar"><div class="studio-search"><Search :size="16" /><input v-model="search" placeholder="搜索玩法、内容或规则" /></div><select v-model="filter" aria-label="筛选内容状态"><option value="all">全部状态</option><option value="draft">草稿</option><option value="pending_review">待审核</option><option value="published">已发布</option><option value="paused">已暂停</option></select><button type="button" class="studio-button studio-button-primary" :disabled="workflowBusy" @click="createDraftFromSelected"><Sparkles :size="16" />新建内容提案</button></div>
-          <div class="studio-table-panel"><div class="studio-table-heading"><div><span class="studio-eyebrow">{{ activeSection === 'review' ? 'HUMAN GATE' : 'CONTENT LIBRARY' }}</span><h2>{{ activeSection === 'review' ? '待你判断的版本' : '全部游戏内容' }}</h2></div><span class="studio-muted">{{ filteredRows.length }} 个结果</span></div><div class="studio-table-wrap"><table><thead><tr><th>玩法卡</th><th>版本</th><th>状态</th><th>适用人数</th><th>工具</th><th>质量分</th><th></th></tr></thead><tbody><tr v-for="row in filteredRows" :key="row.id" :class="{ selected: selectedId === row.id }" @click="selectedId = row.id"><td><div class="studio-table-title"><span class="studio-table-dot" :class="row.status === 'published' ? 'is-live' : 'is-review'" /><span><strong>{{ row.name }}</strong><small>{{ row.hook }}</small></span></div></td><td class="studio-mono">{{ row.version }}</td><td><span class="studio-status" :class="statusClass(row.status)">{{ statusLabel(row.status) }}</span></td><td>{{ row.players }}</td><td><span class="studio-tool-text">{{ row.tools.join(' · ') }}</span></td><td><strong class="studio-quality">{{ row.quality }}</strong></td><td><button type="button" class="studio-row-action" title="打开详情"><ChevronRight :size="16" /></button></td></tr></tbody></table></div></div>
+          <div class="studio-table-panel"><div class="studio-table-heading"><div><span class="studio-eyebrow">{{ activeSection === 'review' ? 'HUMAN GATE' : 'CONTENT LIBRARY' }}</span><h2>{{ activeSection === 'review' ? '待你判断的版本' : '全部游戏内容' }}</h2></div><span class="studio-muted">{{ filteredRows.length }} 个结果</span></div><div class="studio-table-wrap"><table><thead><tr><th>玩法卡</th><th>版本</th><th>状态</th><th>适用人数</th><th>工具</th><th>质量分</th><th></th></tr></thead><tbody><tr v-for="row in filteredRows" :key="row.id" :class="{ selected: selectedId === row.id }" @click="selectedId = row.id"><td><div class="studio-table-title"><span class="studio-table-dot" :class="row.status === 'published' ? 'is-live' : 'is-review'" /><span><strong>{{ row.name }}</strong><small>{{ row.hook }}</small></span></div></td><td class="studio-mono">{{ row.version }}</td><td><div class="studio-status-stack"><span class="studio-status" :class="statusClass(row.status)">L1 · {{ statusLabel(row.status) }}</span><small v-if="row.l2Status !== row.status">L2 · {{ statusLabel(row.l2Status) }}</small></div></td><td>{{ row.players }}</td><td><span class="studio-tool-text">{{ row.tools.join(' · ') }}</span></td><td><strong class="studio-quality">{{ row.quality }}</strong></td><td><button type="button" class="studio-row-action" title="打开详情"><ChevronRight :size="16" /></button></td></tr></tbody></table></div></div>
         </section>
 
         <section v-else-if="activeSection === 'lab'" class="studio-lab"><div class="studio-lab-heading"><div><span class="studio-eyebrow">PLAYABLE CARD LAB</span><h2>把一条内容，打磨成一局</h2><p>这里编辑的是后台版本，发布后生成不可变快照；用户端只会看到一张可以立即玩的卡。</p></div><button v-if="draftEditable" type="button" class="studio-button studio-button-primary" :disabled="workflowBusy" @click="submitSelected"><Send :size="16" />提交人工审核</button><button v-else-if="selected?.status === 'published'" type="button" class="studio-button studio-button-light" :disabled="workflowBusy" @click="createDraftFromSelected"><Sparkles :size="16" />基于此版本创建草稿</button></div><div class="studio-lab-grid"><section class="studio-editor studio-panel"><div class="studio-panel-heading"><div><span class="studio-eyebrow">L1 VERSION · {{ selected?.version }}</span><h3>{{ selected?.name }}</h3></div><span class="studio-status" :class="statusClass(selected?.status ?? '')">{{ statusLabel(selected?.status ?? '') }}</span></div><label>卡面 Hook<input v-model="draftForm.hook" :readonly="!draftEditable" /></label><label>主持人规则<textarea v-model="draftForm.rule" :readonly="!draftEditable" rows="4" /></label><label>结束条件<input v-model="draftForm.completionCondition" :readonly="!draftEditable" /></label><div class="studio-editor-row"><label>适用人数<input :value="selected?.players" readonly /></label><label>预计时长<input :value="selected?.duration" readonly /></label></div><div class="studio-tool-chips"><span>关联工具</span><b v-for="tool in selected?.tools ?? []" :key="tool"><TimerReset :size="13" />{{ tool }}</b></div><div class="studio-policy-block"><div class="studio-policy-heading"><span>内容复用策略</span><small>L2 冻结规则</small></div><div class="studio-policy-grid"><label>冷却轮数<input v-model.number="policyForm.cooldownRounds" min="0" type="number" /></label><label>冷却天数<input v-model.number="policyForm.cooldownDays" min="0" type="number" /></label><label>跳过冷却<input v-model.number="policyForm.skipCooldownRounds" min="0" type="number" /></label><label class="studio-policy-check"><input v-model="policyForm.permanentExhaustion" type="checkbox" />玩过后不再展示</label></div><button type="button" class="studio-button studio-button-light" :disabled="workflowBusy" @click="saveReusePolicy"><CheckCircle2 :size="15" />保存冻结策略</button></div></section><section class="studio-card-preview"><div class="studio-preview-top"><span>用户端卡面</span><button type="button" title="开始试玩"><Play :size="15" fill="currentColor" /></button></div><div class="studio-game-card"><span class="studio-card-kicker">{{ selected?.players }} · {{ selected?.duration }}</span><h3>{{ selected?.name }}</h3><p>{{ draftForm.hook }}</p><div class="studio-card-rule"><strong>怎么玩</strong><span>{{ draftForm.rule }}</span></div><div class="studio-card-footer"><span>结束条件</span><strong>{{ draftForm.completionCondition }}</strong></div></div><p class="studio-preview-note">完整卡面预览 · 不展示研发分层</p></section></div></section>

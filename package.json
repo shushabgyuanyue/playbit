@@ -10,7 +10,7 @@
     "build": "pnpm -r build",
     "check": "pnpm -r check",
     "test": "pnpm --filter @playbit/game-core test && pnpm --filter @playbit/api test && pnpm --filter @playbit/web test",
-    "verify:browser": "node scripts/verify-content-studio.mjs && node scripts/verify-user-game.mjs",
+    "verify:browser": "node scripts/verify-content-studio.mjs && node scripts/verify-content-workflow.mjs && node scripts/verify-user-game.mjs && node scripts/verify-game-flows.mjs && node scripts/verify-settlement-certificate.mjs",
     "db:generate": "pnpm --filter @playbit/api db:generate",
     "db:migrate": "pnpm --filter @playbit/api db:migrate"
   },
