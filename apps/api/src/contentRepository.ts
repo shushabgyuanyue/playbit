@@ -35,6 +35,8 @@ type ExposureState = {
   nextAvailableAt: number;
 };
 
+const RUNTIME_STATE_TTL_MS = 24 * 60 * 60 * 1000;
+
 export type ContentNextInput = {
   actorKey: string;
   previousCardIds?: string[];
@@ -257,11 +259,18 @@ export function createContentRepository(): ContentRepository {
   const publishedVersions = new Map<string, L1GameVersion>();
   const exposure = new Map<string, ExposureState>();
   const l1Exposure = new Map<string, { exposures: number; lastDeliveredRound: number; cooldownUntilRound: number }>();
-  const seenEvents = new Set<string>();
+  const seenEvents = new Map<string, number>();
   const favorites = new Map<string, Set<string>>();
   const recommendationRounds = new Map<string, number>();
+  const actorLastSeen = new Map<string, number>();
   const reuseAudits = new Map<string, ContentReuseAudit[]>();
-  const sessions = new Map<string, { actorKey: string; cardId: string; completed: boolean }>();
+  const sessions = new Map<string, {
+    actorKey: string;
+    cardId: string;
+    completed: boolean;
+    createdAt: number;
+    completedAt: number | null;
+  }>();
 
   for (const card of dailyCards) {
     const record = records.get(card.id)!;
@@ -324,7 +333,32 @@ export function createContentRepository(): ContentRepository {
     return next;
   }
 
+  function pruneRuntimeState(currentTime = Date.now()) {
+    for (const [key, receivedAt] of seenEvents) {
+      if (receivedAt + RUNTIME_STATE_TTL_MS <= currentTime) seenEvents.delete(key);
+    }
+    for (const [sessionId, session] of sessions) {
+      const lastRelevantAt = session.completedAt ?? session.createdAt;
+      if (lastRelevantAt + RUNTIME_STATE_TTL_MS <= currentTime) sessions.delete(sessionId);
+    }
+    for (const [actorKey, lastSeenAt] of actorLastSeen) {
+      if (lastSeenAt + RUNTIME_STATE_TTL_MS > currentTime) continue;
+      actorLastSeen.delete(actorKey);
+      recommendationRounds.delete(actorKey);
+      favorites.delete(actorKey);
+      const prefix = `${actorKey}:`;
+      for (const key of exposure.keys()) if (key.startsWith(prefix)) exposure.delete(key);
+      for (const key of l1Exposure.keys()) if (key.startsWith(prefix)) l1Exposure.delete(key);
+    }
+  }
+
+  function touchActor(actorKey: string) {
+    actorLastSeen.set(actorKey, Date.now());
+  }
+
   function next(input: ContentNextInput) {
+    pruneRuntimeState();
+    touchActor(input.actorKey);
     const round = (recommendationRounds.get(input.actorKey) ?? 0) + 1;
     recommendationRounds.set(input.actorKey, round);
     const previousIds = new Set(input.previousCardIds ?? []);
@@ -374,11 +408,19 @@ export function createContentRepository(): ContentRepository {
         fresh.length ? "避开最近出现的卡" : "候选已恢复探索"
       ]
     } satisfies DeliveredContentCard;
-    sessions.set(delivered.sessionId, { actorKey: input.actorKey, cardId: selected.card.id, completed: false });
+    sessions.set(delivered.sessionId, {
+      actorKey: input.actorKey,
+      cardId: selected.card.id,
+      completed: false,
+      createdAt: Date.now(),
+      completedAt: null
+    });
     return delivered;
   }
 
   function startSession(input: ContentSessionInput) {
+    pruneRuntimeState();
+    touchActor(input.actorKey);
     const record = [...records.values()].find((candidate) =>
       candidate.card.id === input.cardId || candidate.l2.id === input.cardId
     );
@@ -395,11 +437,19 @@ export function createContentRepository(): ContentRepository {
       l2VersionId: `${record.l2.id}_v${record.l2.versionNo}`,
       reason: ["按指定卡创建临时局"]
     } satisfies DeliveredContentCard;
-    sessions.set(delivered.sessionId, { actorKey: input.actorKey, cardId: record.card.id, completed: false });
+    sessions.set(delivered.sessionId, {
+      actorKey: input.actorKey,
+      cardId: record.card.id,
+      completed: false,
+      createdAt: Date.now(),
+      completedAt: null
+    });
     return delivered;
   }
 
   function completeSession(input: CompleteContentSessionInput) {
+    pruneRuntimeState();
+    touchActor(input.actorKey);
     const session = sessions.get(input.sessionId);
     if (!session || session.actorKey !== input.actorKey || session.cardId !== input.cardId) return null;
     if (session.completed) return 0;
@@ -412,27 +462,32 @@ export function createContentRepository(): ContentRepository {
       occurredAt: now(),
       payload: input.payload
     }]);
-    if (accepted > 0) session.completed = true;
+    if (accepted > 0) {
+      session.completed = true;
+      session.completedAt = Date.now();
+    }
     return accepted;
   }
 
   function ingestEvents(events: GameEvent[]) {
+    pruneRuntimeState();
     let accepted = 0;
     for (const event of events) {
+      touchActor(event.actorKey);
       const eventKey = `${event.actorKey}:${event.clientEventId}`;
       if (seenEvents.has(eventKey)) continue;
       const record = records.get(event.cardId);
       if (!record) continue;
-      seenEvents.add(eventKey);
+      seenEvents.set(eventKey, Date.now());
       accepted += 1;
       const item = getState(event.actorKey, record.l2.id);
       if (event.eventName === "started") item.starts += 1;
       if (event.eventName === "completed") {
         item.completes += 1;
-        for (const [sessionId, session] of sessions) {
-          if (sessionId === event.sessionId && session.actorKey === event.actorKey && session.cardId === event.cardId) {
-            session.completed = true;
-          }
+        const session = sessions.get(event.sessionId);
+        if (session && session.actorKey === event.actorKey && session.cardId === event.cardId) {
+          session.completed = true;
+          session.completedAt = Date.now();
         }
         if (record.l2.reusePolicy.permanentExhaustion) item.exhausted = true;
         if (record.l2.reusePolicy.cooldownRounds > 0) {
@@ -686,28 +741,34 @@ export function createContentRepository(): ContentRepository {
 
   function metrics() {
     const totalsByL1 = new Map<string, { l1Name: string; exposures: number; starts: number; completes: number; rerolls: number; replays: number; switches: number; toolOpens: number }>();
+    const l1ByL2 = new Map<string, L1Game>();
     for (const record of records.values()) {
-      const totals = totalsByL1.get(record.l1.id) ?? {
-        l1Name: record.l1.name,
-        exposures: 0,
-        starts: 0,
-        completes: 0,
-        rerolls: 0,
-        replays: 0,
-        switches: 0,
-        toolOpens: 0
-      };
-      for (const [key, item] of exposure.entries()) {
-        if (!key.endsWith(`:${record.l2.id}`)) continue;
-        totals.exposures += item.exposures;
-        totals.starts += item.starts;
-        totals.completes += item.completes;
-        totals.rerolls += item.rerolls;
-        totals.replays += item.replays;
-        totals.switches += item.switches;
-        totals.toolOpens += item.toolOpens;
+      l1ByL2.set(record.l2.id, record.l1);
+      if (!totalsByL1.has(record.l1.id)) {
+        totalsByL1.set(record.l1.id, {
+          l1Name: record.l1.name,
+          exposures: 0,
+          starts: 0,
+          completes: 0,
+          rerolls: 0,
+          replays: 0,
+          switches: 0,
+          toolOpens: 0
+        });
       }
-      totalsByL1.set(record.l1.id, totals);
+    }
+    for (const [key, item] of exposure.entries()) {
+      const separator = key.lastIndexOf(":");
+      const l1 = l1ByL2.get(key.slice(separator + 1));
+      if (!l1) continue;
+      const totals = totalsByL1.get(l1.id)!;
+      totals.exposures += item.exposures;
+      totals.starts += item.starts;
+      totals.completes += item.completes;
+      totals.rerolls += item.rerolls;
+      totals.replays += item.replays;
+      totals.switches += item.switches;
+      totals.toolOpens += item.toolOpens;
     }
     return [...totalsByL1.entries()].map(([l1Id, totals]) => ({
       l1Id,
@@ -718,15 +779,20 @@ export function createContentRepository(): ContentRepository {
   }
 
   function setFavorite(actorKey: string, l1Id: string, favorite: boolean) {
+    pruneRuntimeState();
+    touchActor(actorKey);
     const record = [...records.values()].find((item) => item.l1.id === l1Id);
     if (!record) return false;
     const set = actorFavorites(actorKey);
+    const canonicalL1 = l1s.get(l1Id) ?? record.l1;
     if (favorite && !set.has(l1Id)) {
       set.add(l1Id);
-      for (const item of records.values()) if (item.l1.id === l1Id) item.l1.favoriteCount += 1;
+      canonicalL1.favoriteCount += 1;
+      for (const item of records.values()) if (item.l1.id === l1Id) item.l1.favoriteCount = canonicalL1.favoriteCount;
     } else if (!favorite && set.has(l1Id)) {
       set.delete(l1Id);
-      for (const item of records.values()) if (item.l1.id === l1Id) item.l1.favoriteCount = Math.max(0, item.l1.favoriteCount - 1);
+      canonicalL1.favoriteCount = Math.max(0, canonicalL1.favoriteCount - 1);
+      for (const item of records.values()) if (item.l1.id === l1Id) item.l1.favoriteCount = canonicalL1.favoriteCount;
     }
     return true;
   }

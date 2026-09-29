@@ -7,6 +7,7 @@
 - `GET /content/cards/next` 负责推荐并返回一张已经冻结的卡片快照，同时生成 `sessionId`。
 - `POST /content/play-sessions` 只负责根据 `cardId` 创建指定卡的临时局，不再执行下一次推荐，也不能把指定卡当成 `previousIds` 排除掉。
 - 临时局只保存 `actorKey`、`cardId` 和完成状态。当前内存仓储用于原型验证，生产实现应迁移到 `game_card_instances` 和 `play_sessions`，并把卡片内容版本快照写入实例。
+- 当前内存仓储会在后续内容请求中清理超过 24 小时未活跃 actor 的曝光、推荐轮次、临时偏好、事件幂等键和临时局；完成局在清理窗口内仍保持幂等返回，避免匿名重试重复计数。生产迁移后应由聚合状态、事件幂等表和临时局过期策略承接同一语义。
 - 完成接口必须同时匹配 `sessionId`、`actorKey` 和 `cardId`。不匹配返回 404；同一临时局重复完成返回 `accepted: 0`，不得重复累加完成指标。
 
 ## 2. 行为事件

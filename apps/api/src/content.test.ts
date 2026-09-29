@@ -36,6 +36,19 @@ const favorite = await json<{ ok: boolean }>("/content/preferences", {
   body: JSON.stringify({ actorKey: "actor-test", l1Id: next.card.l1Id, isFavorite: true })
 });
 assert.equal(favorite.ok, true);
+const favoriteItems = await json<{ items: Array<{ l1: { id: string; favoriteCount: number } }> }>("/studio/content");
+const favoriteRecords = favoriteItems.items.filter((item) => item.l1.id === next.card.l1Id);
+assert.ok(favoriteRecords.length >= 1);
+assert.equal(new Set(favoriteRecords.map((item) => item.l1.favoriteCount)).size, 1);
+assert.equal(favoriteRecords[0].l1.favoriteCount, 1);
+const unfavorite = await json<{ ok: boolean }>("/content/preferences", {
+  method: "POST",
+  body: JSON.stringify({ actorKey: "actor-test", l1Id: next.card.l1Id, isFavorite: false })
+});
+assert.equal(unfavorite.ok, true);
+const unfavoriteItems = await json<{ items: Array<{ l1: { id: string; favoriteCount: number } }> }>("/studio/content");
+assert.equal(new Set(unfavoriteItems.items.filter((item) => item.l1.id === next.card.l1Id).map((item) => item.l1.favoriteCount)).size, 1);
+assert.equal(unfavoriteItems.items.find((item) => item.l1.id === next.card.l1Id)?.l1.favoriteCount, 0);
 
 const event = {
   clientEventId: "client-event-1",
