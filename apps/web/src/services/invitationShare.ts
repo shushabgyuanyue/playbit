@@ -2,6 +2,9 @@ import type { SharePayload } from "../composables/playbitFlowHelpers";
 import { copy } from "@playbit/content";
 import pandaArt from "../assets/avatar-panda.webp";
 
+const CARD_WIDTH = 720;
+const QR_SIZE = 420;
+
 export function invitationUrl(value?: string): string | null {
   if (!value) return null;
   try {
@@ -39,7 +42,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function lines(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, width: number, height: number, limit: number) {
+function wrapLines(ctx: CanvasRenderingContext2D, value: string, width: number, limit: number) {
   const output: string[] = [];
   let line = "";
   for (const character of value.replace(/\s+/g, " ")) {
@@ -47,36 +50,65 @@ function lines(ctx: CanvasRenderingContext2D, value: string, x: number, y: numbe
     line += character;
   }
   if (line) output.push(line);
-  output.slice(0, limit).forEach((text, index) => ctx.fillText(index === limit - 1 && output.length > limit ? text.slice(0, -1) + "…" : text, x, y + index * height));
+  if (output.length <= limit) return output;
+
+  const visible = output.slice(0, limit);
+  let last = visible[limit - 1];
+  while (last && ctx.measureText(`${last}…`).width > width) last = last.slice(0, -1);
+  visible[limit - 1] = `${last}…`;
+  return visible;
 }
 
-export async function invitationCard(payload: SharePayload, heading: string, hint: string): Promise<{ image: string; file: File }> {
+function drawLines(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, width: number, lineHeight: number, limit: number) {
+  const wrapped = wrapLines(ctx, value, width, limit);
+  wrapped.forEach((text, index) => ctx.fillText(text, x, y + index * lineHeight));
+  return wrapped.length;
+}
+
+export async function invitationCard(payload: SharePayload, heading: string, hint: string): Promise<{ image: string; file: File; height: number }> {
   const qr = await loadImage(await invitationQr(payload.url));
   const canvas = document.createElement("canvas");
-  canvas.width = 720;
+  canvas.width = CARD_WIDTH;
   canvas.height = 1000;
-  const ctx = canvas.getContext("2d")!;
-  const surface = ctx.createLinearGradient(0, 0, 720, 1000);
+  let ctx = canvas.getContext("2d")!;
+  ctx.textAlign = "center";
+  ctx.font = "700 38px system-ui, sans-serif";
+  const headingLines = wrapLines(ctx, heading, 604, 2);
+  const titleY = 154 + headingLines.length * 48 + 14;
+  ctx.font = "600 28px system-ui, sans-serif";
+  const titleLines = wrapLines(ctx, payload.title, 596, 3);
+  const hintY = titleY + titleLines.length * 42 + 22;
+  ctx.font = "23px system-ui, sans-serif";
+  const hintLines = wrapLines(ctx, hint, 596, 2);
+  const qrY = Math.max(500, hintY + Math.max(1, hintLines.length) * 34 + 10);
+  const footerY = qrY + QR_SIZE + 32;
+  canvas.height = Math.max(1000, footerY + 50);
+  ctx = canvas.getContext("2d")!;
+
+  const surface = ctx.createLinearGradient(0, 0, CARD_WIDTH, canvas.height);
   surface.addColorStop(0, "#eaf3ff"); surface.addColorStop(.42, "#ffffff"); surface.addColorStop(1, "#fff9f0");
-  ctx.fillStyle = surface; ctx.fillRect(0, 0, 720, 1000);
-  ctx.strokeStyle = "#c5d9ee"; ctx.lineWidth = 2; ctx.strokeRect(22, 22, 676, 956);
+  ctx.fillStyle = surface; ctx.fillRect(0, 0, CARD_WIDTH, canvas.height);
+  ctx.strokeStyle = "#c5d9ee"; ctx.lineWidth = 2; ctx.strokeRect(22, 22, 676, canvas.height - 44);
   ctx.textAlign = "center";
   ctx.fillStyle = "#2565ae"; ctx.font = "600 24px system-ui, sans-serif";
   ctx.fillText(copy.app.name, 360, 84);
   ctx.fillStyle = "#172b4d"; ctx.font = "700 38px system-ui, sans-serif";
-  lines(ctx, heading, 360, 154, 604, 48, 2);
+  drawLines(ctx, heading, 360, 154, 604, 48, 2);
   ctx.font = "600 28px system-ui, sans-serif";
-  lines(ctx, payload.title, 360, 260, 596, 42, 3);
+  drawLines(ctx, payload.title, 360, titleY, 596, 42, 3);
   ctx.fillStyle = "#4b5b73"; ctx.font = "23px system-ui, sans-serif";
-  lines(ctx, hint, 360, 402, 596, 34, 2);
-  ctx.drawImage(qr, 150, 500, 420, 420);
+  drawLines(ctx, hint, 360, hintY, 596, 34, 2);
+  ctx.drawImage(qr, (CARD_WIDTH - QR_SIZE) / 2, qrY, QR_SIZE, QR_SIZE);
   ctx.fillStyle = "#2565ae";
   ctx.font = "600 22px system-ui, sans-serif";
-  ctx.fillText(copy.app.name, 360, 952);
+  ctx.fillText(copy.app.name, 360, footerY);
   ctx.fillStyle = "#7b8798";
   ctx.font = "18px system-ui, sans-serif";
-  ctx.fillText(new URL(payload.url).host, 360, 978);
-  const image = canvas.toDataURL("image/png");
+  ctx.fillText(new URL(payload.url).host, 360, footerY + 26);
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error("Image unavailable")), "image/png"));
-  return { image, file: new File([blob], "playbit-invitation.png", { type: "image/png" }) };
+  return {
+    image: URL.createObjectURL(blob),
+    file: new File([blob], "playbit-invitation.png", { type: "image/png" }),
+    height: canvas.height
+  };
 }

@@ -14,6 +14,8 @@ import { createFlipRepository, type FlipRepository } from "./flipRepository.js";
 import { registerFlipRoutes } from "./routes/flips.js";
 import { createGraceRepository, type GraceRepository } from "./graceRepository.js";
 import { registerGraceRoutes } from "./routes/grace.js";
+import { createContentRepository, type ContentRepository } from "./contentRepository.js";
+import { registerContentRoutes } from "./routes/content.js";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 export type AppRepositories = {
@@ -22,6 +24,7 @@ export type AppRepositories = {
   coupons: CouponRepository;
   flips: FlipRepository;
   grace: GraceRepository;
+  content: ContentRepository;
   realtime: AgreementRealtimeHub;
 };
 
@@ -34,6 +37,7 @@ export function createRepositories(db: PostgresJsDatabase | null): AppRepositori
     coupons,
     flips: createFlipRepository(db, agreements, coupons),
     grace: createGraceRepository(db, agreements, coupons),
+    content: createContentRepository(),
     realtime: new AgreementRealtimeHub()
   };
 }
@@ -94,6 +98,7 @@ export function createPlaybitApp(repositories: AppRepositories, webOrigins: stri
     repositories.grace,
     repositories.realtime
   );
+  registerContentRoutes(app, repositories.content);
 
   return app;
 }

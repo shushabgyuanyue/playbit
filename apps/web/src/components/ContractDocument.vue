@@ -87,7 +87,7 @@ onMounted(() => {
 
     <div class="contract-document-meta">
       <span>{{ copy.contract.agreementNo }} {{ props.agreement.shareCode }}</span>
-      <BaseBadge :tone="statusTone">{{ statusLabel }}</BaseBadge>
+      <BaseBadge v-if="!exporting" :tone="statusTone">{{ statusLabel }}</BaseBadge>
     </div>
 
     <h2 class="contract-document-title">

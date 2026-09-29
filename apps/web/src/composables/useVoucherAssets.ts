@@ -63,7 +63,7 @@ function buildRealVoucherItems(agreements: Agreement[], coupons: Coupon[], curre
   const couponAgreementIds = new Set(coupons.map((coupon) => coupon.agreementId));
 
   const couponItems = coupons.flatMap((coupon) => {
-    const agreement = sessionMap.get(coupon.agreementId);
+    const agreement = coupon.agreementId ? sessionMap.get(coupon.agreementId) : undefined;
     const fallbackHolderId = agreement?.participants.find((participant) => participant.id === agreement.winnerId)?.userId;
     const fallbackIssuerId = agreement?.participants.find((participant) => participant.id === agreement.loserId)?.userId;
     const isHolder = coupon.holderUserId === currentUserId || (!coupon.holderUserId && fallbackHolderId === currentUserId);
@@ -86,7 +86,7 @@ function buildRealVoucherItems(agreements: Agreement[], coupons: Coupon[], curre
       benefitTitle: benefit.title,
       benefitSubtitle: coupon.status === "waived" ? copy.vouchers.waived : benefit.subtitle,
       agreementTitle: agreement?.title ?? coupon.description,
-      agreementCode: agreement?.shareCode ?? coupon.agreementId.slice(-8),
+      agreementCode: agreement?.shareCode ?? (coupon.agreementId ? coupon.agreementId.slice(-8) : "独立发放"),
       ruleText: agreement?.challenge ?? coupon.description,
       issuerName: coupon.issuerNickname,
       holderName: coupon.holderNickname,

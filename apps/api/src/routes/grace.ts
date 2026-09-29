@@ -73,6 +73,7 @@ export function registerGraceRoutes(
     const { couponId } = requestSchema.parse(await context.req.json());
     const coupon = await coupons.findById(couponId);
     if (!coupon) return context.json({ message: "Equity not found" }, 404);
+    if (!coupon.agreementId) return context.json({ message: "Independent equity does not support grace waiver" }, 409);
     const agreement = await agreements.findById(coupon.agreementId);
     if (!agreement) return context.json({ message: "Agreement not found" }, 404);
     const forbidden = requireAgreementParticipant(context, agreement, user);

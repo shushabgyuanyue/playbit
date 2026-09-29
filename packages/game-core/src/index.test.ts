@@ -66,6 +66,8 @@ assert.equal(settled.stake.fulfilled, false);
 const flipCoupon: Coupon = {
   id: "coupon_test",
   agreementId: signed.id,
+  gameResultId: null,
+  certificateId: null,
   sourceFlipId: null,
   name: "洗碗一次",
   description: signed.title,
@@ -74,6 +76,7 @@ const flipCoupon: Coupon = {
   holderUserId: "user_b",
   holderNickname: "乙方",
   status: "available",
+  transferNote: null,
   createdAt: new Date().toISOString(),
   usedAt: null,
   waivedAt: null

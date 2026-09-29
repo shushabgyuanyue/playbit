@@ -1,0 +1,29 @@
+# 游戏运行契约补充
+
+本文记录 P4 原型已经执行的运行约束，避免前端、内容服务和后续持久化实现对临时局语义产生分歧。
+
+## 1. 卡片与临时局
+
+- `GET /content/cards/next` 负责推荐并返回一张已经冻结的卡片快照，同时生成 `sessionId`。
+- `POST /content/play-sessions` 只负责根据 `cardId` 创建指定卡的临时局，不再执行下一次推荐，也不能把指定卡当成 `previousIds` 排除掉。
+- 临时局只保存 `actorKey`、`cardId` 和完成状态。当前内存仓储用于原型验证，生产实现应迁移到 `game_card_instances` 和 `play_sessions`，并把卡片内容版本快照写入实例。
+- 完成接口必须同时匹配 `sessionId`、`actorKey` 和 `cardId`。不匹配返回 404；同一临时局重复完成返回 `accepted: 0`，不得重复累加完成指标。
+
+## 2. 行为事件
+
+- 事件幂等键是 `(actorKey, clientEventId)`，不能只使用客户端事件号，否则不同匿名用户可能互相吞掉事件。
+- `/content/events` 允许离线批量补报；`/content/play-sessions/:id/complete` 是带临时局归属校验的快捷完成入口。
+- `/content/play-sessions/:id/events` 要求事件体的 `sessionId` 与路径参数一致；跨 session 上报直接拒绝。
+- 事件明细仍然是追加写入；推荐读取聚合状态，不在推荐请求中扫描全量事件。
+
+## 3. 独立权益
+
+- 独立权益允许 `agreementId` 为空，也允许暂时没有 `holderUserId`，用于主持人先记录、线下再确认领取人。
+- 一旦传入 `holderUserId`，服务端必须确认账号存在；权益列表按发行人或持有人可见，只有持有人可以核销。
+- 发行人、无关账号不能核销；重复核销返回冲突。
+- `transferNote` 允许省略、`null` 或空白文本，服务端统一保存为 `null`。
+
+## 4. 生产迁移提醒
+
+- 当前内容仓储和临时局状态仍是进程内实现，重启后会丢失，不能直接作为生产持久化方案。
+- 生产迁移需要补充唯一约束：`(actor_key, client_event_id)`、临时局归属约束，以及卡片实例对应的已发布版本快照。

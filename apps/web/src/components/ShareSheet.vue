@@ -25,6 +25,7 @@ const panelHint = computed(() => props.intent === "sign" ? copy.share.signPanelH
   : props.intent === "flip" ? copy.share.flipPanelHint : props.intent === "game" ? copy.game.shareHint : copy.share.panelHint);
 const { link, copying, feedback, copyLink } = useShareActions(computed(() => props.payload));
 const qrImage = ref("");
+const qrImageHeight = ref(1000);
 const inviteFile = ref<File | null>(null);
 const sharing = ref(false);
 const qrLoading = ref(false);
@@ -32,7 +33,11 @@ const qrFailed = ref(false);
 const retry = ref(0);
 watch([() => props.show, link, retry], async ([show, url], _previous, onCleanup) => {
   let cancelled = false;
-  onCleanup(() => { cancelled = true; });
+  let objectUrl: string | null = null;
+  onCleanup(() => {
+    cancelled = true;
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+  });
   qrImage.value = "";
   inviteFile.value = null;
   qrFailed.value = false;
@@ -44,7 +49,14 @@ watch([() => props.show, link, retry], async ([show, url], _previous, onCleanup)
   try {
     if (!props.payload) throw new Error("Missing invitation");
     const card = await invitationCard(props.payload, panelTitle.value, panelHint.value);
-    if (!cancelled) { qrImage.value = card.image; inviteFile.value = card.file; }
+    if (!cancelled) {
+      objectUrl = card.image;
+      qrImage.value = card.image;
+      qrImageHeight.value = card.height;
+      inviteFile.value = card.file;
+    } else {
+      URL.revokeObjectURL(card.image);
+    }
   } catch {
     if (!cancelled) qrFailed.value = true;
   } finally {
@@ -97,7 +109,7 @@ async function shareImage() {
       <section class="share-invitation">
         <div class="share-invitation-heading"><strong>{{ copy.share.qrTitle }}</strong><span>{{ copy.share.faceToFace }}</span></div>
         <div class="share-qr share-invitation-preview" :aria-busy="qrLoading">
-          <img v-if="qrImage" :src="qrImage" :alt="copy.share.imageAlt" width="720" height="1000" />
+          <img v-if="qrImage" :src="qrImage" :alt="copy.share.imageAlt" width="720" :height="qrImageHeight" />
           <div v-else-if="qrLoading" class="share-qr-status" role="status">
             <LoaderCircle :size="22" class="life-button-spinner" aria-hidden="true" /><span>{{ copy.share.qrLoading }}</span>
           </div>

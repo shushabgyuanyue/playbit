@@ -10,37 +10,46 @@ agreement with deliberately professional ceremony. The game is the emotional
 hook; the agreement is a way to remember a shared promise and its equity, not a
 claim that Playbit can enforce it.
 
-The two entry points are independent until the player chooses otherwise:
+The two entry points are independent:
 
 - **立合约** records an agreement that already exists between people.
 - **开一盘** draws one curated game card. Players can start immediately,
   without accepting a platform verdict, creating an account, or making an
   agreement.
-- **加点彩头** persists a versus game: choose equity, invite a companion, and
-  confirm together. No signature or contract-creation page is involved.
+- **开一局** is a lightweight game surface. It can record a host-entered result,
+  issue a shareable certificate, and optionally open an independent settlement
+  flow. It does not ask players to choose a stake, invite a companion, or
+  confirm a game asset before playing.
 
 The anonymous card is ephemeral client state. Do not create a guest account,
 fake agreement, or database record just to let someone play a card.
 
-### Lightweight Game Stakes
+### Lightweight Game Settlement
 
-Game stakes are separate from the signing ceremony above.
-A versus card offers equity selection and a lightweight two-person
-confirmation, without routing through the full signature/document creation
-flow. Opening an invitation is anonymous; confirming persistent equity
-requires an account and resumes automatically after login. Do not mint anonymous
-assets or introduce a room lobby, room code, or separate ready/start gate.
-Both flows share equity ownership, issuance/redemption, invitation transport,
-and result-recording capabilities, while keeping their own confirmation steps.
-`useGameFlow` owns this sequence; `CreateBetScreen` owns signed contracts.
+Game play is separate from the signing ceremony above. The card is playable
+without an account, room, stake, or agreement. Players may settle a real-life
+彩头 outside Playbit; the product only offers a small result record and host
+certificate after the game. A provider may separately issue one independent
+equity coupon to one specified holder. Certificate sharing and settlement are
+independent actions, and the holder does not need to revisit the game card.
+Do not mint game assets before play or introduce a room lobby, room code, or
+ready/start gate. `useGameFlow` owns card play and result recording;
+`CreateBetScreen` owns signed contracts; direct settlement belongs to the
+existing equity domain.
 
-Invitation sharing is QR-first for nearby companions, with WeChat and WhatsApp
-as the only named social destinations and copy-link as a utility. Invitations are
-image cards containing a QR code, shared through the OS file share sheet where
-available. The user selects the app and recipient; ordinary web pages cannot target
-a particular app with an image. Unsupported browsers download the card for manual
-sending. Neither action claims delivery. Signing, game, and flip invitations
-share the sheet but retain separate links, permissions, and acceptance actions.
+The current implementation still contains a legacy `/games` path that creates
+`Agreement(source=card)` and a join flow. Treat that path as migration debt,
+not as the target product contract. Do not extend it with more game stake
+features until the result and direct settlement boundary is implemented and
+the existing Coupon assumptions have been reviewed.
+
+Contract invitation sharing is QR-first when a counterparty needs to sign, with
+copy-link as a utility. Invitation cards may contain a QR code and use the OS
+file share sheet where available. The user selects the app and recipient;
+ordinary web pages cannot target a particular app with an image. Unsupported
+browsers download the card for manual sending. Neither action claims delivery.
+Game cards are not invitation cards: the host uses the card locally, while only
+certificates and independent settlement links can be shared after play.
 
 ## Product Boundaries
 
@@ -59,7 +68,7 @@ share the sheet but retain separate links, permissions, and acceptance actions.
 - In-session play may have hidden information, reversals, and mutually
   confirmed boosts. Out-of-session product surfaces stay small: agreements,
   equity, records, and user-initiated proof/share.
-- No real-money custody, recharge, withdrawal, commerce, ranking, seasons,
+- No real-money custody, recharge, withdrawal, commerce, global ranking, seasons,
   relationship spaces, AI, map API, or permanent progression in the current
   release.
 - Boosting is a change to the same equity, requires both participants, and is
@@ -86,20 +95,21 @@ share the sheet but retain separate links, permissions, and acceptance actions.
 - `Agreement` is the sole persisted agreement aggregate. `PlayCard` is a
   curated prompt, not an agreement and not a database session.
 - Signed agreement states are `pending_signature -> active -> result_recorded ->
-  fulfilled`; games enter through `pending_confirmation` instead of signature.
-  Both support `waived` when their original equity is waived.
-  A result is a participant-submitted record, never a platform judgment.
-- Contract initiators sign at creation; their visitor signs to join. Game
-  initiators choose a coupon, and visitors confirm it without signatures.
-  Both participants must have accounts before equity becomes active.
-- Game creation uses a per-attempt request identity, making network retries
-  idempotent. The server freezes the canonical versus card in `gameCard` and
-  normalizes custom game stakes into coupons. The game invitation is immutable;
-  joining checks the reviewed revision and atomically claims the remaining seat.
-  Creation through `/agreements` and signing cannot bypass game confirmation.
-- `?game=` invitations preview without login while awaiting confirmation.
-  After confirmation only the two participants may reopen them. A returning
-  participant on another device can log in to resume the same game.
+  fulfilled`; a result is a participant-submitted record, never a platform
+  judgment. Formal agreements support `waived` when their original equity is
+  waived.
+- Contract initiators sign at creation and their visitor signs to join. Game
+  cards have no confirmation gate, account requirement, coupon selection, room,
+  or second participant state. The host may save a result and issue a
+  certificate after play.
+- A game card is ephemeral until the host saves a result/certificate or needs a
+  recoverable history. The server freezes the L1/L2 content snapshot at that
+  boundary. A provider may separately start a direct settlement for one
+  specified holder; this does not create a game stake or a shared coupon.
+- The host's game card is local to the host's play flow. There is no game-card
+  share link, invitation, QR join, or participant page. Participants who never
+  opened the card can still receive a certificate or an independent settlement
+  link from the host/provider.
 - Opening a share link as its initiator or an existing signatory resumes the
   Agreement instead of asking for another signature. A new signatory uses the
   account nickname; the signing request contains the saved/drawn mark and the
@@ -112,10 +122,10 @@ share the sheet but retain separate links, permissions, and acceptance actions.
   hold all four labels plus separators (323 characters).
 - Each equity coupon links to one Agreement. Provider/holder actions derive
   from explicit user IDs, not array position or display text.
-- Result recording and coupon issuance commit in one transaction. Game stakes
-  and signed contract stakes with `coupon` or `custom` descriptions issue the
-  same coupon asset. Point stakes remain a record only; coupon assets are
-  redeemed or waived through their normal flows.
+- Formal Agreement result recording and coupon issuance remain one contract
+  transaction. Game result recording is a separate lightweight operation;
+  optional direct settlement creates one independent coupon only after an
+  explicit provider action. It never creates a shared coupon or a game stake.
 - The result reporter, winner, provider, and holder are explicit fields. Do not
   infer them from who opened a screen.
 - A settled agreement (`result_recorded`, `fulfilled`, or `waived`) is terminal
@@ -153,12 +163,12 @@ share the sheet but retain separate links, permissions, and acceptance actions.
   is better than an awkward life challenge. Cards should take about five
   minutes and work without location or special equipment.
 - Separate games with a natural, recordable winner from games that can end
-  without one. Only the former can be upgraded into an Agreement or used for a
-  flip.
+  without one. The former may offer host-entered result recording, scoring, and
+  a certificate; none of these automatically creates an Agreement or Flip.
 - Do not model or expose board-game motif taxonomies, AI rewrite prompts,
   progression systems, or an accept-before-play step.
-- A card has its own play instructions and completion condition. If upgraded
-  into an Agreement, preserve both in the recorded challenge text.
+- A card has its own play instructions and completion condition. If a result is
+  saved, preserve the card and content versions in the result snapshot.
 - Re-roll is available before choosing to play or upgrade. No silver-bullet
   inventory or mandatory multi-round structure in the current release.
 
@@ -188,6 +198,22 @@ share the sheet but retain separate links, permissions, and acceptance actions.
   documents professionally restrained; let one short line of personality
   appear only where it adds warmth without changing a decision, such as the
   home eyebrow, an empty state, or a flip invitation. Card rules may be playful.
+
+### Navigation
+
+- In-app screens use one navigation stack. The Back action returns to the prior
+  screen in the current visit; when no prior screen exists, it falls back to
+  Home. The Home action always clears the stack and returns to Home.
+- Authentication sheets do not add a screen. After authentication, continue the
+  pending task in place; successful signing replaces the temporary invitation
+  form so Back cannot reopen a completed step.
+- Flow-specific exits may restore draft state or return to a captured origin
+  (contract editing, certificate, flip), but must prune the stack to that same
+  destination. They must not create a second, conflicting back path.
+- Opening a page from a list or another feature records that source naturally.
+  Direct invitation links start with Home as the fallback. Keep `share`, `game`,
+  and `flip` query parameters as entry data, not as a substitute for screen
+  history.
 
 ## Collaboration And Verification
 

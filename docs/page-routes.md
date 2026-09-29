@@ -13,6 +13,9 @@ pages without changing the domain model.
 | `/agreements/:id` | Agreement document, signatures, current state | Participant only |
 | `/s/:shareCode` | Read pending agreement and sign as counterparty | Read public; sign requires account |
 | `/draw` | Draw a curated card and play immediately | Not required |
+| `/games/results/:id` | Host-recorded game result, scoreboard, and certificate | Recorder or public certificate view |
+| `/settlements/new` | Start an independent equity settlement | Provider only |
+| `/settlements/:id` | View, claim, or accept one independent equity coupon | Public claim; provider/holder actions |
 | `/agreements/:id/play` | Active signed agreement, boosts, participant result record | Participant only |
 | `/agreements/:id/proof` | User-issued agreement, result, fulfillment, or waiver certificate | Participant only |
 | `/flips/:id` | Shared replay invitation, card, and participant-submitted outcome | Flip participants |
@@ -21,10 +24,12 @@ pages without changing the domain model.
 | `/history` | Personal Agreement archive | Required |
 | `/account` | Account and saved signature | Required |
 
-The Draw page owns only the in-memory card currently being played. It does not
-create an Agreement. Choosing **加点权益** opens the existing equity/signature
-flow; authentication is requested there and must leave the selected card,
-stake choice, and signature draft intact.
+The Draw page owns only the card currently being played. It does not create an
+Agreement, Coupon, or Flip. When the game supports it, the host may open an
+optional result/scoreboard flow and generate a certificate for sharing. A
+provider may separately start a settlement from the certificate or an
+independent entry point; the coupon is never shared and is not created
+automatically.
 
 ## Agreement State
 
@@ -60,6 +65,10 @@ an appeal or mutation of the old result.
 | API | Purpose | Identity |
 | --- | --- | --- |
 | `POST /cards/draw` | Draw one public card | None |
+| `POST /games/results` | Record a game result or scoreboard | Account when saving/sharing |
+| `GET /games/results/:id` | Read a result or host-issued certificate | Public when shared |
+| `POST /settlements` | Issue one independent equity coupon, optionally linked to a result/certificate | Provider only |
+| `GET /settlements/:shareCode` | Read and claim an independent settlement coupon | Public while unclaimed |
 | `POST /agreements`, `GET /agreements` | Create/list personal agreements | Account |
 | `GET /agreements/:id`, `GET /agreements/:id/events` | Read and synchronize an agreement | Participant |
 | `GET /share/:shareCode` | Read a pending shared agreement | Public while pending |
@@ -76,12 +85,15 @@ flowchart TD
   Home --> Create[Create Agreement]
   Home --> Draw[Draw one card]
   Draw --> Play[Play immediately, no account]
-  Play -->|optional equity| Auth[Register or log in]
-  Auth --> Sign[Initiator signs]
+  Play --> Result[Host records result]
+  Result --> Certificate[Host issues and shares certificate]
+  Result --> Settlement[Provider separately starts settlement]
+  Settlement --> Claim[Winner claims and accepts one coupon]
+  Create --> Sign[Initiator signs]
   Sign --> Share[Counterparty opens link and signs]
   Share --> Active[Agreement active]
-  Active --> Result[Participant records result]
-  Result --> Proof[Issue proof and equity]
+  Active --> AgreementResult[Participant records agreement result]
+  AgreementResult --> Proof[Issue formal proof]
   Proof --> Redeem[Optional mutual fulfillment]
   Redeem --> Archive[Keep agreement and usage record]
   Redeem -->|provider is not satisfied| Flip[Invite a no-extra-stake replay]
@@ -90,6 +102,5 @@ flowchart TD
   More --> Archive
   Waive --> Archive
   Archive --> Grace[At each 10th fulfillment, earn one waiver ticket]
-  Create --> Sign
   Archive --> History
 ```

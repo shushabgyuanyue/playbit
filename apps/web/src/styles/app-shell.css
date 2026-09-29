@@ -14,6 +14,14 @@
   box-shadow: 0 0 0 1px var(--pb-line-ink-soft);
 }
 
+.screen-chunk-loading {
+  display: grid;
+  min-height: 55dvh;
+  place-items: center;
+  color: var(--pb-text-2);
+  font-size: var(--pb-font-sm);
+}
+
 @media (min-width: 720px) {
   .app-shell {
     padding: 0;

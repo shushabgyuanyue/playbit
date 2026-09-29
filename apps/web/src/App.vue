@@ -1,31 +1,46 @@
 <script setup lang="ts">
-import AccountScreen from "./components/AccountScreen.vue";
 import AuthSheet from "./components/AuthSheet.vue";
-import CertificateScreen from "./components/CertificateScreen.vue";
-import ContractScreen from "./components/ContractScreen.vue";
-import CreateBetScreen from "./components/CreateBetScreen.vue";
-import DrawCardScreen from "./components/DrawCardScreen.vue";
-import GameRoundScreen from "./components/game/GameRoundScreen.vue";
-import FlipScreen from "./components/FlipScreen.vue";
-import HistoryScreen from "./components/HistoryScreen.vue";
 import HomeScreen from "./components/HomeScreen.vue";
-import NoticesScreen from "./components/NoticesScreen.vue";
-import SessionScreen from "./components/SessionScreen.vue";
 import ShareSheet from "./components/ShareSheet.vue";
-import SignScreen from "./components/SignScreen.vue";
-import SettlementScreen from "./components/SettlementScreen.vue";
-import VoucherCenterScreen from "./components/VoucherCenterScreen.vue";
-import VoucherDetailScreen from "./components/VoucherDetailScreen.vue";
 import { dailyCards } from "@playbit/cards";
-import type { GraceWaiver } from "@playbit/shared";
+import { copy } from "@playbit/content";
+import type { Agreement, GraceWaiver } from "@playbit/shared";
 import { usePlaybitFlow } from "./composables/usePlaybitFlow";
 import { buildFlipSharePayload, type ShareIntent } from "./composables/playbitFlowHelpers";
 import { buildVoucherItems } from "./composables/useVoucherAssets";
-import { computed, provide, ref } from "vue";
+import type { VoucherItem } from "./types/voucher";
+import { computed, defineAsyncComponent, defineComponent, h, provide, reactive, ref, type Component } from "vue";
+
+const ScreenLoader = defineComponent({
+  setup: () => () => h("div", { class: "screen-chunk-loading", role: "status" }, copy.common.loading)
+});
+const asyncScreen = (loader: () => Promise<{ default: Component }>) => defineAsyncComponent({
+  loader,
+  loadingComponent: ScreenLoader,
+  delay: 100
+});
+
+const AccountScreen = asyncScreen(() => import("./components/AccountScreen.vue"));
+const CertificateScreen = asyncScreen(() => import("./components/CertificateScreen.vue"));
+const ContractScreen = asyncScreen(() => import("./components/ContractScreen.vue"));
+const CreateBetScreen = asyncScreen(() => import("./components/CreateBetScreen.vue"));
+const DrawCardScreen = asyncScreen(() => import("./components/DrawCardScreen.vue"));
+const StandaloneGameScreen = asyncScreen(() => import("./components/game/StandaloneGameScreen.vue"));
+const GameRoundScreen = asyncScreen(() => import("./components/game/GameRoundScreen.vue"));
+const FlipScreen = asyncScreen(() => import("./components/FlipScreen.vue"));
+const HistoryScreen = asyncScreen(() => import("./components/HistoryScreen.vue"));
+const NoticesScreen = asyncScreen(() => import("./components/NoticesScreen.vue"));
+const SessionScreen = asyncScreen(() => import("./components/SessionScreen.vue"));
+const SignScreen = asyncScreen(() => import("./components/SignScreen.vue"));
+const SettlementScreen = asyncScreen(() => import("./components/SettlementScreen.vue"));
+const VoucherCenterScreen = asyncScreen(() => import("./components/VoucherCenterScreen.vue"));
+const VoucherDetailScreen = asyncScreen(() => import("./components/VoucherDetailScreen.vue"));
+const StudioScreen = asyncScreen(() => import("./components/StudioScreen.vue"));
 
 const {
   activeCard,
   activeAgreement,
+  settlementRevealId,
   activeVoucherId,
   voucherFlip,
   voucherFlipLoading,
@@ -40,7 +55,7 @@ const {
   cardLoading,
   createLoading,
   boostLoading,
-  contractBackScreen,
+  canGoBack,
   certificateKind,
   certificateAction,
   coupons,
@@ -52,6 +67,7 @@ const {
   agreementsLoading,
   agreementsError,
   agreements,
+  shareEntryLoading,
   sharePayload,
   signLoading,
   screen,
@@ -64,6 +80,7 @@ const {
   logoutAccount,
   addBoost,
   gameFlow,
+  standaloneGameFlow,
   resultLoading,
   confirmBoost,
   withdrawBoost,
@@ -74,11 +91,10 @@ const {
   openFeaturedCard,
   openHistory,
   openAgreementFrom,
-  returnFromContract,
+  goBack,
+  goHome,
   openCertificate,
   openVoucherCertificate,
-  closeCertificate,
-  closeFlip,
   openVoucherDetail,
   openVoucherFlip,
   retryVoucherFlip,
@@ -95,10 +111,12 @@ const {
   refreshAgreements,
   registerAccount,
   recordAgreementResult,
+  acknowledgeSettlementReveal,
   signSession,
   updateCreateDraft,
   updateProfile
 } = usePlaybitFlow();
+const standaloneGame = reactive(standaloneGameFlow);
 
 const activeVoucher = computed(() =>
   buildVoucherItems(agreements.value, coupons.value, currentUser.value?.id ?? null).find(
@@ -140,6 +158,7 @@ function refreshGame() {
   if (code) void gameFlow.load(code);
 }
 const activeNoticeIndex = ref(0);
+const isStudio = computed(() => window.location.pathname === "/studio");
 
 function openShare(intent: ShareIntent = "general") {
   shareIntent.value = intent;
@@ -164,7 +183,8 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
 
 <template>
   <main class="app-shell">
-    <div class="mobile-frame">
+    <StudioScreen v-if="isStudio" />
+    <div v-else class="mobile-frame">
       <HomeScreen
         v-if="screen === 'home'"
         :user="currentUser"
@@ -186,8 +206,8 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
       <NoticesScreen
         v-else-if="screen === 'notices'"
         :active-index="activeNoticeIndex"
-        @back="screen = 'home'"
-        @home="screen = 'home'"
+        @back="goBack"
+        @home="goHome"
         @select="activeNoticeIndex = $event"
       />
       <AccountScreen
@@ -197,7 +217,8 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :coupon-count="activeCouponCount"
         :profile-loading="profileLoading"
         :profile-error="profileError"
-        @back="screen = 'home'"
+        @back="goBack"
+        @home="goHome"
         @logout="logoutAccount"
         @update-profile="updateProfile"
       />
@@ -206,8 +227,8 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :draft="createDraft"
         :user="currentUser"
         :loading="createLoading"
-        @back="screen = 'home'"
-        @home="screen = 'home'"
+        @back="goBack"
+        @home="goHome"
         @submit="createAgreement"
         @update-draft="updateCreateDraft"
       />
@@ -216,12 +237,12 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :agreement="activeAgreement"
         :current-user-id="currentUser?.id ?? null"
         :refreshing="agreementRefreshing"
-        @back="returnFromContract"
-        @home="screen = 'home'"
+        @back="goBack"
+        @home="goHome"
         @open-share="openShare('sign')"
         @refresh="refreshActiveAgreement"
         @start="screen = 'agreement'"
-        @open-document="(action) => openCertificate('agreement', action)"
+        @open-document="(action: 'save' | 'share') => openCertificate('agreement', action)"
       />
       <CertificateScreen
         v-else-if="screen === 'certificate' && activeAgreement"
@@ -230,8 +251,8 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :kind="certificateKind"
         :current-user-id="currentUser?.id"
         :auto-action="certificateAction"
-        @back="closeCertificate"
-        @home="screen = 'home'"
+        @back="goBack"
+        @home="goHome"
       />
       <DrawCardScreen
         v-else-if="screen === 'draw'"
@@ -241,18 +262,50 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :create-loading="gameBusy"
         :stake="gameDraft"
         :error="gameError"
-        @back="screen = 'home'"
-        @home="screen = 'home'"
+        @back="goBack"
+        @home="goHome"
         @draw="drawCard"
         @update-stake="gameDraft = $event"
         @create-game="gameFlow.create"
+      />
+      <StandaloneGameScreen
+        v-else-if="screen === 'play'"
+        :card="standaloneGame.card"
+        :phase="standaloneGame.phase"
+        :tools="standaloneGame.tools"
+        :active-tool="standaloneGame.activeTool"
+        :players="standaloneGame.players"
+        :result="standaloneGame.result"
+        :loading="standaloneGame.loading"
+        :favorite="standaloneGame.favorite"
+        :favorite-busy="standaloneGame.favoriteBusy"
+        :timer-seconds="standaloneGame.timerSeconds"
+        :timer-running="standaloneGame.timerRunning"
+        :counter-value="standaloneGame.counterValue"
+        :play-again="standaloneGame.playAgain"
+        :reroll="standaloneGame.reroll"
+        :open-tool="standaloneGame.openTool"
+        :close-tool="standaloneGame.closeTool"
+        :toggle-timer="standaloneGame.toggleTimer"
+        :reset-timer="standaloneGame.resetTimer"
+        :change-counter="standaloneGame.changeCounter"
+        :change-score="standaloneGame.changeScore"
+        :update-player-label="standaloneGame.updatePlayerLabel"
+        :add-player="standaloneGame.addPlayer"
+        :remove-player="standaloneGame.removePlayer"
+        :record-winner="standaloneGame.recordWinner"
+        :record-ranking="standaloneGame.recordRanking"
+        :record-completed="standaloneGame.recordCompleted"
+        @toggle-favorite="standaloneGame.toggleFavorite"
+        @back="goBack"
+        @home="goHome"
       />
       <GameRoundScreen v-else-if="screen === 'game'"
         :agreement="activeAgreement?.source === 'card' ? activeAgreement : null"
         :current-user-id="currentUser?.id ?? null" :loading="gameLoading"
         :busy="gameBusy || resultLoading" :refreshing="agreementRefreshing" :error="gameError"
         :needs-login="gameNeedsLogin" @login="gameFlow.login"
-        @back="screen = 'home'" @home="screen = 'home'" @join="gameFlow.join"
+        @back="goBack" @home="goHome" @join="gameFlow.join"
         @share="openShare('game')" @refresh="refreshGame" @record="recordAgreementResult"
         @certificate="openCertificate('agreement')" />
       <SessionScreen
@@ -260,9 +313,9 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :agreement="activeAgreement"
         :coupons="coupons"
         :current-user-id="currentUser?.id ?? null"
-        @back="screen = 'contract'"
+        @back="goBack"
         :loading="resultLoading || boostLoading"
-        @home="screen = 'home'"
+        @home="goHome"
         @settle="recordAgreementResult"
         @add-boost="addBoost"
         @confirm-boost="confirmBoost"
@@ -272,10 +325,12 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         v-else-if="screen === 'settlement' && activeAgreement"
         :agreement="activeAgreement"
         :current-user-id="currentUser?.id ?? null"
-        :show-back="contractBackScreen === 'history' || contractBackScreen === 'vouchers' || contractBackScreen === 'voucherDetail'"
-        @back="screen = contractBackScreen"
+        :reveal-id="settlementRevealId"
+        :show-back="canGoBack"
+        @back="goBack"
         @open-vouchers="openVouchers"
-        @home="screen = 'home'"
+        @reveal-complete="acknowledgeSettlementReveal"
+        @home="goHome"
       />
       <FlipScreen
         v-else-if="screen === 'flip' && activeFlip"
@@ -285,8 +340,8 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :issued-coupon="coupons.find((coupon) => coupon.sourceFlipId === activeFlip?.id) ?? null"
         :current-user-id="currentUser?.id ?? null"
         :loading="flipBusy"
-        @back="closeFlip"
-        @home="screen = 'home'"
+        @back="goBack"
+        @home="goHome"
         @accept="respondToFlip"
         @refresh="refreshFlip"
         @record-result="recordFlipOutcome"
@@ -298,9 +353,9 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         v-else-if="screen === 'history'"
         :agreements="agreements"
         :current-user-id="currentUser?.id ?? null"
-        @back="screen = 'home'"
-        @home="screen = 'home'"
-        @open="(agreement) => openAgreementFrom(agreement, 'history')"
+        @back="goBack"
+        @home="goHome"
+        @open="(agreement: Agreement) => openAgreementFrom(agreement, 'history')"
         @delete="deleteAgreement"
       />
       <VoucherCenterScreen
@@ -309,9 +364,9 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :coupons="coupons"
         :current-user-id="currentUser?.id ?? null"
         :grace-tickets="graceTickets"
-        @back="screen = 'home'"
-        @home="screen = 'home'"
-        @open-agreement="(agreementId) => openAgreementById(agreementId, 'vouchers')"
+        @back="goBack"
+        @home="goHome"
+        @open-agreement="(agreementId: string) => openAgreementById(agreementId, 'vouchers')"
         @open-voucher="openVoucherDetail"
       />
       <VoucherDetailScreen
@@ -326,15 +381,15 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :waiver="activeGraceWaiver"
         :can-respond-waiver="canRespondGraceWaiver"
         :is-waiver-requester="isGraceWaiverRequester"
-        @back="screen = 'vouchers'"
-        @home="screen = 'home'"
+        @back="goBack"
+        @home="goHome"
         @open-agreement="
-          (voucher) => {
+          (voucher: VoucherItem) => {
             if (voucher.agreementId) openAgreementById(voucher.agreementId, 'voucherDetail');
           }
         "
         @redeem="
-          (voucher) => {
+          (voucher: VoucherItem) => {
             if (voucher.couponId) redeemCoupon(voucher.couponId);
           }
         "
@@ -349,8 +404,9 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         v-else-if="screen === 'sign'"
         :agreement="activeAgreement ?? null"
         :user="currentUser"
+        :entry-loading="shareEntryLoading"
         :loading="signLoading"
-        @home="screen = 'home'"
+        @home="goHome"
         @sign="signSession"
       />
     </div>

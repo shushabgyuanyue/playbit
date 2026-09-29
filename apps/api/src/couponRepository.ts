@@ -6,6 +6,18 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { randomBytes } from "node:crypto";
 import { agreementFromRow, agreementToRow, AgreementRevisionConflict, type AgreementRepository } from "./agreementRepository.js";
 
+export type IndependentCouponInput = {
+  gameResultId?: string | null;
+  certificateId?: string | null;
+  name: string;
+  description: string;
+  transferNote?: string | null;
+  issuerUserId: string | null;
+  issuerNickname: string;
+  holderUserId: string | null;
+  holderNickname: string;
+};
+
 type CouponRow = typeof coupons.$inferSelect;
 
 function makeId(prefix: string): string {
@@ -16,6 +28,8 @@ function fromRow(row: CouponRow): Coupon {
   return {
     id: row.id,
     agreementId: row.agreementId,
+    gameResultId: row.gameResultId,
+    certificateId: row.certificateId,
     sourceFlipId: row.sourceFlipId,
     name: row.name,
     description: row.description,
@@ -24,6 +38,7 @@ function fromRow(row: CouponRow): Coupon {
     holderUserId: row.holderUserId,
     holderNickname: row.holderNickname,
     status: row.waivedAt ? "waived" : row.status,
+    transferNote: row.transferNote,
     createdAt: row.createdAt.toISOString(),
     usedAt: row.usedAt?.toISOString() ?? null,
     waivedAt: row.waivedAt?.toISOString() ?? null
@@ -34,6 +49,8 @@ function toRow(coupon: Coupon): typeof coupons.$inferInsert {
   return {
     id: coupon.id,
     agreementId: coupon.agreementId,
+    gameResultId: coupon.gameResultId,
+    certificateId: coupon.certificateId,
     sourceFlipId: coupon.sourceFlipId,
     issuerUserId: coupon.issuerUserId,
     holderUserId: coupon.holderUserId,
@@ -42,6 +59,7 @@ function toRow(coupon: Coupon): typeof coupons.$inferInsert {
     issuerNickname: coupon.issuerNickname,
     holderNickname: coupon.holderNickname,
     status: coupon.status,
+    transferNote: coupon.transferNote,
     waivedAt: coupon.waivedAt ? new Date(coupon.waivedAt) : null,
     usedAt: coupon.usedAt ? new Date(coupon.usedAt) : null,
     createdAt: new Date(coupon.createdAt)
@@ -68,6 +86,8 @@ export function couponFromRecordedAgreement(agreement: Agreement): Coupon | null
   return {
     id: makeId("coupon"),
     agreementId: agreement.id,
+    gameResultId: null,
+    certificateId: null,
     sourceFlipId: null,
     name: getEffectiveStakeLabel(agreement),
     description: agreement.title,
@@ -78,7 +98,8 @@ export function couponFromRecordedAgreement(agreement: Agreement): Coupon | null
     status: agreement.stake.fulfilled ? "used" : "available",
     createdAt: agreement.resultRecordedAt ?? new Date().toISOString(),
     usedAt,
-    waivedAt: null
+    waivedAt: null,
+    transferNote: null
   };
 }
 
@@ -114,6 +135,29 @@ class MemoryCouponRepository {
     return next;
   }
 
+  async createIndependent(input: IndependentCouponInput): Promise<Coupon> {
+    const coupon: Coupon = {
+      id: makeId("coupon"),
+      agreementId: null,
+      gameResultId: input.gameResultId ?? null,
+      certificateId: input.certificateId ?? null,
+      sourceFlipId: null,
+      name: input.name,
+      description: input.description,
+      transferNote: input.transferNote ?? null,
+      issuerUserId: input.issuerUserId,
+      issuerNickname: input.issuerNickname,
+      holderUserId: input.holderUserId,
+      holderNickname: input.holderNickname,
+      status: "available",
+      createdAt: new Date().toISOString(),
+      usedAt: null,
+      waivedAt: null
+    };
+    this.coupons.set(coupon.id, coupon);
+    return coupon;
+  }
+
   async listByUser(userId: string): Promise<Coupon[]> {
     return Array.from(this.coupons.values())
       .filter((coupon) => coupon.holderUserId === userId || coupon.issuerUserId === userId)
@@ -134,7 +178,7 @@ class MemoryCouponRepository {
 
   async createFromFlip(source: Coupon, flipId: string): Promise<Coupon> {
     const existing = await this.findBySourceFlipId(flipId);
-    if (this.deletedAgreements.has(source.agreementId)) throw new AgreementRevisionConflict();
+    if (source.agreementId && this.deletedAgreements.has(source.agreementId)) throw new AgreementRevisionConflict();
     if (existing) return existing;
     const coupon: Coupon = {
       ...source,
@@ -166,7 +210,7 @@ class MemoryCouponRepository {
     const used: Coupon = { ...coupon, status: "used", usedAt: new Date().toISOString() };
     this.coupons.set(id, used);
     try {
-      if (!coupon.sourceFlipId) {
+      if (!coupon.sourceFlipId && coupon.agreementId) {
         const agreement = await this.agreements.findById(coupon.agreementId);
         if (!agreement || agreement.status !== "result_recorded") throw new CouponRedemptionConflict();
         await this.agreements.update({
@@ -176,7 +220,7 @@ class MemoryCouponRepository {
           fulfillmentRecorderUserId: recorderUserId
         }, agreement.revision);
       }
-      if (this.deletedAgreements.has(coupon.agreementId)) throw new CouponRedemptionConflict();
+      if (coupon.agreementId && this.deletedAgreements.has(coupon.agreementId)) throw new CouponRedemptionConflict();
       return used;
     } catch {
       if (this.coupons.get(id) === used) this.coupons.set(id, coupon);
@@ -251,6 +295,29 @@ class PostgresCouponRepository {
     return fromRow(row);
   }
 
+  async createIndependent(input: IndependentCouponInput): Promise<Coupon> {
+    const coupon: Coupon = {
+      id: makeId("coupon"),
+      agreementId: null,
+      gameResultId: input.gameResultId ?? null,
+      certificateId: input.certificateId ?? null,
+      sourceFlipId: null,
+      name: input.name,
+      description: input.description,
+      transferNote: input.transferNote ?? null,
+      issuerUserId: input.issuerUserId,
+      issuerNickname: input.issuerNickname,
+      holderUserId: input.holderUserId,
+      holderNickname: input.holderNickname,
+      status: "available",
+      createdAt: new Date().toISOString(),
+      usedAt: null,
+      waivedAt: null
+    };
+    const [row] = await this.db.insert(coupons).values(toRow(coupon)).returning();
+    return fromRow(row);
+  }
+
   async listByUser(userId: string): Promise<Coupon[]> {
     const rows = await this.db.select().from(coupons).where(or(
       eq(coupons.holderUserId, userId),
@@ -318,7 +385,7 @@ class PostgresCouponRepository {
           eq(coupons.status, "available")
         )).returning();
       if (!used) return null;
-      if (!current.sourceFlipId) {
+      if (!current.sourceFlipId && current.agreementId) {
         const [updated] = await tx.update(agreements).set({
           status: "fulfilled",
           stake: sql`jsonb_set(${agreements.stake}, '{fulfilled}', 'true'::jsonb)`,

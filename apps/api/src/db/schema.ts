@@ -26,6 +26,8 @@ export const couponStatus = pgEnum("coupon_status", ["available", "reserved", "u
 export const flipStatus = pgEnum("flip_status", ["pending_acceptance", "active", "declined", "settled"]);
 export const graceTicketStatus = pgEnum("grace_ticket_status", ["available", "reserved", "used"]);
 export const graceWaiverStatus = pgEnum("grace_waiver_status", ["pending", "approved", "rejected"]);
+export const gameResultKind = pgEnum("game_result_kind", ["winner", "ranking", "completed"]);
+export const certificateKind = pgEnum("certificate_kind", ["winner", "ranking", "completion"]);
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   nickname: text("nickname").notNull(),
@@ -103,13 +105,35 @@ export const flips = pgTable(
   })
 );
 
+export const gameResults = pgTable("game_results", {
+  id: text("id").primaryKey(),
+  actorKey: text("actor_key").notNull(),
+  cardId: text("card_id").notNull(),
+  kind: gameResultKind("kind").notNull(),
+  winnerLabel: text("winner_label"),
+  ranking: jsonb("ranking").$type<Array<{ label: string; score: number }>>(),
+  note: text("note"),
+  recorderUserId: text("recorder_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+});
+
+export const certificates = pgTable("certificates", {
+  id: text("id").primaryKey(),
+  gameResultId: text("game_result_id").references(() => gameResults.id, { onDelete: "set null" }),
+  kind: certificateKind("kind").notNull(),
+  title: text("title").notNull(),
+  snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+});
+
 export const coupons = pgTable(
   "coupons",
   {
     id: text("id").primaryKey(),
     agreementId: text("agreement_id")
-      .notNull()
       .references(() => agreements.id, { onDelete: "cascade" }),
+    gameResultId: text("game_result_id").references(() => gameResults.id, { onDelete: "set null" }),
+    certificateId: text("certificate_id").references(() => certificates.id, { onDelete: "set null" }),
     sourceFlipId: text("source_flip_id"),
     issuerUserId: text("issuer_user_id").references(() => users.id, { onDelete: "set null" }),
     holderUserId: text("holder_user_id").references(() => users.id, { onDelete: "set null" }),
@@ -118,6 +142,7 @@ export const coupons = pgTable(
     issuerNickname: text("issuer_nickname").notNull(),
     holderNickname: text("holder_nickname").notNull(),
     status: couponStatus("status").default("available").notNull(),
+    transferNote: text("transfer_note"),
     waivedAt: timestamp("waived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     usedAt: timestamp("used_at", { withTimezone: true })

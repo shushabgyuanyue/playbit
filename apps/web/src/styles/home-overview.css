@@ -22,6 +22,49 @@
   padding: var(--pb-space-lg);
   text-align: center;
 }
+.home-overview-skeleton {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(0, 3fr);
+  gap: var(--pb-space-md);
+  min-height: 108px;
+  overflow: hidden;
+  padding: 0;
+}
+.home-overview-skeleton-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
+  gap: 9px 5px;
+  padding: 10px 8px;
+  border-right: 1px dashed var(--pb-perforation);
+}
+.home-overview-skeleton-stat,
+.home-overview-skeleton-record {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+}
+.home-overview-skeleton-record {
+  gap: 10px;
+  padding: var(--pb-space-md) var(--pb-space-lg);
+}
+.home-overview-skeleton-line {
+  display: block;
+  height: 9px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(213, 225, 239, 0.45), rgba(255, 255, 255, 0.84), rgba(213, 225, 239, 0.45));
+  background-size: 200% 100%;
+  animation: home-overview-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+.home-overview-skeleton-line-short { width: 42px; justify-self: center; }
+.home-overview-skeleton-line-number { width: 24px; height: 15px; justify-self: center; }
+.home-overview-skeleton-line-meta { width: 48%; }
+.home-overview-skeleton-line-title { width: 76%; height: 14px; }
+.home-overview-skeleton-line-footer { width: 58%; }
+@keyframes home-overview-skeleton-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
 .home-overview-state[data-state="error"] {
   align-items: flex-start;
   flex-direction: column;
@@ -68,6 +111,9 @@
   font-size: var(--pb-font-caption);
   line-height: 16px;
 }
+.home-overview-inline-state.is-loading {
+  min-height: 10px;
+}
 .home-overview-inline-state button {
   border: 0;
   border-bottom: 1px solid rgba(37, 101, 174, 0.24);
@@ -80,7 +126,8 @@
 .is-spinning { animation: home-overview-spin 0.9s linear infinite; }
 @keyframes home-overview-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .is-spinning { animation: none; }
+  .is-spinning,
+  .home-overview-skeleton-line { animation: none; }
 }
 .home-overview-content::before,
 .home-overview-content::after {

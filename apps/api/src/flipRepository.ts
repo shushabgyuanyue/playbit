@@ -207,6 +207,7 @@ class PostgresFlipRepository {
           .returning({ agreementId: coupons.agreementId, sourceFlipId: coupons.sourceFlipId });
         if (!waived) throw new FlipConflict("EQUITY_RESERVATION_MISSING");
         if (!waived.sourceFlipId) {
+          if (!waived.agreementId) throw new FlipConflict("AGREEMENT_STATE_CONFLICT");
           const [updatedAgreement] = await tx.update(agreements).set({
             status: "waived",
             revision: sql`${agreements.revision} + 1`,
@@ -216,6 +217,7 @@ class PostgresFlipRepository {
           if (!updatedAgreement) throw new FlipConflict("AGREEMENT_STATE_CONFLICT");
         }
       } else {
+        if (!source.agreementId) throw new FlipConflict("AGREEMENT_STATE_CONFLICT");
         const [released] = await tx.update(coupons).set({ status: "available" })
           .where(and(eq(coupons.id, flip.couponId), eq(coupons.status, "reserved")))
           .returning();

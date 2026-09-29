@@ -287,8 +287,8 @@ export const copy = {
     selected: "已选权益",
     choose: "选择权益",
     custom: "自定义",
-    customTicket: "自定义卡券 *1",
-    displayBenefit: "展示权益卡券",
+    customTicket: "自定义卡券",
+    displayBenefit: "一次",
     assetHint: "约定权益",
     customLabel: "自定义内容",
     customPlaceholder: "例如：明天负责接孩子",
@@ -322,7 +322,7 @@ export const copy = {
     changedReview: "合约内容或状态已变化，请查看最新内容后再确认。",
     navTitle: "合约",
     documentTitle: "电子约定书",
-    productLine: "Playbit 只负责把这件小事记清楚；至于当时到底发生了什么，我们没在现场。",
+    productLine: "君子协定，一言既出，驷马难追。",
     progressTitle: "办理进度",
     progress: {
       signing: "签署中",
@@ -333,7 +333,7 @@ export const copy = {
     agreementNo: "协议编号",
     signedDate: "创建日期",
     seal: "合约正式成立",
-    documentSubtitle: "君子协定 · 双方留存",
+    documentSubtitle: "双方留存 · 电子记录",
     emblem: "约",
     sealEyebrow: "双方确认",
     sealFooter: "约定留存",
@@ -685,3 +685,4 @@ export const copy = {
 export { cardCatalog } from "./cards.js";
 
 export type CopyKey = typeof copy;
+export { standaloneGameCopy } from "./standalone-game-copy.js";

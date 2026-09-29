@@ -9,6 +9,7 @@ type Options = {
   activeCard: Ref<Card | null>;
   activeAgreement: Readonly<Ref<Agreement | undefined>>;
   screen: Ref<Screen>;
+  screenRevision: Ref<number>;
   user: Ref<User | null>;
   requireAccount: (screen: Screen) => boolean;
   upsert: (agreement: Agreement) => void;
@@ -41,6 +42,8 @@ export function useGameFlow(options: Options) {
 
   async function submitCreate() {
     if (!pendingCreate || busy.value) return;
+    const originScreen = options.screen.value;
+    const originRevision = options.screenRevision.value;
     busy.value = true;
     error.value = "";
     try {
@@ -49,11 +52,17 @@ export function useGameFlow(options: Options) {
       inviteCode.value = agreement.shareCode;
       pendingCreate = null;
       lastRequest = null;
-      options.open(agreement);
-      const url = new URL(window.location.pathname, window.location.origin);
-      url.searchParams.set("game", agreement.shareCode);
-      window.history.replaceState(null, "", url);
-    } catch { error.value = copy.game.createFailed; }
+      if (options.screen.value === originScreen && options.screenRevision.value === originRevision) {
+        options.open(agreement);
+        const url = new URL(window.location.pathname, window.location.origin);
+        url.searchParams.set("game", agreement.shareCode);
+        window.history.replaceState(null, "", url);
+      }
+    } catch {
+      if (options.screen.value === originScreen && options.screenRevision.value === originRevision) {
+        error.value = copy.game.createFailed;
+      }
+    }
     finally { busy.value = false; }
   }
 
@@ -64,16 +73,17 @@ export function useGameFlow(options: Options) {
     error.value = "";
     needsLogin.value = false;
     options.screen.value = "game";
+    const screenRevision = options.screenRevision.value;
     try {
       const { agreement } = await api.getShare(code);
-      if (version !== loadVersion || options.screen.value !== 'game') return false;
+      if (version !== loadVersion || screenRevision !== options.screenRevision.value || options.screen.value !== "game") return false;
       if (agreement.source !== "card" || !agreement.gameCard) throw new Error("Not a game");
       options.upsert(agreement);
       const member = agreement.participants.some(person => person.userId === options.user.value?.id);
       if (member) options.open(agreement);
       return true;
     } catch (cause) {
-      if (version === loadVersion) {
+      if (version === loadVersion && screenRevision === options.screenRevision.value && options.screen.value === "game") {
         needsLogin.value = cause instanceof ApiRequestError && cause.status === 403 && !options.user.value;
         error.value = needsLogin.value ? copy.game.privateGame : cause instanceof ApiRequestError && [403, 404].includes(cause.status)
           ? copy.game.unavailable : copy.game.failed;
@@ -93,14 +103,18 @@ export function useGameFlow(options: Options) {
   async function submitJoin() {
     if (!pendingJoin || busy.value) return;
     const request = pendingJoin;
+    const originRevision = options.screenRevision.value;
     busy.value = true;
     error.value = "";
     try {
       const { agreement } = await api.joinGame(request.code, request.revision);
       options.upsert(agreement);
       pendingJoin = null;
-      options.open(agreement);
+      if (options.screen.value === "game" && options.screenRevision.value === originRevision) {
+        options.open(agreement);
+      }
     } catch {
+      if (options.screen.value !== "game" || options.screenRevision.value !== originRevision) return;
       await load(request.code);
       if (options.activeAgreement.value?.participants.some(person => person.userId === options.user.value?.id)) {
         pendingJoin = null;

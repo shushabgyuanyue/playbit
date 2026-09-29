@@ -13,6 +13,7 @@ import { ref, watch } from "vue";
 
 const props = defineProps<{
   agreement: Agreement | null;
+  entryLoading?: boolean;
   loading: boolean;
   user: User | null;
 }>();
@@ -48,7 +49,11 @@ watch(
       @home="emit('home')"
     />
 
-    <div v-if="props.agreement" class="life-page-content service-flow-content">
+    <div v-if="props.entryLoading && !props.agreement" class="screen-chunk-loading" role="status" aria-busy="true">
+      {{ copy.common.loading }}
+    </div>
+
+    <div v-else-if="props.agreement" class="life-page-content service-flow-content">
       <ContractDocument :agreement="props.agreement" :compact="true" :show-seal="false" />
       <section v-if="props.user" class="life-panel">
         <h2 class="life-section-title">{{ copy.sign.formTitle }}</h2>

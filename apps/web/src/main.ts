@@ -26,6 +26,7 @@ import "./styles/stake.css";
 import "./styles/share.css";
 import "./styles/signature.css";
 import "./styles/create.css";
+import "./styles/studio.css";
 
 import { createApp } from "vue";
 import { Empty, List, Popup } from "vant";

@@ -12,7 +12,11 @@ import type {
   Flip,
   GraceTicket,
   GraceWaiver,
-  User
+  User,
+  GameEvent,
+  ContentOverview,
+  ContentListItem,
+  DeliveredContentCard
 } from "@playbit/shared";
 
 function normalizeApiBaseUrl(value: string | undefined) {
@@ -120,6 +124,102 @@ export const api = {
       body: JSON.stringify({ previousIds })
     });
   },
+  ingestGameEvents(events: GameEvent[]) {
+    return request<{ accepted: number }>("/content/events", {
+      method: "POST",
+      body: JSON.stringify({ events })
+    });
+  },
+  getRecommendedCard(actorKey: string, previousIds: string[], preferredL1Id?: string) {
+    const query = new URLSearchParams({ actorKey, previousIds: JSON.stringify(previousIds) });
+    if (preferredL1Id) query.set("l1Id", preferredL1Id);
+    return request<{ card: DeliveredContentCard }>(`/content/cards/next?${query.toString()}`, {
+      signal: AbortSignal.timeout(1200)
+    });
+  },
+  getStudioOverview() {
+    return request<ContentOverview>("/studio/overview");
+  },
+  listStudioContent(status?: string) {
+    const query = status ? `?status=${encodeURIComponent(status)}` : "";
+    return request<{ items: ContentListItem[]; total: number }>(`/studio/content${query}`);
+  },
+  createStudioL1(payload: {
+    code: string;
+    name: string;
+    l0Ids: string[];
+    minPlayers: number;
+    maxPlayers: number | null;
+    durationMin: number | null;
+    durationMax: number | null;
+    outcomeModel: "no_winner" | "self_reported_winner" | "ranked_result" | "shared_completion";
+    certificateEligible?: boolean;
+    tags?: string[];
+  }) {
+    return request<{ l1: { id: string; name: string; code: string } }>("/studio/l1", { method: "POST", body: JSON.stringify(payload) });
+  },
+  createStudioL2(payload: {
+    l1Id: string;
+    title: string;
+    contentType: "prompt" | "truth" | "sequence" | "environment";
+    payload: Record<string, unknown>;
+    qualityTier?: number;
+    reusePolicy?: { cooldownRounds?: number; cooldownDays?: number; permanentExhaustion?: boolean; skipCooldownRounds?: number };
+    sourceMode?: "system" | "human" | "environment" | "external_ai" | "hybrid";
+  }) {
+    return request<{ l2: ContentListItem["l2"] }>("/studio/l2", { method: "POST", body: JSON.stringify(payload) });
+  },
+  updateStudioL2(l2Id: string, payload: { title?: string; contentType?: "prompt" | "truth" | "sequence" | "environment"; payload?: Record<string, unknown>; qualityTier?: number; sourceMode?: "system" | "human" | "environment" | "external_ai" | "hybrid" }) {
+    return request<{ l2: ContentListItem["l2"] }>(`/studio/l2/${l2Id}`, { method: "PATCH", body: JSON.stringify(payload) });
+  },
+  createStudioVersion(l1Id: string, payload: { shortRule?: string; completionCondition?: string; failureCondition?: string | null; displayHook?: string; toolIds?: string[]; changeNote?: string | null }) {
+    return request<{ version: { id: string; l1Id: string; versionNo: number; shortRule: string; completionCondition: string; failureCondition: string | null; displayHook: string; toolIds: string[]; changeNote: string | null; reviewStatus: string } }>(`/studio/l1/${l1Id}/versions`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  },
+  submitStudioVersion(versionId: string) {
+    return request<{ version: { id: string; versionNo: number; reviewStatus: string } }>(`/studio/versions/${versionId}/submit`, { method: "POST" });
+  },
+  updateStudioVersion(versionId: string, payload: { shortRule?: string; completionCondition?: string; failureCondition?: string | null; displayHook?: string; toolIds?: string[]; changeNote?: string | null }) {
+    return request<{ version: { id: string; versionNo: number; shortRule: string; completionCondition: string; failureCondition: string | null; displayHook: string; toolIds: string[]; changeNote: string | null; reviewStatus: string } }>(`/studio/versions/${versionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    });
+  },
+  reviewStudioVersion(versionId: string, decision: "approve" | "request_changes" | "pause" | "retire") {
+    return request<{ version: { id: string; versionNo: number; reviewStatus: string } }>(`/studio/versions/${versionId}/review`, {
+      method: "POST",
+      body: JSON.stringify({ decision })
+    });
+  },
+  publishStudioVersion(versionId: string) {
+    return request<{ version: { id: string; versionNo: number; reviewStatus: string } }>(`/studio/versions/${versionId}/publish`, { method: "POST" });
+  },
+  submitStudioL2(l2Id: string) {
+    return request<{ l2: ContentListItem["l2"] }>(`/studio/l2/${l2Id}/submit`, { method: "POST" });
+  },
+  reviewStudioL2(l2Id: string, decision: "approve" | "request_changes" | "pause" | "retire") {
+    return request<{ l2: ContentListItem["l2"] }>(`/studio/l2/${l2Id}/review`, { method: "POST", body: JSON.stringify({ decision }) });
+  },
+  publishStudioL2(l2Id: string) {
+    return request<{ l2: ContentListItem["l2"] }>(`/studio/l2/${l2Id}/publish`, { method: "POST" });
+  },
+  updateStudioReusePolicy(l2Id: string, policy: { cooldownRounds: number; cooldownDays: number; permanentExhaustion: boolean; skipCooldownRounds: number }, actor = "studio") {
+    return request<{ audit: { id: string } }>(`/studio/l2/${l2Id}/reuse-policy`, { method: "PATCH", body: JSON.stringify({ policy, actor }) });
+  },
+  listStudioReuseAudits(l2Id: string) {
+    return request<{ audits: Array<{ id: string; action: string; before: unknown; after: unknown; createdAt: string }> }>(`/studio/l2/${l2Id}/reuse-policy/audits`);
+  },
+  getStudioAnalytics() {
+    return request<{ generatedAt: string; metrics: ContentOverview["metrics"] }>("/studio/analytics/content");
+  },
+  setGameFavorite(actorKey: string, l1Id: string, isFavorite: boolean) {
+    return request<{ ok: boolean }>("/content/preferences", {
+      method: "POST",
+      body: JSON.stringify({ actorKey, l1Id, isFavorite })
+    });
+  },
   createAgreement(payload: CreateAgreementInput, requestId: string) {
     return request<{ agreement: Agreement }>("/agreements", {
       method: "POST",
@@ -219,6 +319,20 @@ export const api = {
   useCoupon(id: string) {
     return request<{ coupon: Coupon }>(`/coupons/${id}/use`, {
       method: "PATCH"
+    });
+  },
+  createIndependentCoupon(payload: {
+    gameResultId?: string | null;
+    certificateId?: string | null;
+    name: string;
+    description: string;
+    transferNote?: string | null;
+    holderUserId?: string | null;
+    holderNickname: string;
+  }) {
+    return request<{ coupon: Coupon }>("/coupons/independent", {
+      method: "POST",
+      body: JSON.stringify(payload)
     });
   },
   listGrace() {

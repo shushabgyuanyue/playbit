@@ -82,14 +82,165 @@ describe("contract flow recovery", () => {
   it("returns an unsigned document to editing with its reviewed revision, but never edits a signed document", async () => {
     await mount(); flow.currentUser.value = user; flow.openCreate();
     const saved = draft(); vi.mocked(api.createAgreement).mockResolvedValue({ agreement: saved });
-    await flow.createAgreement(input); flow.returnFromContract();
+    await flow.createAgreement(input); flow.goBack();
     expect(flow.screen.value).toBe("create");
     expect(flow.createDraft.title).toBe(saved.title);
     const update = vi.spyOn(api, "updateAgreement").mockResolvedValue({ agreement: { ...saved, revision: 2 } });
     await flow.createAgreement({ ...input, title: "Edited" });
     expect(update).toHaveBeenCalledWith(saved.id, expect.anything(), 1);
     flow.agreements.value = [signCounterparty(saved, friend.nickname, friend.id, "signature")];
-    flow.returnFromContract(); expect(flow.screen.value).toBe("home");
+    flow.goBack(); expect(flow.screen.value).toBe("home");
+  });
+
+  it("does not reopen a contract when its create request finishes after leaving and revisiting Create", async () => {
+    await mount(); flow.currentUser.value = user; flow.openCreate();
+    const response = deferred<{ agreement: Agreement }>();
+    vi.mocked(api.createAgreement).mockReturnValue(response.promise);
+    const creating = flow.createAgreement(input);
+    await flush();
+
+    flow.goHome();
+    flow.openCreate();
+    response.resolve({ agreement: draft() });
+    await creating;
+
+    expect(flow.screen.value).toBe("create");
+    expect(flow.activeAgreement.value).toBeUndefined();
+  });
+
+  it("returns through the actual page history and clears it when Home is chosen", async () => {
+    await mount();
+    flow.screen.value = "history";
+    flow.screen.value = "vouchers";
+    flow.screen.value = "voucherDetail";
+    expect(flow.canGoBack.value).toBe(true);
+    flow.goBack(); expect(flow.screen.value).toBe("vouchers");
+    flow.goBack(); expect(flow.screen.value).toBe("history");
+    flow.goBack(); expect(flow.screen.value).toBe("home");
+    expect(flow.canGoBack.value).toBe(false);
+  });
+
+  it("clears invitation entry parameters when returning Home", async () => {
+    await mount();
+    window.history.replaceState(null, "", "/?game=old-game&share=old-share&keep=1");
+
+    flow.goHome();
+
+    expect(window.location.search).toBe("?keep=1");
+  });
+
+  it("ignores an invitation response from a previous visit to the same screen", async () => {
+    await mount();
+    const response = deferred<{ agreement: Agreement }>();
+    vi.spyOn(api, "getShare").mockReturnValue(response.promise);
+    const loading = flow.gameFlow.load("old-invite");
+
+    flow.goBack();
+    flow.screen.value = "game";
+    response.resolve({ agreement: draft() });
+
+    expect(await loading).toBe(false);
+    expect(flow.activeAgreement.value).toBeUndefined();
+    expect(flow.gameFlow.error.value).toBe("");
+  });
+
+  it("returns certificate view to its origin, then continues to the prior screen", async () => {
+    await mount(); flow.currentUser.value = user;
+    const agreement = signCounterparty(draft(), friend.nickname, friend.id, "signature");
+    flow.agreements.value = [agreement];
+    flow.openAgreement(agreement);
+    expect(flow.screen.value).toBe("agreement");
+    flow.openCertificate("result");
+    expect(flow.screen.value).toBe("certificate");
+    flow.goBack(); expect(flow.screen.value).toBe("agreement");
+    flow.goBack(); expect(flow.screen.value).toBe("home");
+  });
+
+  it("does not let a late agreement lookup reopen a page after returning home", async () => {
+    await mount(); flow.currentUser.value = user;
+    const agreement = signCounterparty(draft(), friend.nickname, friend.id, "signature");
+    flow.screen.value = "vouchers";
+    const response = deferred<{ agreement: Agreement }>();
+    vi.spyOn(api, "getAgreement").mockReturnValue(response.promise);
+    const opening = flow.openAgreementById(agreement.id, "vouchers");
+    flow.goBack();
+    response.resolve({ agreement });
+    await opening;
+    expect(flow.screen.value).toBe("home");
+    expect(flow.activeAgreement.value).toBeUndefined();
+  });
+
+  it("ignores an agreement lookup after leaving and revisiting its origin screen", async () => {
+    await mount(); flow.currentUser.value = user;
+    const agreement = signCounterparty(draft(), friend.nickname, friend.id, "signature");
+    flow.screen.value = "history";
+    const response = deferred<{ agreement: Agreement }>();
+    vi.spyOn(api, "getAgreement").mockReturnValue(response.promise);
+    const opening = flow.openAgreementById(agreement.id, "history");
+
+    flow.goHome();
+    flow.screen.value = "history";
+    response.resolve({ agreement });
+    await opening;
+
+    expect(flow.screen.value).toBe("history");
+    expect(flow.activeAgreement.value).toBeUndefined();
+  });
+
+  it("does not navigate back to settlement when a result request finishes after Home", async () => {
+    await mount(); flow.currentUser.value = user;
+    const active = signCounterparty(draft(), friend.nickname, friend.id, "signature");
+    const winnerId = active.participants[0].id;
+    const settled = settleAgreement(active, winnerId, user.id);
+    flow.agreements.value = [active]; flow.openAgreement(active); await flush();
+    const response = deferred<{ agreement: Agreement }>();
+    vi.spyOn(api, "recordAgreementResult").mockReturnValue(response.promise);
+    const recording = flow.recordAgreementResult(winnerId);
+    await flush();
+    flow.goBack();
+    response.resolve({ agreement: settled });
+    await recording;
+    expect(flow.screen.value).toBe("home");
+    expect(api.recordAgreementResult).toHaveBeenCalledWith(active.id, winnerId);
+    expect(flow.settlementRevealId.value).toBeNull();
+  });
+
+  it("replaces the temporary signing route after a successful share signature", async () => {
+    const pending = draft();
+    window.history.replaceState(null, "", `/?share=${pending.shareCode}`);
+    vi.mocked(api.me).mockResolvedValue({ user: friend });
+    vi.spyOn(api, "getShare").mockResolvedValue({ agreement: pending });
+    await mount(); flow.currentUser.value = friend;
+    const signed = signCounterparty(pending, friend.nickname, friend.id, "signature");
+    vi.spyOn(api, "signShare").mockResolvedValue({ agreement: signed });
+    await flow.signSession({ signatureDataUrl: "signature", revision: pending.revision });
+    expect(flow.screen.value).toBe("contract");
+    flow.goBack();
+    expect(flow.screen.value).toBe("home");
+  });
+
+  it("opens the signing destination immediately while identity and invitation data load", async () => {
+    const pending = draft();
+    const identity = deferred<{ user: User }>();
+    const invitation = deferred<{ agreement: Agreement }>();
+    window.history.replaceState(null, "", `/?share=${pending.shareCode}`);
+    vi.mocked(api.getAuthToken).mockReturnValue("saved-token");
+    vi.mocked(api.me).mockReturnValue(identity.promise);
+    vi.spyOn(api, "getShare").mockReturnValue(invitation.promise);
+
+    await mount();
+    expect(flow.screen.value).toBe("sign");
+    expect(flow.shareEntryLoading.value).toBe(true);
+
+    identity.resolve({ user: friend });
+    await flush();
+    expect(flow.screen.value).toBe("sign");
+    invitation.resolve({ agreement: pending });
+    await flush();
+
+    expect(flow.screen.value).toBe("sign");
+    expect(flow.shareEntryLoading.value).toBe(false);
+    expect(flow.activeAgreement.value?.id).toBe(pending.id);
   });
 
   it.each([false, true])("resumes guest signing only when the reviewed terms are unchanged (changed=%s)", async changed => {
@@ -191,6 +342,27 @@ describe("contract flow recovery", () => {
       loserId: active.participants[1].id, revision: 2, resultRecorderUserId: user.id } });
     await flow.recordAgreementResult(winnerId);
     expect(flow.screen.value).toBe("settlement"); expect(api.recordAgreementResult).toHaveBeenCalledTimes(1);
+    const revealId = flow.settlementRevealId.value;
+    expect(revealId).toContain(active.id);
+    flow.acknowledgeSettlementReveal(revealId!);
+    expect(flow.settlementRevealId.value).toBeNull();
+  });
+
+  it("reveals a newly recorded result once, but not when reopening settled history", async () => {
+    await mount(); flow.currentUser.value = user;
+    const active = signCounterparty(draft(), friend.nickname, friend.id, "signature");
+    const winnerId = active.participants[0].id;
+    const settled = settleAgreement(active, winnerId, user.id);
+    vi.spyOn(api, "recordAgreementResult").mockResolvedValue({ agreement: settled });
+    flow.agreements.value = [active]; flow.openAgreement(active); await flush();
+    await flow.recordAgreementResult(winnerId);
+    const revealId = flow.settlementRevealId.value;
+    expect(flow.screen.value).toBe("settlement");
+    expect(revealId).toContain(active.id);
+    flow.acknowledgeSettlementReveal(revealId!);
+    flow.openAgreement(settled);
+    expect(flow.screen.value).toBe("settlement");
+    expect(flow.settlementRevealId.value).toBeNull();
   });
 
   it("does not subscribe or sync a settled agreement", async () => {

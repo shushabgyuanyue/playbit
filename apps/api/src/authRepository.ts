@@ -105,6 +105,11 @@ class MemoryAuthRepository {
     return user ? fromUserRow(user) : null;
   }
 
+  async findUserById(userId: string): Promise<User | null> {
+    const user = this.users.get(userId);
+    return user ? fromUserRow(user) : null;
+  }
+
   async updateSignature(userId: string, signatureDataUrl: string): Promise<void> {
     const user = this.users.get(userId);
     if (user) {
@@ -183,6 +188,11 @@ class PostgresAuthRepository {
     }
 
     const [user] = await this.db.select().from(users).where(eq(users.id, session.userId)).limit(1);
+    return user ? fromUserRow(user) : null;
+  }
+
+  async findUserById(userId: string): Promise<User | null> {
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
     return user ? fromUserRow(user) : null;
   }
 

@@ -23,6 +23,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   back: [];
+  home: [];
   logout: [];
   "update-profile": [payload: UpdateProfileInput];
 }>();
@@ -147,7 +148,7 @@ function resetAvatar() {
       :back-label="copy.common.back"
       :home-label="copy.common.home"
       @back="emit('back')"
-      @home="emit('back')"
+      @home="emit('home')"
     />
 
     <div class="life-page-content service-flow-content account-content">

@@ -27,6 +27,9 @@ import {
 } from "./playbitFlowHelpers";
 import { useFlipFlow, useGraceFlow } from "./useEquityFeatures";
 import { useGameFlow } from "./useGameFlow";
+import { useStandaloneGameFlow } from "./useStandaloneGameFlow";
+import { useGameTelemetry } from "./useGameTelemetry";
+import { useScreenNavigation } from "./useScreenNavigation";
 import { requestId } from "../utils/requestId";
 
 export type CreateBetDraft = {
@@ -37,6 +40,20 @@ export type CreateBetDraft = {
 
 export function usePlaybitFlow() {
   const screen = ref<Screen>("home");
+  const shareEntryLoading = ref(false);
+  const settlementRevealId = ref<string | null>(null);
+  const {
+    screenHistory,
+    screenRevision,
+    canGoBack,
+    setScreenWithoutCapture,
+    clearEntryQuery,
+    navigateBackTo,
+    replaceCurrentScreen,
+    goHome
+  } = useScreenNavigation(screen, {
+    onHome: () => { settlementRevealId.value = null; }
+  });
   const currentUser = ref<User | null>(null);
   const authOpen = ref(false);
   const authError = ref<string | null>(null);
@@ -85,11 +102,31 @@ export function usePlaybitFlow() {
     agreements.value.find((agreement) => agreement.id === activeAgreementId.value)
   );
 
+  function markSettlementReveal(agreement: Agreement) {
+    settlementRevealId.value = `${agreement.id}:${agreement.winnerId}:${agreement.resultRecordedAt ?? agreement.revision}`;
+  }
+
+  function acknowledgeSettlementReveal(revealId: string) {
+    if (settlementRevealId.value === revealId) settlementRevealId.value = null;
+  }
+
   const sharePayload = computed<SharePayload | null>(() =>
     activeAgreement.value ? buildSharePayload(activeAgreement.value) : null
   );
-  const gameFlow = useGameFlow({ activeCard, activeAgreement, screen, user: currentUser,
+  const gameFlow = useGameFlow({ activeCard, activeAgreement, screen, screenRevision, user: currentUser,
     requireAccount, upsert: upsertAgreement, open: openAgreement });
+  const gameTelemetry = useGameTelemetry();
+  const favoriteL1Ids = new Set<string>();
+  const standaloneGameFlow = useStandaloneGameFlow(screen, {
+    recordEvent: gameTelemetry.record,
+    drawRecommendedCard: (previousIds, preferredL1Id) => api.getRecommendedCard(gameTelemetry.actorKey, previousIds, preferredL1Id).then((response) => response.card),
+    isFavorite: (l1Id) => favoriteL1Ids.has(l1Id),
+    setFavorite: async (l1Id, favorite) => {
+      await api.setGameFavorite(gameTelemetry.actorKey, l1Id, favorite);
+      if (favorite) favoriteL1Ids.add(l1Id);
+      else favoriteL1Ids.delete(l1Id);
+    }
+  });
 
   async function ensureIdentity() {
     if (currentUser.value) {
@@ -167,20 +204,11 @@ export function usePlaybitFlow() {
   }
 
   function openDraw() {
-    gameFlow.error.value = "";
-    screen.value = "draw";
-    if (!activeCard.value) {
-      void drawCard();
-    }
+    standaloneGameFlow.open();
   }
 
   function openFeaturedCard(card: Card) {
-    gameFlow.error.value = "";
-    activeCard.value = card;
-    if (!drawnCardIds.value.includes(card.id)) {
-      drawnCardIds.value = [...drawnCardIds.value, card.id];
-    }
-    screen.value = "draw";
+    standaloneGameFlow.open(card);
   }
 
   function openHistory() {
@@ -262,6 +290,7 @@ export function usePlaybitFlow() {
     agreementSyncInFlight = true;
     const agreementId = activeAgreementId.value;
     const userId = currentUser.value?.id;
+    const alreadySettled = Boolean(activeAgreement.value?.winnerId);
     if (!silent) {
       agreementRefreshing.value = true;
     }
@@ -270,6 +299,7 @@ export function usePlaybitFlow() {
       if (activeAgreementId.value !== agreementId || currentUser.value?.id !== userId) return;
       upsertAgreement(response.agreement);
       if (["game", "agreement"].includes(screen.value) && response.agreement.winnerId) {
+        if (!alreadySettled) markSettlementReveal(response.agreement);
         screen.value = "settlement";
         void refreshCoupons();
       }
@@ -292,8 +322,13 @@ export function usePlaybitFlow() {
   async function loadShareAgreement(shareCode: string) {
     activeShareCode.value = shareCode;
     activeAgreementId.value = null;
-    await restorePendingShareAgreement();
-    showSharedAgreement();
+    shareEntryLoading.value = true;
+    try {
+      await restorePendingShareAgreement();
+      showSharedAgreement();
+    } finally {
+      shareEntryLoading.value = false;
+    }
   }
 
   function showSharedAgreement() {
@@ -309,7 +344,7 @@ export function usePlaybitFlow() {
     }
     if (agreement.participants.some((participant) => participant.userId === currentUser.value?.id)) {
       contractBackScreen.value = "home";
-      openAgreement(agreement);
+      openAgreement(agreement, screen.value === "sign");
       return;
     }
     screen.value = "sign";
@@ -318,8 +353,11 @@ export function usePlaybitFlow() {
   async function createAgreement(payload: CreateAgreementInput) {
     if (createLoading.value) return;
     createLoading.value = true;
+    const originScreen = screen.value;
+    const originRevision = screenRevision.value;
     try {
       const user = await ensureIdentity();
+      if (screen.value !== originScreen || screenRevision.value !== originRevision) return;
       if (!user) {
         pendingCreatePayload.value = payload;
         authReturnScreen.value = screen.value;
@@ -345,6 +383,7 @@ export function usePlaybitFlow() {
         signatureDataUrl: payload.creatorSignatureDataUrl
       };
       agreements.value = [response.agreement, ...agreements.value.filter((item) => item.id !== response.agreement.id)];
+      if (screen.value !== originScreen || screenRevision.value !== originRevision) return;
       activeAgreementId.value = response.agreement.id;
       editingAgreementId.value = response.agreement.id;
       editingRevision.value = response.agreement.revision;
@@ -354,7 +393,7 @@ export function usePlaybitFlow() {
     } catch (error) {
       if (error instanceof ApiRequestError && error.status === 409 && editingAgreementId.value) {
         const response = await api.getAgreement(editingAgreementId.value).catch(() => null);
-        if (response) {
+        if (response && screen.value === originScreen && screenRevision.value === originRevision) {
           upsertAgreement(response.agreement);
           screen.value = "contract";
         }
@@ -389,16 +428,21 @@ export function usePlaybitFlow() {
     resultLoading.value = true;
     const id = activeAgreement.value.id;
     const userId = currentUser.value?.id;
+    const originScreen = screen.value;
+    const originRevision = screenRevision.value;
+    const alreadySettled = Boolean(activeAgreement.value.winnerId);
     try {
       const response = await api.recordAgreementResult(id, winnerId);
       if (currentUser.value?.id !== userId || activeAgreementId.value !== id) return;
       upsertAgreement(response.agreement);
+      if (screen.value === originScreen && screenRevision.value === originRevision && !alreadySettled && response.agreement.winnerId) {
+        markSettlementReveal(response.agreement);
+      }
       await refreshCoupons();
     } catch {
       if (currentUser.value?.id !== userId || activeAgreementId.value !== id) return;
       await refreshActiveAgreement(true);
       if (activeAgreement.value?.winnerId === winnerId) {
-        screen.value = "settlement";
         void refreshCoupons();
         return;
       }
@@ -408,7 +452,10 @@ export function usePlaybitFlow() {
       resultLoading.value = false;
     }
 
-    if (currentUser.value?.id === userId && activeAgreementId.value === id) screen.value = "settlement";
+    if (currentUser.value?.id === userId && activeAgreementId.value === id &&
+      screen.value === originScreen && screenRevision.value === originRevision) {
+      screen.value = "settlement";
+    }
   }
 
   async function addBoost(label: string) {
@@ -501,14 +548,17 @@ export function usePlaybitFlow() {
     loadVoucherFlips, startFlip, loadFlip, respondToFlip, refreshFlip, recordFlipOutcome
   } = flipFlow;
 
-  function openAgreement(agreement: Agreement) {
+  function openAgreement(agreement: Agreement, replaceCurrent = false) {
+    settlementRevealId.value = null;
     activeAgreementId.value = agreement.id;
     if (agreement.source === "card") {
       gameFlow.error.value = agreement.gameCard ? "" : copy.game.failed;
       gameFlow.needsLogin.value = false;
       gameFlow.inviteCode.value = agreement.shareCode;
     }
-    screen.value = agreement.winnerId ? "settlement" : agreement.source === "card" ? "game" : agreement.status === "active" ? "agreement" : "contract";
+    const nextScreen = agreement.winnerId ? "settlement" : agreement.source === "card" ? "game" : agreement.status === "active" ? "agreement" : "contract";
+    if (replaceCurrent) replaceCurrentScreen(nextScreen);
+    else screen.value = nextScreen;
   }
 
   function openAgreementFrom(agreement: Agreement, backScreen: Screen = "home") {
@@ -531,10 +581,10 @@ export function usePlaybitFlow() {
       };
       createDraft.creatorSignatureDataUrl = initiator?.signatureDataUrl ?? "";
       editingRevision.value = agreement.revision;
-      screen.value = "create";
+      navigateBackTo("create");
       return;
     }
-    screen.value = contractBackScreen.value === "create" ? "home" : contractBackScreen.value;
+    navigateBackTo(contractBackScreen.value === "create" ? "home" : contractBackScreen.value);
   }
 
   function openCertificate(
@@ -551,15 +601,19 @@ export function usePlaybitFlow() {
   async function openVoucherCertificate(agreementId: string) {
     if (!agreementId) return;
 
+    const originScreen = screen.value;
+    const originRevision = screenRevision.value;
     const localAgreement = agreements.value.find((agreement) => agreement.id === agreementId);
     try {
       const response = await api.getAgreement(agreementId);
+      if (screen.value !== originScreen || screenRevision.value !== originRevision) return;
       upsertAgreement(response.agreement);
       certificateBackScreen.value = "voucherDetail";
       certificateKind.value = "waiver";
       certificateAction.value = null;
       screen.value = "certificate";
     } catch (error) {
+      if (screen.value !== originScreen || screenRevision.value !== originRevision) return;
       if (localAgreement && !(error instanceof ApiRequestError)) {
         upsertAgreement(localAgreement);
         certificateBackScreen.value = "voucherDetail";
@@ -574,25 +628,49 @@ export function usePlaybitFlow() {
 
   function closeCertificate() {
     certificateAction.value = null;
-    screen.value = certificateBackScreen.value;
+    navigateBackTo(certificateBackScreen.value);
   }
 
   function closeFlip() {
-    screen.value = flipBackScreen.value;
+    navigateBackTo(flipBackScreen.value);
     if (screen.value === "voucherDetail" && activeVoucherId.value) {
       void loadVoucherFlips(activeVoucherId.value);
     }
   }
 
+  function goBack() {
+    if (screen.value === "contract") returnFromContract();
+    else if (screen.value === "certificate") closeCertificate();
+    else if (screen.value === "flip") closeFlip();
+    else {
+      const previousScreen = screenHistory.value.pop();
+      if (!previousScreen) {
+        goHome();
+        return;
+      }
+      if (previousScreen === "home") {
+        goHome();
+        return;
+      }
+      clearEntryQuery(screen.value);
+      setScreenWithoutCapture(previousScreen);
+    }
+  }
+
   async function openAgreementById(agreementId: string, backScreen: Screen = "home") {
-    contractBackScreen.value = backScreen;
+    const originScreen = screen.value;
+    const originRevision = screenRevision.value;
     const localSession = agreements.value.find((agreement) => agreement.id === agreementId);
 
     try {
       const response = await api.getAgreement(agreementId);
+      if (screen.value !== originScreen || screenRevision.value !== originRevision) return;
+      contractBackScreen.value = backScreen;
       upsertAgreement(response.agreement);
       openAgreement(response.agreement);
     } catch (error) {
+      if (screen.value !== originScreen || screenRevision.value !== originRevision) return;
+      contractBackScreen.value = backScreen;
       if (localSession && !(error instanceof ApiRequestError)) {
         upsertAgreement(localSession);
         openAgreement(localSession);
@@ -686,9 +764,12 @@ export function usePlaybitFlow() {
     if (!activeShareCode.value || signLoading.value) {
       return;
     }
+    const originScreen = screen.value;
+    const originRevision = screenRevision.value;
     signLoading.value = true;
     try {
       const user = await ensureIdentity();
+      if (screen.value !== originScreen || screenRevision.value !== originRevision) return;
       if (!user) {
         pendingSignSignature.value = payload;
         authReturnScreen.value = "sign";
@@ -706,11 +787,12 @@ export function usePlaybitFlow() {
       };
       upsertAgreement(response.agreement);
       await refreshCoupons();
-      if (currentUser.value?.id !== user.id) return;
+      if (currentUser.value?.id !== user.id || screen.value !== originScreen || screenRevision.value !== originRevision) return;
       pendingSignSignature.value = null;
       contractBackScreen.value = "home";
-      screen.value = "contract";
+      replaceCurrentScreen("contract");
     } catch (error) {
+      if (screen.value !== originScreen || screenRevision.value !== originRevision) return;
       if (error instanceof ApiRequestError && [403, 409].includes(error.status)) {
         await restorePendingShareAgreement();
         showSharedAgreement();
@@ -824,6 +906,7 @@ export function usePlaybitFlow() {
 
   function logoutAccount() {
     gameFlow.reset();
+    standaloneGameFlow.reset();
     stopSessionRealtime();
     api.clearAuthToken();
     currentUser.value = null;
@@ -1006,14 +1089,20 @@ export function usePlaybitFlow() {
   onMounted(async () => {
     window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
-    const shareCode = new URLSearchParams(window.location.search).get("share");
+    const params = new URLSearchParams(window.location.search);
+    const shareCode = params.get("share");
+    const gameCode = params.get("game");
+    const flipId = params.get("flip");
+    if (shareCode && !gameCode && !flipId) {
+      activeShareCode.value = shareCode;
+      shareEntryLoading.value = true;
+      screen.value = "sign";
+    }
     const user = await ensureIdentity().catch(() => {
       agreementsError.value = copy.home.overviewLoadFailedNote;
       return null;
     });
-    const gameCode = new URLSearchParams(window.location.search).get("game");
     if (gameCode) { await gameFlow.load(gameCode); return; }
-    const flipId = new URLSearchParams(window.location.search).get("flip");
     if (flipId) {
       pendingFlipId.value = flipId;
       if (user) {
@@ -1026,11 +1115,6 @@ export function usePlaybitFlow() {
     }
     if (shareCode) {
       await loadShareAgreement(shareCode);
-      if (user) {
-        await refreshAgreements();
-        await restorePendingShareAgreement();
-        showSharedAgreement();
-      }
       return;
     }
     void refreshAgreements();
@@ -1047,9 +1131,11 @@ export function usePlaybitFlow() {
   return {
     boostLoading,
     gameFlow,
+    standaloneGameFlow,
     resultLoading,
     activeCard,
     activeAgreement,
+    settlementRevealId,
     activeVoucherId,
     voucherFlip,
     voucherFlipLoading,
@@ -1074,6 +1160,8 @@ export function usePlaybitFlow() {
     agreementsLoading,
     agreementsError,
     agreements,
+    shareEntryLoading,
+    canGoBack,
     sharePayload,
     signLoading,
     screen,
@@ -1095,6 +1183,8 @@ export function usePlaybitFlow() {
     refreshAgreements,
     openAgreement,
     openAgreementFrom,
+    goBack,
+    goHome,
     returnFromContract,
     openCertificate,
     openVoucherCertificate,
@@ -1108,6 +1198,7 @@ export function usePlaybitFlow() {
     registerAccount,
     redeemCoupon,
     recordAgreementResult,
+    acknowledgeSettlementReveal,
     startFlip,
     loadFlip,
     activeFlip,

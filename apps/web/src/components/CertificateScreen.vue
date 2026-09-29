@@ -26,6 +26,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   back: [];
   home: [];
+  rendered: [renderKey: string];
 }>();
 const canvas = ref<HTMLCanvasElement | null>(null);
 const busy = ref(false);
@@ -103,6 +104,7 @@ async function renderCertificate() {
   const ctx = target?.getContext("2d");
   const agreement = props.agreement;
   if (!target || !ctx || !agreement) return;
+  const renderKey = `${agreement.id}:${agreement.revision}:${props.currentUserId ?? ""}`;
   await document.fonts.ready;
 
   const styles = getComputedStyle(document.documentElement);
@@ -123,6 +125,7 @@ async function renderCertificate() {
   const gameConfirmation = props.kind === "agreement" && agreement.source === "card";
   if (!gameConfirmation) {
     await drawAwardCertificate(target, awardAgreement.value!, props.kind === "flip" ? "result" : props.kind as "result" | "fulfillment" | "waiver", props.currentUserId);
+    emit("rendered", renderKey);
     return;
   }
 
@@ -197,6 +200,7 @@ async function renderCertificate() {
   ctx.fillStyle = palette.muted;
   ctx.font = "22px system-ui, sans-serif";
   drawText(ctx, copy.certificate.disclaimer, 540, 1300, 860);
+  emit("rendered", renderKey);
 }
 
 async function imageFile(): Promise<File> {

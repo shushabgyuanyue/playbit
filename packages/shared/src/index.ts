@@ -54,7 +54,9 @@ export const stakeSchema = z.object({
 
 export const couponSchema = z.object({
   id: z.string(),
-  agreementId: z.string(),
+  agreementId: z.string().nullable().default(null),
+  gameResultId: z.string().nullable().default(null),
+  certificateId: z.string().nullable().default(null),
   sourceFlipId: z.string().nullable().default(null),
   name: z.string().min(1).max(323),
   description: z.string().min(1).max(180),
@@ -63,12 +65,31 @@ export const couponSchema = z.object({
   holderUserId: z.string().nullable(),
   holderNickname: z.string(),
   status: z.enum(["available", "reserved", "used", "waived"]),
+  transferNote: z.string().max(180).nullable().default(null),
   createdAt: z.string(),
   usedAt: z.string().nullable(),
   waivedAt: z.string().nullable().default(null)
 });
 
 export const cardCategorySchema = z.enum(["challenge", "rule", "hidden"]);
+export const cardToolIdSchema = z.enum(["timer", "counter", "scoreboard"]);
+export const gameEventNameSchema = z.enum([
+  "exposed",
+  "rerolled",
+  "started",
+  "tool_opened",
+  "completed",
+  "abandoned"
+]);
+export const gameEventSchema = z.object({
+  clientEventId: z.string().min(1),
+  actorKey: z.string().min(1),
+  sessionId: z.string().min(1),
+  cardId: z.string().min(1),
+  eventName: gameEventNameSchema,
+  occurredAt: z.string().datetime(),
+  payload: z.record(z.string(), z.unknown()).optional()
+});
 
 export const cardSchema = z.object({
   id: z.string(),
@@ -83,7 +104,9 @@ export const cardSchema = z.object({
   steps: z.array(z.string()).optional(),
   tone: z.enum(["coral", "blue", "gold"]).optional(),
   winCondition: z.string(),
-  reveal: z.string().optional()
+  reveal: z.string().optional(),
+  tools: z.array(cardToolIdSchema).optional(),
+  outcomeModel: z.enum(["no_winner", "self_reported_winner", "ranked_result", "shared_completion"]).optional()
 });
 
 export const agreementStatusSchema = z.enum([
@@ -236,6 +259,9 @@ export type GraceTicket = z.infer<typeof graceTicketSchema>;
 export type GraceWaiver = z.infer<typeof graceWaiverSchema>;
 export type CreateFlipInput = z.infer<typeof createFlipSchema>;
 export type CardCategory = z.infer<typeof cardCategorySchema>;
+export type CardToolId = z.infer<typeof cardToolIdSchema>;
+export type GameEventName = z.infer<typeof gameEventNameSchema>;
+export type GameEvent = z.infer<typeof gameEventSchema>;
 export type Card = z.infer<typeof cardSchema>;
 export type AgreementStatus = z.infer<typeof agreementStatusSchema>;
 export type Agreement = z.infer<typeof agreementSchema>;
@@ -247,3 +273,5 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RecordResultInput = z.infer<typeof recordResultSchema>;
+
+export * from "./content.js";

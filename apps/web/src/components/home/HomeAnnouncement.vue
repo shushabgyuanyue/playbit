@@ -7,15 +7,31 @@ const emit = defineEmits<{ open: [index: number] }>();
 const activeIndex = ref(0);
 const hovered = ref(false);
 const focused = ref(false);
-let timer: ReturnType<typeof setInterval> | undefined;
+let timer: ReturnType<typeof setTimeout> | undefined;
+let motionQuery: MediaQueryList | undefined;
+
+function schedule() {
+  if (timer) clearTimeout(timer);
+  timer = undefined;
+  if (document.hidden || hovered.value || focused.value || motionQuery?.matches) return;
+
+  timer = setTimeout(() => {
+    activeIndex.value = (activeIndex.value + 1) % copy.home.announcements.length;
+    schedule();
+  }, 6500);
+}
 
 onMounted(() => {
-  timer = setInterval(() => {
-    if (document.hidden || hovered.value || focused.value) return;
-    activeIndex.value = (activeIndex.value + 1) % copy.home.announcements.length;
-  }, 6500);
+  motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  motionQuery.addEventListener("change", schedule);
+  document.addEventListener("visibilitychange", schedule);
+  schedule();
 });
-onUnmounted(() => clearInterval(timer));
+onUnmounted(() => {
+  if (timer) clearTimeout(timer);
+  motionQuery?.removeEventListener("change", schedule);
+  document.removeEventListener("visibilitychange", schedule);
+});
 </script>
 
 <template>
@@ -24,10 +40,10 @@ onUnmounted(() => clearInterval(timer));
       type="button"
       class="home-announcement-bar"
       @click="emit('open', activeIndex)"
-      @mouseenter="hovered = true"
-      @mouseleave="hovered = false"
-      @focus="focused = true"
-      @blur="focused = false"
+      @mouseenter="hovered = true; schedule()"
+      @mouseleave="hovered = false; schedule()"
+      @focus="focused = true; schedule()"
+      @blur="focused = false; schedule()"
     >
       <span class="home-announcement-label"><Megaphone :size="16" aria-hidden="true" />{{ copy.home.announcementTitle }}</span>
       <span class="home-announcement-viewport" aria-live="off">

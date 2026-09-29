@@ -57,6 +57,7 @@ export function useFlipFlow(options: FlipFlowOptions) {
     voucherFlips.value = [];
     voucherFlipError.value = false;
     if (!coupon) return;
+    if (!coupon.agreementId) return;
     voucherFlipLoading.value = true;
     try {
       const response = await api.listFlips(coupon.agreementId);
@@ -76,6 +77,7 @@ export function useFlipFlow(options: FlipFlowOptions) {
     if (flipBusy.value) return;
     const coupon = options.coupons.value.find((item) => item.id === couponId);
     if (!coupon) return;
+    if (!coupon.agreementId) return;
     if (!options.requireAccount("voucherDetail")) {
       options.pendingFlipCouponId.value = couponId;
       return;

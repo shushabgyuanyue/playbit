@@ -50,14 +50,23 @@ const partnerName = computed(() => {
 <template>
   <section class="home-overview-section" aria-labelledby="home-overview-title">
     <SectionHeading :title="copy.home.overviewTitle" title-id="home-overview-title" :action-label="copy.home.viewAll" @action="emit('history')" />
-    <div v-if="(props.loading || props.error) && props.agreements.length > 0" class="home-overview-inline-state" role="status" :aria-busy="props.loading">
+    <div v-if="(props.loading || props.error) && props.agreements.length > 0" class="home-overview-inline-state" :class="{ 'is-loading': props.loading }" role="status" :aria-busy="props.loading" :aria-label="props.loading ? copy.home.overviewLoading : copy.home.overviewLoadFailed">
       <LoaderCircle v-if="props.loading" class="is-spinning" :size="13" aria-hidden="true" />
-      <span>{{ props.loading ? copy.home.overviewLoading : copy.home.overviewLoadFailed }}</span>
+      <span v-else>{{ copy.home.overviewLoadFailed }}</span>
       <button v-if="props.error && !props.loading" type="button" @click="emit('refresh')">{{ copy.home.retryOverview }}</button>
     </div>
-    <div v-if="props.loading && props.agreements.length === 0" class="home-overview-content home-overview-state" data-state="loading" role="status" aria-busy="true">
-      <LoaderCircle class="home-overview-state-icon is-spinning" :size="20" aria-hidden="true" />
-      <span>{{ copy.home.overviewLoading }}</span>
+    <div v-if="props.loading && props.agreements.length === 0" class="home-overview-content home-overview-skeleton" data-state="loading" role="status" aria-busy="true" :aria-label="copy.home.overviewLoading">
+      <div class="home-overview-skeleton-stats" aria-hidden="true">
+        <span v-for="index in 4" :key="index" class="home-overview-skeleton-stat">
+          <i class="home-overview-skeleton-line home-overview-skeleton-line-short" />
+          <i class="home-overview-skeleton-line home-overview-skeleton-line-number" />
+        </span>
+      </div>
+      <div class="home-overview-skeleton-record" aria-hidden="true">
+        <i class="home-overview-skeleton-line home-overview-skeleton-line-meta" />
+        <i class="home-overview-skeleton-line home-overview-skeleton-line-title" />
+        <i class="home-overview-skeleton-line home-overview-skeleton-line-footer" />
+      </div>
     </div>
     <div v-else-if="props.error && props.agreements.length === 0" class="home-overview-content home-overview-state" data-state="error" role="alert">
       <span class="home-overview-state-title">{{ copy.home.overviewLoadFailed }}</span>
