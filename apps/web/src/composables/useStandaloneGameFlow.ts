@@ -9,6 +9,9 @@ export type LocalPlayResult =
   | { kind: "ranking"; ranking: LocalPlayer[] }
   | { kind: "completed"; note?: string };
 
+const SCOREBOARD_STORAGE_KEY = "playbit.standalone.scoreboard.v1";
+const MAX_SCOREBOARD_PLAYERS = 8;
+
 type StandaloneGameFlowOptions = {
   recordEvent?: (eventName: GameEventName, input: { sessionId: string; cardId: string; payload?: Record<string, unknown> }) => unknown;
   drawRecommendedCard?: (previousIds: string[], preferredL1Id?: string) => Promise<DeliveredContentCard | Card | null>;
@@ -29,13 +32,50 @@ function inferTools(card: Card): CardToolId[] {
   return inferred.length ? inferred : ["timer"];
 }
 
-function createPlayers(card: Card): LocalPlayer[] {
+function createPlayers(card: Pick<Card, "mode" | "participantMin">): LocalPlayer[] {
   const count = card.mode === "versus" ? 2 : Math.min(Math.max(card.participantMin, 2), 4);
   return Array.from({ length: count }, (_, index) => ({
     id: `player-${index + 1}`,
     label: card.mode === "versus" ? `玩家 ${index === 0 ? "A" : "B"}` : `玩家 ${index + 1}`,
     score: 0
   }));
+}
+
+function isLocalPlayer(value: unknown): value is LocalPlayer {
+  if (!value || typeof value !== "object") return false;
+  const player = value as Partial<LocalPlayer>;
+  return typeof player.id === "string"
+    && typeof player.label === "string"
+    && typeof player.score === "number"
+    && Number.isFinite(player.score)
+    && player.score >= 0;
+}
+
+function readScoreboard(): LocalPlayer[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(SCOREBOARD_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter(isLocalPlayer).slice(0, MAX_SCOREBOARD_PLAYERS).map((player) => ({
+        id: player.id,
+        label: player.label.slice(0, 12),
+        score: Math.max(0, Math.floor(player.score))
+      }))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeScoreboard(players: LocalPlayer[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SCOREBOARD_STORAGE_KEY, JSON.stringify(players));
+  } catch {
+    // A private browsing context may reject localStorage. The in-memory board still works.
+  }
 }
 
 function makeSessionId() {
@@ -47,7 +87,7 @@ export function useStandaloneGameFlow(screen: Ref<Screen>, options: StandaloneGa
   const phase = ref<"playing" | "result">("playing");
   const activeTool = ref<CardToolId | null>(null);
   const previousCardIds = ref<string[]>([]);
-  const players = ref<LocalPlayer[]>([]);
+  const players = ref<LocalPlayer[]>(readScoreboard());
   const result = ref<LocalPlayResult | null>(null);
   const startedAt = ref<string | null>(null);
   const completedAt = ref<string | null>(null);
@@ -55,16 +95,20 @@ export function useStandaloneGameFlow(screen: Ref<Screen>, options: StandaloneGa
   const loading = ref(false);
   const favorite = ref(false);
   const favoriteBusy = ref(false);
-  const timerSeconds = ref(0);
+  const timerMilliseconds = ref(0);
   const timerRunning = ref(false);
   const counterValue = ref(0);
   let timerHandle: number | undefined;
+  let timerStartedAt = 0;
   let drawRevision = 0;
 
-  const tools = computed(() => card.value ? inferTools(card.value) : toolIds);
+  const tools = computed(() => card.value
+    ? [...new Set([...inferTools(card.value), "scoreboard" as CardToolId])]
+    : toolIds);
   const hasCard = computed(() => Boolean(card.value));
 
   function clearTimer() {
+    if (timerRunning.value) updateTimer();
     if (timerHandle !== undefined) {
       window.clearInterval(timerHandle);
       timerHandle = undefined;
@@ -72,17 +116,28 @@ export function useStandaloneGameFlow(screen: Ref<Screen>, options: StandaloneGa
     timerRunning.value = false;
   }
 
+  function updateTimer() {
+    if (!timerRunning.value) return;
+    timerMilliseconds.value = Math.max(0, Date.now() - timerStartedAt);
+  }
+
+  function ensureScoreboard(nextCard: Card) {
+    if (players.value.length > 0) return;
+    players.value = createPlayers(nextCard).slice(0, MAX_SCOREBOARD_PLAYERS);
+    writeScoreboard(players.value);
+  }
+
   function resetLocalState(nextCard: PlayableCard) {
     clearTimer();
     card.value = nextCard;
     phase.value = "playing";
     activeTool.value = null;
-    players.value = createPlayers(nextCard);
+    ensureScoreboard(nextCard);
     result.value = null;
     startedAt.value = new Date().toISOString();
     completedAt.value = null;
     sessionId.value = makeSessionId();
-    timerSeconds.value = 0;
+    timerMilliseconds.value = 0;
     counterValue.value = 0;
     favorite.value = Boolean(nextCard.l1Id && options.isFavorite?.(nextCard.l1Id));
   }
@@ -179,13 +234,14 @@ export function useStandaloneGameFlow(screen: Ref<Screen>, options: StandaloneGa
       clearTimer();
       return;
     }
+    timerStartedAt = Date.now() - timerMilliseconds.value;
     timerRunning.value = true;
-    timerHandle = window.setInterval(() => { timerSeconds.value += 1; }, 1000);
+    timerHandle = window.setInterval(updateTimer, 33);
   }
 
   function resetTimer() {
     clearTimer();
-    timerSeconds.value = 0;
+    timerMilliseconds.value = 0;
   }
 
   function changeCounter(delta: number) {
@@ -194,22 +250,35 @@ export function useStandaloneGameFlow(screen: Ref<Screen>, options: StandaloneGa
 
   function changeScore(playerId: string, delta: number) {
     const player = players.value.find((item) => item.id === playerId);
-    if (player) player.score = Math.max(0, player.score + delta);
+    if (player) {
+      player.score = Math.max(0, player.score + delta);
+      writeScoreboard(players.value);
+    }
   }
 
   function updatePlayerLabel(playerId: string, label: string) {
     const player = players.value.find((item) => item.id === playerId);
-    if (player) player.label = label;
+    if (player) {
+      player.label = Array.from(label).slice(0, 12).join("");
+      writeScoreboard(players.value);
+    }
   }
 
   function addPlayer() {
-    if (!card.value || players.value.length >= card.value.participantMax) return;
-    players.value.push({ id: `player-${Date.now()}`, label: `玩家 ${players.value.length + 1}`, score: 0 });
+    if (players.value.length >= MAX_SCOREBOARD_PLAYERS) return;
+    players.value.push({ id: `player-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, label: `玩家 ${players.value.length + 1}`, score: 0 });
+    writeScoreboard(players.value);
   }
 
   function removePlayer(playerId: string) {
     if (players.value.length <= 2) return;
     players.value = players.value.filter((player) => player.id !== playerId);
+    writeScoreboard(players.value);
+  }
+
+  function clearScoreboard() {
+    players.value = createPlayers(card.value ?? { mode: "versus", participantMin: 2 });
+    writeScoreboard(players.value);
   }
 
   function recordWinner(winnerLabel: string) {
@@ -256,7 +325,6 @@ export function useStandaloneGameFlow(screen: Ref<Screen>, options: StandaloneGa
     phase.value = "playing";
     activeTool.value = null;
     previousCardIds.value = [];
-    players.value = [];
     result.value = null;
     sessionId.value = "";
   }
@@ -273,7 +341,7 @@ export function useStandaloneGameFlow(screen: Ref<Screen>, options: StandaloneGa
     hasCard,
     startedAt,
     completedAt,
-    timerSeconds,
+    timerMilliseconds,
     timerRunning,
     counterValue,
     loading,
@@ -291,6 +359,7 @@ export function useStandaloneGameFlow(screen: Ref<Screen>, options: StandaloneGa
     updatePlayerLabel,
     addPlayer,
     removePlayer,
+    clearScoreboard,
     recordWinner,
     recordRanking,
     recordCompleted,

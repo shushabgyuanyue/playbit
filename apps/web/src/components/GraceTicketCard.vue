@@ -17,8 +17,9 @@ defineProps<{ ticket: GraceTicket }>();
     <div class="grace-ticket-face">
       <div class="grace-ticket-topline">
         <span>{{ copy.vouchers.graceMilestonePrefix }}{{ ticket.earnedAtFulfillmentCount }}{{ copy.vouchers.graceMilestoneSuffix }}</span>
-        <strong>{{ ticket.status === 'available' ? copy.vouchers.graceAvailable : ticket.status === 'reserved' ? copy.vouchers.graceReserved : copy.vouchers.graceUsed }}</strong>
+        <span class="grace-ticket-rarity">{{ copy.vouchers.graceRareLabel }}</span>
       </div>
+      <strong class="grace-ticket-status">{{ ticket.status === 'available' ? copy.vouchers.graceAvailable : ticket.status === 'reserved' ? copy.vouchers.graceReserved : copy.vouchers.graceUsed }}</strong>
       <p class="grace-ticket-promise">{{ copy.vouchers.gracePrivilege }}</p>
       <p class="grace-ticket-rule">{{ copy.vouchers.graceRule }}</p>
       <small class="grace-ticket-serial">{{ copy.vouchers.graceSerial }} · {{ ticket.id.slice(-8).toUpperCase() }}</small>

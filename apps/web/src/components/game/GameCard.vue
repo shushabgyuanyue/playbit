@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { copy } from "@playbit/content";
 import type { Card } from "@playbit/shared";
-import { Clock3 } from "lucide-vue-next";
 import { computed } from "vue";
 import coralArt from "../../assets/game-card-coral.webp";
 import blueArt from "../../assets/game-card-blue.webp";
@@ -11,15 +10,16 @@ const props = defineProps<{ card: Card }>();
 const tone = computed(() => props.card.tone ?? (props.card.reveal ? "gold" : "blue"));
 const artwork = computed(() => ({ coral: coralArt, blue: blueArt, gold: goldArt })[tone.value]);
 const steps = computed(() => props.card.steps?.length ? props.card.steps : [props.card.content]);
+const scene = computed(() => props.card.scenes?.[0]
+  ?? (props.card.participantMax > 2 ? "多人聚会" : props.card.durationMinutes && props.card.durationMinutes <= 3 ? "碎片时间" : "双人对局"));
 </script>
 
 <template>
   <article class="game-card" :data-tone="tone">
     <img class="game-card-art" :src="artwork" alt="" />
     <header class="game-card-meta">
-      <span class="game-card-category">{{ card.mode === 'versus' ? copy.draw.versusLabel : copy.draw.togetherLabel }}</span>
-      <span>{{ card.participantMin }}<template v-if="card.participantMax !== card.participantMin">–{{ card.participantMax }}</template>{{ copy.draw.participantUnit }}</span>
-      <span v-if="card.durationMinutes" class="game-card-duration"><Clock3 :size="13" aria-hidden="true" />{{ card.durationMinutes }}{{ copy.draw.durationUnit }}</span>
+      <span class="game-card-scene">{{ scene }}</span>
+      <div v-if="$slots['top-actions']" class="game-card-top-actions"><slot name="top-actions" /></div>
     </header>
     <div class="game-card-heading">
       <h2>{{ card.name }}</h2>
@@ -60,8 +60,9 @@ const steps = computed(() => props.card.steps?.length ? props.card.steps : [prop
 .game-card-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: -2; pointer-events: none; }
 .game-card::before { content: ""; position: absolute; inset: 2%; border-radius: 18px; background: var(--pb-game-card-reading-veil); z-index: -1; pointer-events: none; }
 .game-card-meta { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; color: var(--card-ink); font-size: var(--pb-font-xs); font-weight: 500; }
-.game-card-category { font-weight: 700; }
-.game-card-duration { display: inline-flex; gap: 4px; align-items: center; margin-left: auto; white-space: nowrap; }
+.game-card-scene { font-weight: 700; }
+.game-card-top-actions { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.game-card-duration + .game-card-top-actions { margin-left: 0; }
 .game-card-heading { margin: 18px 0 14px; flex: 0 0 auto; }
 .game-card-heading h2 { margin: 0; color: var(--card-ink); font-size: 24px; font-weight: 700; line-height: 1.35; letter-spacing: 0; }
 .game-card-heading p { margin: 7px 0 0; font-size: var(--pb-font-base); line-height: 1.55; color: var(--pb-text-2); }

@@ -54,7 +54,7 @@ async function openDraw() {
   await wait(850);
   if (!await clickText("开一把")) throw new Error("Home draw entry is missing");
   await wait(850);
-  await assertBody("play screen", ["玩法", "工具"]);
+  await assertBody("play screen", ["怎么玩", "添个彩头", "记分牌"]);
 }
 
 async function runVersus() {
@@ -62,26 +62,19 @@ async function runVersus() {
   await wait(1300);
   if (!await clickFeaturedCard("只许答错")) throw new Error("Featured versus card is missing");
   await wait(500);
-  await assertBody("versus card", ["记录结果"]);
-  if (!await click(".standalone-finish-action")) throw new Error("Versus finish action is missing");
+  await assertBody("versus card", ["添个彩头", "记分牌"]);
+  if (!await clickText("添个彩头")) throw new Error("Versus stake action is missing");
   await wait(150);
-  const options = await evaluate("document.querySelectorAll('.standalone-winner-option').length");
-  if (options < 3) throw new Error(`Versus result chooser has ${options} options`);
-  if (!await click(".standalone-winner-option")) throw new Error("Versus winner option is missing");
-  await wait(250);
-  await assertBody("versus result", ["结果已记录", "回到首页"]);
+  await assertBody("versus stake", ["发起结算", "开具比赛证书"]);
   const resultActions = await evaluate("[...document.querySelectorAll('button')].map((item) => item.textContent?.trim()).filter(Boolean)");
   await screenshot("game-versus-result");
   return resultActions;
 }
 
 async function runRanking() {
-  await call("Page.navigate", { url: "http://localhost:5173/" });
-  await wait(1300);
-  if (!await clickFeaturedCard("海龟汤")) throw new Error("Featured multiplayer card is missing");
-  await wait(500);
+  await openDraw();
   await assertBody("ranking card", ["记分牌"]);
-  if (!await clickText("记分牌")) throw new Error("Scoreboard tool did not open");
+  if (!await clickText("记分牌")) throw new Error("Scoreboard bottom action did not open");
   await wait(150);
   const increment = await evaluate("document.querySelectorAll('.game-score-icon').length > 0");
   if (!increment) throw new Error("Scoreboard increment control is missing");
@@ -91,11 +84,10 @@ async function runRanking() {
   if (playerCount !== 3) throw new Error(`Expected 3 players, got ${playerCount}`);
   await evaluate("document.querySelectorAll('.game-score-row')[0].querySelectorAll('.game-score-icon')[1].click()");
   await evaluate("document.querySelectorAll('.game-score-row')[1].querySelectorAll('.game-score-icon')[1].click()");
-  if (!await click(".standalone-finish-action")) throw new Error("Ranking finish action is missing");
-  await wait(150);
-  if (!await click(".standalone-winner-option")) throw new Error("Ranking save action is missing");
-  await wait(250);
-  await assertBody("ranking result", ["结果已记录", "排名", "玩家 3"]);
+  await evaluate("document.querySelector('.game-scoreboard-close')?.click()");
+  await clickText("添个彩头");
+  await wait(100);
+  await assertBody("ranking stake", ["发起结算", "开具比赛证书"]);
   await screenshot("game-ranking-result");
 }
 

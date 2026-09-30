@@ -35,7 +35,10 @@ watch(() => props.loading, (loading, previous) => {
       @before-enter="emit('animating', true)" @before-leave="beginLeave"
       @after-enter="finishEnter" @enter-cancelled="finishEnter">
       <div v-if="card" :key="`${card.id}-${revision}`" class="game-card-turn" aria-live="polite" aria-atomic="true">
-        <GameCard :card="card" class="game-card-front"><template v-if="$slots.actions" #actions><slot name="actions" /></template></GameCard>
+        <GameCard :card="card" class="game-card-front">
+          <template v-if="$slots['top-actions']" #top-actions><slot name="top-actions" /></template>
+          <template v-if="$slots.actions" #actions><slot name="actions" /></template>
+        </GameCard>
         <img :src="backArt" class="game-card-reverse" alt="" aria-hidden="true" />
       </div>
       <div v-else class="game-card-waiting" key="waiting">

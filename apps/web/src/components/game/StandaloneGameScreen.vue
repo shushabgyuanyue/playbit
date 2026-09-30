@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { standaloneGameCopy as copy } from "@playbit/content";
 import type { Card, CardToolId } from "@playbit/shared";
-import { Bookmark, BookmarkCheck, Check, ChevronRight, Circle, RotateCcw, Sparkles } from "lucide-vue-next";
+import { Bookmark, BookmarkCheck, ChevronRight, Gift, RotateCcw, Sparkles, Trophy, X } from "lucide-vue-next";
 import { computed, ref } from "vue";
 import type { LocalPlayResult, LocalPlayer } from "../../composables/useStandaloneGameFlow";
 import GameToolTray from "./GameToolTray.vue";
-import GameCard from "./GameCard.vue";
+import GameScoreboardDialog from "./GameScoreboardDialog.vue";
+import StandaloneGameCertificateDialog from "./StandaloneGameCertificateDialog.vue";
+import GameCardStage from "./GameCardStage.vue";
 import BaseButton from "../ui/BaseButton.vue";
 import LifeServiceHero from "../ui/LifeServiceHero.vue";
 
@@ -21,7 +23,7 @@ const props = defineProps<{
   loading: boolean;
   favorite: boolean;
   favoriteBusy: boolean;
-  timerSeconds: number;
+  timerMilliseconds: number;
   timerRunning: boolean;
   counterValue: number;
   playAgain: () => void;
@@ -35,39 +37,39 @@ const props = defineProps<{
   updatePlayerLabel: (playerId: string, label: string) => void;
   addPlayer: () => void;
   removePlayer: (playerId: string) => void;
+  clearScoreboard: () => void;
   recordWinner: (winnerLabel: string) => void;
   recordRanking: () => void;
   recordCompleted: () => void;
 }>();
 
-const emit = defineEmits<{ back: []; home: []; "toggle-favorite": [] }>();
-const isRanking = computed(() => Boolean(props.card && props.card.participantMax > 2));
-const isVersus = computed(() => props.card?.mode === "versus" && !isRanking.value);
+const emit = defineEmits<{ back: []; home: []; "toggle-favorite": []; "start-settlement": [] }>();
 const resultWinner = computed(() => props.result?.kind === "winner" ? props.result.winnerLabel : null);
 const ranking = computed(() => props.result?.kind === "ranking" ? props.result.ranking : []);
-const resultChooserOpen = ref(false);
+const stakeOpen = ref(false);
+const certificateOpen = ref(false);
+const inlineTools = computed(() => props.tools.filter((tool): tool is "timer" | "counter" => tool !== "scoreboard"));
+const hasScoreboard = computed(() => props.phase === "playing");
+const floatingTool = computed(() => props.activeTool === "timer" || props.activeTool === "counter" ? props.activeTool : null);
+const scoreboardOpen = computed(() => hasScoreboard.value && props.activeTool === "scoreboard");
+
+function toggleScoreboard() {
+  if (scoreboardOpen.value) props.closeTool();
+  else props.openTool("scoreboard");
+}
 
 function updateLabel(playerId: string, label: string) {
   props.updatePlayerLabel(playerId, label);
 }
 
-function openResultChooser() {
-  resultChooserOpen.value = true;
+function openStake() { stakeOpen.value = true; }
+function openSettlement() {
+  stakeOpen.value = false;
+  emit("start-settlement");
 }
-
-function recordWinner(label: string) {
-  resultChooserOpen.value = false;
-  props.recordWinner(label);
-}
-
-function recordRanking() {
-  resultChooserOpen.value = false;
-  props.recordRanking();
-}
-
-function recordCompleted() {
-  resultChooserOpen.value = false;
-  props.recordCompleted();
+function openCertificate() {
+  stakeOpen.value = false;
+  certificateOpen.value = true;
 }
 </script>
 
@@ -85,68 +87,74 @@ function recordCompleted() {
     />
 
     <div v-if="props.card" class="standalone-game-content">
-      <div class="standalone-game-meta">
-        <span>{{ copy.participantRange(props.card.participantMin, props.card.participantMax) }}</span>
-        <span class="standalone-meta-dot" aria-hidden="true" />
-        <span>{{ copy.duration(props.card.durationMinutes) }}</span>
-        <span v-if="props.phase === 'playing'" class="standalone-live-mark"><Circle :size="8" fill="currentColor" />进行中</span>
-      </div>
-      <button v-if="props.card.l1Id" type="button" class="standalone-favorite-action" :disabled="props.favoriteBusy" :aria-pressed="props.favorite" @click="emit('toggle-favorite')">
-        <BookmarkCheck v-if="props.favorite" :size="15" aria-hidden="true" />
-        <Bookmark v-else :size="15" aria-hidden="true" />
-        {{ props.favorite ? '已收藏玩法' : '收藏玩法' }}
-      </button>
-
       <div class="standalone-card-frame">
-        <GameCard :card="props.card" />
+        <GameCardStage :card="props.card" :loading="props.loading">
+          <template #top-actions>
+            <GameToolTray
+              v-if="props.phase === 'playing' && inlineTools.length"
+              :tools="inlineTools"
+              :active-tool="floatingTool"
+              :timer-milliseconds="props.timerMilliseconds"
+              :timer-running="props.timerRunning"
+              :counter-value="props.counterValue"
+              @open="props.openTool"
+              @close="props.closeTool"
+              @toggle-timer="props.toggleTimer"
+              @reset-timer="props.resetTimer"
+              @change-counter="props.changeCounter"
+            />
+            <button
+              v-if="props.card.l1Id"
+              type="button"
+              class="standalone-favorite-action"
+              :disabled="props.favoriteBusy"
+              :aria-pressed="props.favorite"
+              :aria-label="props.favorite ? '取消收藏玩法' : '收藏玩法'"
+              :title="props.favorite ? '取消收藏玩法' : '收藏玩法'"
+              @click="emit('toggle-favorite')"
+            >
+              <BookmarkCheck v-if="props.favorite" :size="14" aria-hidden="true" />
+              <Bookmark v-else :size="14" aria-hidden="true" />
+            </button>
+          </template>
+          <template #actions>
+            <div v-if="props.phase === 'playing'" class="standalone-card-actions">
+              <button type="button" class="standalone-card-action" :disabled="props.loading" @click="props.reroll">
+                <RotateCcw :size="15" aria-hidden="true" />{{ copy.reroll }}
+              </button>
+              <button type="button" class="standalone-card-action is-primary" :disabled="props.loading" @click="props.playAgain">
+                <Sparkles :size="15" aria-hidden="true" />{{ copy.playAgain }}
+              </button>
+            </div>
+          </template>
+        </GameCardStage>
       </div>
 
-      <p v-if="props.phase === 'playing'" class="standalone-game-hint">{{ copy.playingHint }}</p>
-      <p v-else class="standalone-game-hint">{{ copy.resultHint }}</p>
+      <p v-if="props.phase === 'result'" class="standalone-game-hint">{{ copy.resultHint }}</p>
 
-      <template v-if="props.phase === 'playing'">
-        <div class="standalone-reroll-action" :aria-busy="props.loading">
-          <button type="button" class="standalone-secondary-action" :class="{ 'is-loading': props.loading }" :disabled="props.loading" @click="props.reroll"><RotateCcw :size="16" aria-hidden="true" />{{ copy.reroll }}</button>
+      <section v-if="props.phase === 'playing'" class="standalone-bottom-actions" aria-label="本局操作">
+        <button type="button" class="standalone-bottom-action" :aria-expanded="stakeOpen" @click="openStake">
+          <Gift :size="16" aria-hidden="true" />{{ copy.finish }}
+        </button>
+        <button type="button" class="standalone-bottom-action" :aria-pressed="scoreboardOpen" @click="toggleScoreboard">
+          <Trophy :size="16" aria-hidden="true" />{{ copy.scoreboard }}
+        </button>
+      </section>
+
+      <section v-if="stakeOpen" class="standalone-stake-panel" aria-label="添个彩头">
+        <header class="standalone-stake-heading">
+          <div><span class="standalone-stake-kicker"><Gift :size="14" />{{ copy.stakeTitle }}</span><h2>{{ copy.stakeTitle }}</h2></div>
+          <button type="button" class="standalone-stake-close" aria-label="关闭" @click="stakeOpen = false"><X :size="17" /></button>
+        </header>
+        <p>{{ copy.stakeHint }}</p>
+        <div class="standalone-stake-actions">
+          <button type="button" class="standalone-stake-action is-main" @click="openSettlement">{{ copy.startSettlement }}<ChevronRight :size="16" /></button>
+          <button type="button" class="standalone-stake-action" @click="openCertificate">{{ copy.openCertificate }}<Trophy :size="15" /></button>
         </div>
-        <GameToolTray
-          :tools="props.tools"
-          :active-tool="props.activeTool"
-          :timer-seconds="props.timerSeconds"
-          :timer-running="props.timerRunning"
-          :counter-value="props.counterValue"
-          :players="props.players"
-          :max-players="props.card.participantMax"
-          @open="props.openTool"
-          @close="props.closeTool"
-          @toggle-timer="props.toggleTimer"
-          @reset-timer="props.resetTimer"
-          @change-counter="props.changeCounter"
-          @change-score="props.changeScore"
-          @update-player-label="updateLabel"
-          @add-player="props.addPlayer"
-          @remove-player="props.removePlayer"
-        />
-        <BaseButton v-if="!resultChooserOpen" size="lg" class="standalone-primary-action standalone-finish-action" @click="openResultChooser">
-          <Check :size="17" aria-hidden="true" />{{ copy.finish }}
-        </BaseButton>
-        <section v-else class="standalone-result-chooser" aria-label="登记本局结果">
-          <div class="standalone-chooser-heading">
-            <strong>{{ isVersus ? copy.winnerTitle : isRanking ? copy.rankingTitle : copy.completed }}</strong>
-            <button type="button" class="standalone-chooser-close" @click="resultChooserOpen = false">×</button>
-          </div>
-          <div v-if="isVersus" class="standalone-winner-options">
-            <button v-for="player in props.players.slice(0, 2)" :key="player.id" type="button" class="standalone-winner-option" @click="recordWinner(player.label)">{{ player.label }}<Check :size="16" /></button>
-            <button type="button" class="standalone-winner-option is-draw" @click="recordCompleted">{{ copy.draw }}</button>
-          </div>
-          <div v-else-if="isRanking" class="standalone-ranking-submit">
-            <p>先用记分牌记分，再保存现场排名。</p>
-            <button type="button" class="standalone-winner-option" @click="recordRanking">{{ copy.saveResult }}<Check :size="16" /></button>
-          </div>
-          <button v-else type="button" class="standalone-winner-option" @click="recordCompleted">{{ copy.completed }}<Check :size="16" /></button>
-        </section>
-      </template>
+        <small>现场先约定彩头；只有确认创建权益卡券时才需要登录。</small>
+      </section>
 
-      <section v-else class="standalone-result-panel" aria-live="polite">
+      <section v-if="props.phase === 'result'" class="standalone-result-panel" aria-live="polite">
         <div class="standalone-result-kicker"><Sparkles :size="15" aria-hidden="true" />{{ copy.resultRecorded }}</div>
         <h2>{{ copy.certificate }}</h2>
         <template v-if="resultWinner">
@@ -171,7 +179,21 @@ function recordCompleted() {
       </section>
     </div>
 
-    <div v-else class="standalone-game-empty" aria-live="polite">
+    <GameScoreboardDialog
+      :open="scoreboardOpen"
+      :players="props.players"
+      :max-players="8"
+      @close="props.closeTool"
+      @change-score="props.changeScore"
+      @update-player-label="updateLabel"
+      @add-player="props.addPlayer"
+      @remove-player="props.removePlayer"
+      @clear="props.clearScoreboard"
+    />
+
+    <StandaloneGameCertificateDialog :open="certificateOpen" :players="props.players" @close="certificateOpen = false" />
+
+    <div v-if="!props.card" class="standalone-game-empty" aria-live="polite">
       <p>{{ props.loading ? copy.loading : copy.emptyCard }}</p>
       <BaseButton v-if="!props.loading" @click="props.reroll">{{ copy.start }}</BaseButton>
     </div>
@@ -181,18 +203,34 @@ function recordCompleted() {
 <style scoped>
 .standalone-game-page { background: var(--pb-surface-game-stage); }
 .standalone-game-content { display: grid; align-content: start; gap: 10px; flex: 1 0 auto; padding: 10px var(--pb-page-x) calc(22px + env(safe-area-inset-bottom)); }
-.standalone-game-meta { display: flex; min-height: 24px; align-items: center; justify-content: center; gap: 8px; color: var(--pb-text-3); font-size: var(--pb-font-xs); }
-.standalone-favorite-action { display: inline-flex; min-height: 32px; align-items: center; justify-self: center; gap: 5px; border: 0; background: transparent; color: var(--pb-text-3); padding: 0 8px; font: inherit; font-size: var(--pb-font-xs); }
-.standalone-favorite-action[aria-pressed="true"] { color: var(--pb-ink-gold); }
-.standalone-meta-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--pb-text-4); }
-.standalone-live-mark { display: inline-flex; align-items: center; gap: 4px; color: var(--pb-green); }
+.standalone-favorite-action { display: inline-grid; width: 28px; height: 28px; place-items: center; border: 1px solid color-mix(in srgb, var(--card-ink) 22%, transparent); border-radius: 50%; background: rgba(255, 255, 255, .58); color: var(--card-ink); padding: 0; }
+.standalone-favorite-action[aria-pressed="true"] { border-color: color-mix(in srgb, var(--card-ink) 40%, transparent); background: color-mix(in srgb, var(--card-ink) 10%, white); }
 .standalone-card-frame { width: min(100%, 390px); margin: 0 auto; }
+.standalone-card-frame :deep(.game-card-stage) { width: 100%; max-width: 360px; margin: 0 auto; }
+.standalone-card-frame :deep(.game-card-top-actions) { align-items: flex-start; gap: 6px; }
+.standalone-card-frame :deep(.game-tool-tray) { width: auto; margin-left: auto; }
+.standalone-card-frame :deep(.game-card-tool-actions) { min-height: 28px; margin: -2px 0 0; }
+.standalone-card-frame :deep(.game-card-tool-button) { min-height: 28px; padding: 0 8px; }
 .standalone-game-hint { margin: 0 auto; color: var(--pb-text-3); font-size: var(--pb-font-sm); line-height: 1.5; text-align: center; }
-.standalone-reroll-action { display: flex; justify-content: flex-start; width: min(100%, 390px); margin: 0 auto; }
+.standalone-bottom-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: min(100%, 390px); margin: 4px auto 0; }
+.standalone-bottom-action { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--pb-line-soft); border-radius: 11px; background: rgba(255, 255, 255, .42); color: var(--pb-text-2); padding: 0 10px; font: inherit; font-size: var(--pb-font-sm); font-weight: 600; box-shadow: 0 2px 8px rgba(22, 47, 75, .04); }
+.standalone-bottom-action[aria-pressed="true"], .standalone-bottom-action[aria-expanded="true"] { border-color: color-mix(in srgb, var(--pb-blue) 32%, var(--pb-line-soft)); background: rgba(255, 255, 255, .8); color: var(--pb-blue); }
+.standalone-stake-panel { display: grid; gap: 9px; width: min(100%, 390px); margin: 3px auto 0; border: 1px solid rgba(145, 111, 48, .24); border-radius: 13px; background: rgba(255, 253, 247, .94); padding: 13px; box-shadow: 0 8px 24px rgba(67, 55, 31, .08); }
+.standalone-stake-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.standalone-stake-heading h2 { margin: 2px 0 0; color: var(--pb-text-1); font-family: var(--pb-font-serif); font-size: 19px; }
+.standalone-stake-kicker { display: inline-flex; align-items: center; gap: 5px; color: var(--pb-ink-gold); font-size: var(--pb-font-xs); font-weight: 700; }
+.standalone-stake-close { display: inline-grid; width: 29px; height: 29px; place-items: center; border: 0; border-radius: 50%; background: var(--pb-fill-soft); color: var(--pb-text-2); }
+.standalone-stake-panel > p { margin: 0; color: var(--pb-text-2); font-size: var(--pb-font-sm); line-height: 1.55; }
+.standalone-stake-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.standalone-stake-action { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 4px; border: 1px solid rgba(145, 111, 48, .28); border-radius: 9px; background: transparent; color: var(--pb-ink-gold); padding: 0 7px; font: inherit; font-size: var(--pb-font-xs); font-weight: 700; }
+.standalone-stake-action.is-main { border-color: var(--pb-blue); background: var(--pb-blue); color: #fff; }
+.standalone-stake-panel small { color: var(--pb-text-3); font-size: 10px; line-height: 1.45; }
+.standalone-card-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.standalone-card-action { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 5px; border: 1px solid color-mix(in srgb, var(--card-ink) 20%, transparent); border-radius: var(--pb-radius-md); background: rgba(255, 255, 255, .72); color: var(--card-ink); padding: 0 9px; font: inherit; font-size: var(--pb-font-sm); font-weight: 600; }
+.standalone-card-action.is-primary { border-color: var(--card-ink); background: var(--card-ink); color: #fff; }
+.standalone-card-action:disabled { cursor: wait; opacity: .56; }
 .standalone-secondary-action, .standalone-result-link { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--pb-line-soft); border-radius: var(--pb-radius-md); background: rgba(255, 255, 255, .8); color: var(--pb-text-2); padding: 0 12px; font: inherit; font-size: var(--pb-font-base); }
 .standalone-secondary-action:disabled { cursor: wait; opacity: .56; }
-.standalone-primary-action { width: 100%; background: var(--pb-action-hero-gradient); box-shadow: var(--pb-shadow-game-action); }
-.standalone-finish-action { width: min(100%, 390px); margin: 2px auto 0; background: var(--pb-action-contract-gradient); }
 .standalone-result-chooser { display: grid; gap: 10px; width: min(100%, 390px); margin: 2px auto 0; border: 1px solid var(--pb-line-soft); border-radius: var(--pb-radius-lg); background: rgba(255, 255, 255, .92); padding: 12px; box-shadow: var(--pb-shadow-panel); }
 .standalone-chooser-heading { display: flex; align-items: center; justify-content: space-between; color: var(--pb-text-1); font-size: var(--pb-font-sm); }
 .standalone-chooser-close { display: inline-grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 50%; background: var(--pb-fill-soft); color: var(--pb-text-2); font-size: 20px; }

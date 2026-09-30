@@ -55,6 +55,10 @@ const homeText = await evaluate("document.body.innerText");
 if (!homeText.includes("开一把") || !homeText.includes("热门游戏卡")) {
   throw new Error(`Home content is incomplete: ${homeText.slice(0, 800)}`);
 }
+const featuredCards = await (await fetch("http://localhost:8787/content/cards/featured?limit=3")).json();
+if (!featuredCards.cards?.some((card) => homeText.includes(card.name))) {
+  throw new Error("The user home is not rendering published cards from the content repository");
+}
 if (!await evaluate("document.documentElement.scrollWidth <= window.innerWidth")) {
   throw new Error("Home page has horizontal overflow on the mobile viewport");
 }
@@ -63,33 +67,33 @@ await saveScreenshot("artifacts/verification/game-home-current.png");
 if (!await clickButton("开一把")) throw new Error("The home draw entry is missing");
 await wait(900);
 const gameText = await evaluate("document.body.innerText");
-if (!gameText.includes("玩法") || !gameText.includes("工具")) {
+if (!gameText.includes("怎么玩") || !gameText.includes("添个彩头") || !gameText.includes("记分牌")) {
   throw new Error(`Game screen content is incomplete: ${gameText.slice(0, 1200)}`);
 }
 if (!await evaluate("document.documentElement.scrollWidth <= window.innerWidth")) {
   throw new Error("Game page has horizontal overflow on the mobile viewport");
 }
+if (!await evaluate("Boolean(document.querySelector('.standalone-favorite-action'))")) {
+  throw new Error("The card favorite action is missing");
+}
 await saveScreenshot("artifacts/verification/game-playing-current.png");
 
-const toolLabel = (await evaluate("[...document.querySelectorAll('button')].map((item) => item.textContent?.trim()).filter(Boolean).find((label) => ['计时器', '计数器', '记分牌'].includes(label))"));
+const toolLabel = (await evaluate("[...document.querySelectorAll('.game-card-tool-button')].map((item) => item.textContent?.trim()).find((label) => ['计时器', '计数器'].includes(label))"));
 if (!toolLabel || !await clickButton(toolLabel)) throw new Error("The reusable game tool entry is missing");
 await wait(250);
 const toolText = await evaluate("document.body.innerText");
 if (!toolText.includes(toolLabel)) throw new Error("The selected game tool did not open");
 await saveScreenshot("artifacts/verification/game-tool-current.png");
 
-const resultButton = (await evaluate("[...document.querySelectorAll('button')].map((item) => item.textContent?.trim()).filter(Boolean).find((label) => ['记录结果', '记录胜者', '记录排名', '记录完成'].includes(label))"));
-if (!resultButton || !await clickButton(resultButton)) throw new Error("The result action is missing");
+if (!await clickButton("添个彩头")) throw new Error("The stake action is missing");
 await wait(500);
-const resultChoice = (await evaluate("[...document.querySelectorAll('button')].map((item) => item.textContent?.trim()).filter(Boolean).find((label) => ['玩家 A', '本局完成', '生成结果', '平局'].includes(label))"));
-if (!resultChoice || !await clickButton(resultChoice)) throw new Error("The result choice is missing");
+const stakeText = await evaluate("document.body.innerText");
+if (!stakeText.includes("发起结算") || !stakeText.includes("开具比赛证书")) throw new Error("Stake actions are incomplete");
+if (!await clickButton("开具比赛证书")) throw new Error("Certificate entry is missing");
 await wait(500);
-const resultText = await evaluate("document.body.innerText");
-if (!resultText.includes("本局完成") && !resultText.includes("结果已记录") && !resultText.includes("胜者")) {
-  throw new Error(`Result screen content is incomplete: ${resultText.slice(-1200)}`);
-}
-await saveScreenshot("artifacts/verification/game-result-current.png");
+if (!await evaluate("Boolean(document.querySelector('.standalone-certificate-canvas'))")) throw new Error("Standalone certificate did not render");
+await saveScreenshot("artifacts/verification/game-certificate-current.png");
 
-console.log("User game browser flow passed: home, playable card, reusable tool and result.");
+console.log("User game browser flow passed: home, playable card, reusable tool and certificate entry.");
 await call("Emulation.clearDeviceMetricsOverride");
 socket.close();

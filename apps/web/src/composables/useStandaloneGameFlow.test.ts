@@ -22,6 +22,7 @@ afterEach(() => {
   vi.useRealTimers();
   mounted?.unmount();
   document.body.innerHTML = "";
+  window.localStorage.clear();
 });
 
 describe("standalone game flow", () => {
@@ -64,11 +65,14 @@ describe("standalone game flow", () => {
     flow.open(dailyCards[0]);
     flow.toggleTimer();
     vi.advanceTimersByTime(2100);
-    expect(flow.timerSeconds.value).toBe(2);
+    expect(flow.timerMilliseconds.value).toBeGreaterThanOrEqual(2000);
+    const elapsedAtReset = flow.timerMilliseconds.value;
 
     flow.reset();
+    const elapsedAfterReset = flow.timerMilliseconds.value;
     vi.advanceTimersByTime(2100);
-    expect(flow.timerSeconds.value).toBe(2);
+    expect(elapsedAfterReset).toBeGreaterThanOrEqual(elapsedAtReset);
+    expect(flow.timerMilliseconds.value).toBe(elapsedAfterReset);
     expect(flow.timerRunning.value).toBe(false);
   });
 
@@ -82,6 +86,25 @@ describe("standalone game flow", () => {
 
     expect(flow.result.value?.kind).toBe("ranking");
     expect(flow.result.value && "ranking" in flow.result.value ? flow.result.value.ranking[0].score : 0).toBe(3);
+  });
+
+  it("persists the game-level scoreboard across cards and can clear it deliberately", () => {
+    const first = mountFlow();
+    first.flow.open(dailyCards[0]);
+    first.flow.updatePlayerLabel(first.flow.players.value[0].id, "主持人");
+    first.flow.changeScore(first.flow.players.value[0].id, 4);
+    first.flow.open(dailyCards[1]);
+    expect(first.flow.players.value[0]).toMatchObject({ label: "主持人", score: 4 });
+
+    mounted?.unmount();
+    mounted = undefined;
+    const second = mountFlow();
+    second.flow.open(dailyCards[1]);
+    expect(second.flow.players.value[0]).toMatchObject({ label: "主持人", score: 4 });
+
+    second.flow.clearScoreboard();
+    expect(second.flow.players.value.every((player) => player.score === 0)).toBe(true);
+    expect(second.flow.players.value[0].label).toBe("玩家 1");
   });
 
   it("prefers a recommended card and exposes a loading state while it is pending", async () => {

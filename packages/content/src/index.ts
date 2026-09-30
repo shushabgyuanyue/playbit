@@ -653,6 +653,7 @@ export const copy = {
     graceUsed: "赖皮券已使用",
     graceTitle: "赖皮券",
     graceEdition: "珍藏权益",
+    graceRareLabel: "RARE · 稀有",
     gracePrivilege: "偶尔赖一下，也算说好了。",
     graceRule: "经对方同意，可免除一项待履约权益。",
     graceSerial: "藏品编号",
