@@ -55,6 +55,7 @@ export const l1GameSchema = z.object({
   certificateEligible: z.boolean(),
   favoriteCount: z.number().int().nonnegative().default(0),
   tags: z.array(z.string()).default([]),
+  scenes: z.array(z.string()).default([]),
   updatedAt: z.string()
 });
 
@@ -99,6 +100,9 @@ export const contentToolSchema = z.object({
 export const contentMetricSchema = z.object({
   l1Id: z.string(),
   l1Name: z.string(),
+  l2Id: z.string().optional(),
+  l2Title: z.string().optional(),
+  scenes: z.array(z.string()).default([]),
   exposures: z.number().int().nonnegative(),
   starts: z.number().int().nonnegative(),
   completes: z.number().int().nonnegative(),
@@ -108,6 +112,86 @@ export const contentMetricSchema = z.object({
   toolOpens: z.number().int().nonnegative(),
   completionRate: z.number().nonnegative(),
   startRate: z.number().nonnegative()
+});
+
+export const contentCardMetricSchema = z.object({
+  l1Id: z.string(),
+  l1Name: z.string(),
+  l2Id: z.string(),
+  l2Title: z.string(),
+  scenes: z.array(z.string()).default([]),
+  status: contentLifecycleSchema,
+  exposures: z.number().int().nonnegative(),
+  starts: z.number().int().nonnegative(),
+  completes: z.number().int().nonnegative(),
+  rerolls: z.number().int().nonnegative(),
+  replays: z.number().int().nonnegative(),
+  switches: z.number().int().nonnegative(),
+  toolOpens: z.number().int().nonnegative(),
+  abandons: z.number().int().nonnegative(),
+  activeActors: z.number().int().nonnegative(),
+  favoriteActors: z.number().int().nonnegative(),
+  heatScore: z.number().int().nonnegative(),
+  completionRate: z.number().nonnegative(),
+  startRate: z.number().nonnegative(),
+  skipRate: z.number().nonnegative()
+});
+
+export const contentAnalyticsDimensionSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  exposures: z.number().int().nonnegative(),
+  starts: z.number().int().nonnegative(),
+  completes: z.number().int().nonnegative(),
+  rerolls: z.number().int().nonnegative(),
+  toolOpens: z.number().int().nonnegative().default(0),
+  activeActors: z.number().int().nonnegative().default(0),
+  completionRate: z.number().nonnegative(),
+  startRate: z.number().nonnegative(),
+  skipRate: z.number().nonnegative()
+});
+
+export const contentAnalyticsToolSchema = z.object({
+  toolId: z.string(),
+  toolName: z.string(),
+  opens: z.number().int().nonnegative(),
+  associatedExposures: z.number().int().nonnegative(),
+  openRate: z.number().nonnegative()
+});
+
+export const contentAnalyticsUserSegmentSchema = z.object({
+  key: z.enum(["new", "returning", "favorited"]),
+  label: z.string(),
+  actors: z.number().int().nonnegative(),
+  exposures: z.number().int().nonnegative(),
+  starts: z.number().int().nonnegative(),
+  completes: z.number().int().nonnegative(),
+  rerolls: z.number().int().nonnegative(),
+  completionRate: z.number().nonnegative(),
+  startRate: z.number().nonnegative()
+});
+
+export const contentAnalyticsSchema = z.object({
+  generatedAt: z.string(),
+  window: z.enum(["all", "7d", "30d"]),
+  cardMetrics: z.array(contentCardMetricSchema),
+  userSummary: z.object({
+    activeActors: z.number().int().nonnegative(),
+    returningActors: z.number().int().nonnegative(),
+    favoriteActors: z.number().int().nonnegative(),
+    newActors: z.number().int().nonnegative()
+  }),
+  funnel: z.object({
+    exposures: z.number().int().nonnegative(),
+    starts: z.number().int().nonnegative(),
+    completes: z.number().int().nonnegative(),
+    rerolls: z.number().int().nonnegative(),
+    toolOpens: z.number().int().nonnegative(),
+    abandons: z.number().int().nonnegative()
+  }),
+  sceneMetrics: z.array(contentAnalyticsDimensionSchema),
+  userSegments: z.array(contentAnalyticsUserSegmentSchema),
+  toolMetrics: z.array(contentAnalyticsToolSchema)
 });
 
 export const contentOverviewSchema = z.object({
@@ -126,6 +210,11 @@ export const contentOverviewSchema = z.object({
 
 export const contentListResponseSchema = z.object({
   items: z.array(z.object({ l1: l1GameSchema, version: l1GameVersionSchema, l2: l2ContentSchema })),
+  total: z.number().int().nonnegative()
+});
+
+export const contentL1ListResponseSchema = z.object({
+  items: z.array(z.object({ l1: l1GameSchema, version: l1GameVersionSchema.nullable(), l2Count: z.number().int().nonnegative() })),
   total: z.number().int().nonnegative()
 });
 
@@ -154,8 +243,14 @@ export type L1GameVersion = z.infer<typeof l1GameVersionSchema>;
 export type L2Content = z.infer<typeof l2ContentSchema>;
 export type ContentTool = z.infer<typeof contentToolSchema>;
 export type ContentMetric = z.infer<typeof contentMetricSchema>;
+export type ContentCardMetric = z.infer<typeof contentCardMetricSchema>;
+export type ContentAnalyticsDimension = z.infer<typeof contentAnalyticsDimensionSchema>;
+export type ContentAnalyticsTool = z.infer<typeof contentAnalyticsToolSchema>;
+export type ContentAnalyticsUserSegment = z.infer<typeof contentAnalyticsUserSegmentSchema>;
+export type ContentAnalytics = z.infer<typeof contentAnalyticsSchema>;
 export type ContentOverview = z.infer<typeof contentOverviewSchema>;
 export type ContentListItem = z.infer<typeof contentListResponseSchema>["items"][number];
+export type ContentL1ListItem = z.infer<typeof contentL1ListResponseSchema>["items"][number];
 export type ContentReuseAudit = z.infer<typeof contentReuseAuditSchema>;
 export type DeliveredContentCard = Card & {
   deliveryId: string;

@@ -55,6 +55,16 @@ const setFormValues = async (formSelector, inputValues, textareaValues) => evalu
   return { ok: true };
 })()`);
 const setSelectValue = async (selector, value) => evaluate(`(() => { const element = document.querySelector(${JSON.stringify(selector)}); if (!element) return false; element.value = ${JSON.stringify(value)}; element.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+const setField = async (labelText, value) => evaluate(`(() => {
+  const form = document.querySelector('.studio-create-sheet');
+  const label = [...(form?.querySelectorAll('label') ?? [])].find((item) => [...item.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.includes(${JSON.stringify(labelText)})));
+  const element = label?.querySelector('input, textarea');
+  if (!element) return false;
+  const prototype = element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, ${JSON.stringify(value)});
+  element.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+})()`);
 const screenshot = async (fileName) => {
   const data = (await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: true })).result.data;
   fs.mkdirSync("artifacts/verification", { recursive: true });
@@ -69,23 +79,16 @@ await call("Page.navigate", { url: "http://localhost:5173/studio" });
 await wait(1100);
 await assertBody("studio overview", ["总览", "内容池状态"]);
 await screenshot("studio-overview-before-workflow");
-if (!await clickText("内容库")) throw new Error("Content library navigation is missing");
+if (!await clickText("进入卡片实验室")) throw new Error("Card lab entry is missing");
 await wait(200);
-if (!await clickText("新建玩法")) throw new Error("New playable entry is missing");
+if (!await clickText("新建卡片")) throw new Error("New playable entry is missing");
 await wait(150);
 
-const formResult = await setFormValues(".studio-create-form", [
-  code,
-  name,
-  title,
-  "下一句话，接得住才算赢",
-], [
-  "轮流接住上一句，不能重复关键词；卡住或重复就结束。",
-  "完成三轮，或有人卡住时记录现场结果。",
-]);
-if (!formResult?.ok) throw new Error(`Could not fill create form: ${JSON.stringify(formResult)}`);
-if (!await setSelectValue(".studio-create-form select", "l0-constraint")) throw new Error("L0 mechanism selector is missing");
-if (!await evaluate("document.querySelector('.studio-create-form')?.requestSubmit(), true")) throw new Error("Create form did not submit");
+for (const [label, value] of [["玩法编码", code], ["玩法名称", name], ["场景", "双人对局, 碎片时间"], ["卡面 Hook", "下一句话，接得住才算赢"], ["主持人规则", "轮流接住上一句，不能重复关键词；卡住或重复就结束。"], ["结束条件", "完成三轮，或有人卡住时记录现场结果。"], ["用户卡标题", title], ["具体题面 / 内容", "轮流接住上一句，不能重复关键词。"]]) {
+  if (!await setField(label, value)) throw new Error(`Could not fill create field: ${label}`);
+}
+if (!await evaluate("document.querySelector('.studio-create-sheet input[value=\\\"l0-constraint\\\"]')?.click(), true")) throw new Error("L0 mechanism selector is missing");
+if (!await evaluate("document.querySelector('.studio-create-sheet form')?.requestSubmit(), true")) throw new Error("Create form did not submit");
 await wait(1000);
 await assertBody("created draft", [title, "草稿", "卡片实验室"]);
 await screenshot("studio-created-draft");
@@ -102,10 +105,14 @@ await wait(250);
 if (!await clickText("提交 L2", ".studio-l2-workflow")) throw new Error("L2 submit action is missing");
 await wait(250);
 await assertBody("pending review", ["待人工审核"]);
-if (!await clickText("审核与试玩")) throw new Error("Review queue navigation is missing");
+if (!await clickText("内容库")) throw new Error("Could not open filtered content library");
 await wait(200);
-await assertBody("review queue", [title, "待人工审核"]);
-if (!await clickText("卡片实验室")) throw new Error("Could not return to card lab from review queue");
+if (!await setSelectValue(".studio-library-toolbar select", "pending_review")) throw new Error("Pending review filter is missing");
+await wait(300);
+await assertBody("review filter", [title, "待审核"]);
+const pendingRowClicked = await evaluate(`(() => { const row = [...document.querySelectorAll('.studio-table-panel tbody tr')].find((item) => item.textContent?.includes(${JSON.stringify(title)})); if (!row) return false; row.click(); return true; })()`);
+if (!pendingRowClicked) throw new Error("Pending content did not open from the library");
+if (!await clickText("卡片实验室")) throw new Error("Could not return to card lab from filtered library");
 await wait(200);
 
 if (!await clickText("审核通过", ".studio-workflow-buttons")) throw new Error("L1 approve action is missing");
@@ -121,10 +128,10 @@ await wait(400);
 await assertBody("published", ["已发布"]);
 await screenshot("studio-published-workflow");
 
-const listResponse = await fetch(`${apiBase}/studio/content`);
+const listResponse = await fetch(`${apiBase}/studio/content?search=${encodeURIComponent(name)}`);
 const listPayload = await listResponse.json();
 const item = listPayload.items.find((candidate) => candidate.l1.name === name);
-if (!item || item.l1.l0Ids[0] !== "l0-constraint" || item.version.reviewStatus !== "published" || item.l2.status !== "published") {
+if (!item || !item.l1.l0Ids.includes("l0-constraint") || item.version.reviewStatus !== "published" || item.l2.status !== "published") {
   throw new Error("Published L1/L2 content was not visible through the API");
 }
 const nextResponse = await fetch(`${apiBase}/content/cards/next?actorKey=${encodeURIComponent(`workflow_${suffix}`)}&l1Id=${encodeURIComponent(item.l1.id)}&participantCount=2`);

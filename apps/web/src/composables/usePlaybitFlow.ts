@@ -77,6 +77,7 @@ export function usePlaybitFlow() {
   let createAttempt: { id: string; fingerprint: string } | null = null;
   const drawnCardIds = ref<string[]>([]);
   const cardLoading = ref(false);
+  const featuredCards = ref<Card[]>([]);
   const createLoading = ref(false);
   const signLoading = ref(false);
   const resultLoading = ref(false);
@@ -409,15 +410,29 @@ export function usePlaybitFlow() {
     cardLoading.value = true;
 
     try {
-      const response = await api.drawCard(drawnCardIds.value);
+      const response = await api.getRecommendedCard(gameTelemetry.actorKey, drawnCardIds.value);
       activeCard.value = response.card;
     } catch {
-      activeCard.value = drawLocalCard(drawnCardIds.value);
+      try {
+        const response = await api.drawCard(drawnCardIds.value);
+        activeCard.value = response.card;
+      } catch {
+        activeCard.value = drawLocalCard(drawnCardIds.value);
+      }
     } finally {
       if (activeCard.value) {
         drawnCardIds.value = [...drawnCardIds.value, activeCard.value.id];
       }
       cardLoading.value = false;
+    }
+  }
+
+  async function refreshFeaturedCards() {
+    if (import.meta.env.MODE === "test") return;
+    try {
+      featuredCards.value = (await api.getFeaturedCards(3)).cards;
+    } catch {
+      featuredCards.value = [];
     }
   }
 
@@ -1053,6 +1068,7 @@ export function usePlaybitFlow() {
   function refreshWhenVisible() {
     if (document.visibilityState !== "visible") { stopSessionRealtime(); return; }
     if (screen.value === "flip") void refreshFlip();
+    if (screen.value === "home") void refreshFeaturedCards();
     if (["vouchers", "voucherDetail"].includes(screen.value)) {
       void refreshCoupons().then(() => {
         if (screen.value === "voucherDetail" && activeVoucherId.value) void loadVoucherFlips(activeVoucherId.value);
@@ -1120,6 +1136,7 @@ export function usePlaybitFlow() {
     void refreshAgreements();
     void refreshCoupons();
     void refreshGrace();
+    void refreshFeaturedCards();
   });
 
   onUnmounted(() => {
@@ -1149,6 +1166,7 @@ export function usePlaybitFlow() {
     authOpen,
     authStep,
     cardLoading,
+    featuredCards,
     createLoading,
     contractBackScreen,
     certificateKind,
@@ -1181,6 +1199,7 @@ export function usePlaybitFlow() {
     openFeaturedCard,
     openHistory,
     refreshAgreements,
+    refreshFeaturedCards,
     openAgreement,
     openAgreementFrom,
     goBack,

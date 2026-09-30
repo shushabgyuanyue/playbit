@@ -8,6 +8,7 @@ const props = defineProps<{
   l2Status: string;
   busy: boolean;
   message: string;
+  meta?: string;
 }>();
 
 const emit = defineEmits<{
@@ -16,6 +17,7 @@ const emit = defineEmits<{
   requestChanges: [];
   publish: [];
   create: [];
+  newCard: [];
   submitL2: [];
   approveL2: [];
   requestL2Changes: [];
@@ -31,6 +33,8 @@ const labels: Record<string, string> = {
   paused: "已暂停",
   retired: "已淘汰"
 };
+
+const canPublishWholeCard = () => props.status === "approved" && (!props.l2Status || props.l2Status === "approved" || props.l2Status === "published");
 </script>
 
 <template>
@@ -39,9 +43,11 @@ const labels: Record<string, string> = {
       <span>当前版本</span>
       <strong>{{ props.name || "未选择内容" }}</strong>
       <small>{{ labels[props.status] ?? props.status }}</small>
+      <em v-if="props.meta">{{ props.meta }}</em>
     </div>
     <p v-if="props.message" class="studio-workflow-message">{{ props.message }}</p>
     <div class="studio-workflow-buttons">
+      <button type="button" class="studio-button studio-button-light" :disabled="props.busy" @click="emit('newCard')">新建卡片</button>
       <button v-if="['draft', 'changes_requested'].includes(props.status)" type="button" class="studio-button studio-button-primary" :disabled="props.busy" @click="emit('submit')">
         <Send :size="15" />提交人工审核
       </button>
@@ -49,22 +55,24 @@ const labels: Record<string, string> = {
         <button type="button" class="studio-button studio-button-light" :disabled="props.busy" @click="emit('requestChanges')"><X :size="15" />退回修改</button>
         <button type="button" class="studio-button studio-button-primary" :disabled="props.busy" @click="emit('approve')"><Check :size="15" />审核通过</button>
       </template>
-      <button v-else-if="props.status === 'approved'" type="button" class="studio-button studio-button-primary" :disabled="props.busy" @click="emit('publish')">
-        <FileCheck2 :size="15" />发布版本
+      <button v-else-if="props.status === 'approved'" type="button" class="studio-button studio-button-primary" :disabled="props.busy || (Boolean(props.l2Status) && !canPublishWholeCard())" @click="emit('publish')">
+        <FileCheck2 :size="15" />{{ props.l2Status === 'approved' ? '发布整张卡' : props.l2Status === 'published' || !props.l2Status ? '发布版本' : '等待 L2 发布' }}
       </button>
       <button v-else-if="props.status === 'published'" type="button" class="studio-button studio-button-light" :disabled="props.busy" @click="emit('create')">
         <FileCheck2 :size="15" />基于此版本创建草稿
       </button>
       <span v-else class="studio-workflow-note">此版本暂时不需要操作</span>
     </div>
-    <div class="studio-l2-workflow">
+    <small v-if="props.status === 'published' && props.l2Status && props.l2Status !== 'published'" class="studio-visibility-note">L1 已发布，L2 尚未发布；用户端暂不可见</small>
+    <div v-if="props.l2Status" class="studio-l2-workflow">
       <small>L2 内容 · {{ labels[props.l2Status] ?? props.l2Status }}</small>
       <button v-if="['draft', 'changes_requested'].includes(props.l2Status)" type="button" class="studio-button studio-button-light" :disabled="props.busy" @click="emit('submitL2')"><Send :size="14" />提交 L2</button>
       <template v-else-if="props.l2Status === 'pending_review'">
         <button type="button" class="studio-button studio-button-light" :disabled="props.busy" @click="emit('requestL2Changes')"><X :size="14" />退回 L2</button>
         <button type="button" class="studio-button studio-button-primary" :disabled="props.busy" @click="emit('approveL2')"><Check :size="14" />通过 L2</button>
       </template>
-      <button v-else-if="props.l2Status === 'approved'" type="button" class="studio-button studio-button-primary" :disabled="props.busy" @click="emit('publishL2')"><FileCheck2 :size="14" />发布 L2</button>
+      <button v-else-if="props.l2Status === 'approved' && props.status === 'published'" type="button" class="studio-button studio-button-primary" :disabled="props.busy" @click="emit('publishL2')"><FileCheck2 :size="14" />发布整张卡</button>
+      <span v-else-if="props.l2Status === 'approved'" class="studio-workflow-note">等待 L1 发布后同步上线</span>
     </div>
   </section>
 </template>
@@ -73,13 +81,23 @@ const labels: Record<string, string> = {
 .studio-workflow-actions { position: fixed; right: 0; bottom: 0; left: 236px; z-index: 5; display: flex; min-height: 66px; align-items: center; justify-content: space-between; gap: 18px; border-top: 1px solid #e4eaf1; background: rgba(255, 255, 255, .96); box-shadow: 0 -8px 24px rgba(30, 54, 84, .06); padding: 10px 28px; backdrop-filter: blur(12px); }
 .studio-workflow-context { display: flex; min-width: 0; align-items: baseline; gap: 9px; color: #96a4b5; font-size: 11px; }
 .studio-workflow-context strong { max-width: 280px; overflow: hidden; color: #344b68; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.studio-workflow-context small { color: #4d8d70; }
+.studio-workflow-context small { color: #4d8d70; }.studio-workflow-context em { max-width: 360px; overflow: hidden; color: #8998aa; font-size: 10px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .studio-workflow-message { margin: 0 auto 0 0; color: #c57c62; font-size: 11px; }
 .studio-workflow-buttons { display: flex; align-items: center; gap: 8px; }
 .studio-workflow-buttons button { min-height: 34px; }
-.studio-workflow-note { color: #9aa7b8; font-size: 11px; }
+.studio-workflow-note, .studio-visibility-note { color: #c47b63; font-size: 11px; }
 .studio-l2-workflow { display: flex; align-items: center; gap: 7px; border-left: 1px solid #e4eaf1; padding-left: 16px; }
 .studio-l2-workflow small { color: #8292a6; white-space: nowrap; }
 @media (max-width: 980px) { .studio-workflow-actions { left: 190px; padding: 10px 20px; } }
-@media (max-width: 680px) { .studio-workflow-actions { left: 0; flex-wrap: wrap; gap: 8px; } .studio-workflow-buttons { margin-left: auto; } }
+@media (max-width: 680px) {
+  .studio-workflow-actions { right: 0; bottom: 0; left: 0; min-height: 0; align-items: stretch; flex-direction: column; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .studio-workflow-context { width: 100%; align-items: center; gap: 6px; }
+  .studio-workflow-context strong { max-width: 43vw; }
+  .studio-workflow-context em { max-width: 43vw; }
+  .studio-workflow-message { width: 100%; margin: 0; }
+  .studio-workflow-buttons { width: 100%; margin-left: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .studio-workflow-buttons .studio-button { min-width: 0; padding: 0 7px; font-size: 11px; }
+  .studio-l2-workflow { width: 100%; flex-wrap: wrap; border-top: 1px solid #e4eaf1; border-left: 0; padding: 8px 0 0; }
+  .studio-l2-workflow .studio-button { flex: 1 1 135px; }
+}
 </style>

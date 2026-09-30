@@ -109,6 +109,7 @@ const {
   respondGraceWaiver,
   refreshActiveAgreement,
   refreshAgreements,
+  featuredCards: contentFeaturedCards,
   registerAccount,
   recordAgreementResult,
   acknowledgeSettlementReveal,
@@ -170,10 +171,11 @@ function openNotice(index: number) {
   screen.value = "notices";
 }
 
-const featuredCardIds = ["wrong-answers-only", "two-truths-one-lie", "turtle-soup-water"];
-const featuredCards = featuredCardIds
+const staticFeaturedCardIds = ["wrong-answers-only", "two-truths-one-lie", "turtle-soup-water"];
+const staticFeaturedCards = staticFeaturedCardIds
   .map((id) => dailyCards.find((card) => card.id === id))
   .filter((card): card is (typeof dailyCards)[number] => Boolean(card));
+const featuredCards = computed(() => contentFeaturedCards.value.length ? contentFeaturedCards.value : staticFeaturedCards);
 const activeCouponCount = computed(() => buildVoucherItems(
   agreements.value, coupons.value, currentUser.value?.id ?? null
 ).filter((item) => item.role === "holder" && item.status !== "used").length);
@@ -279,7 +281,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :loading="standaloneGame.loading"
         :favorite="standaloneGame.favorite"
         :favorite-busy="standaloneGame.favoriteBusy"
-        :timer-seconds="standaloneGame.timerSeconds"
+        :timer-milliseconds="standaloneGame.timerMilliseconds"
         :timer-running="standaloneGame.timerRunning"
         :counter-value="standaloneGame.counterValue"
         :play-again="standaloneGame.playAgain"
@@ -293,10 +295,12 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :update-player-label="standaloneGame.updatePlayerLabel"
         :add-player="standaloneGame.addPlayer"
         :remove-player="standaloneGame.removePlayer"
+        :clear-scoreboard="standaloneGame.clearScoreboard"
         :record-winner="standaloneGame.recordWinner"
         :record-ranking="standaloneGame.recordRanking"
         :record-completed="standaloneGame.recordCompleted"
         @toggle-favorite="standaloneGame.toggleFavorite"
+        @start-settlement="openCreate"
         @back="goBack"
         @home="goHome"
       />

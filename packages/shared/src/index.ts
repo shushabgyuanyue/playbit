@@ -105,6 +105,7 @@ export const cardSchema = z.object({
   tone: z.enum(["coral", "blue", "gold"]).optional(),
   winCondition: z.string(),
   reveal: z.string().optional(),
+  scenes: z.array(z.string()).optional(),
   tools: z.array(cardToolIdSchema).optional(),
   outcomeModel: z.enum(["no_winner", "self_reported_winner", "ranked_result", "shared_completion"]).optional()
 });

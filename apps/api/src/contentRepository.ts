@@ -3,6 +3,7 @@ import { dailyCards } from "@playbit/cards";
 import type {
   Card,
   ContentMetric,
+  ContentAnalytics,
   ContentOverview,
   ContentReviewDecision,
   ContentTool,
@@ -29,11 +30,36 @@ type ExposureState = {
   replays: number;
   switches: number;
   toolOpens: number;
+  abandons: number;
+  toolOpensByTool: Record<string, number>;
   lastShownAt: number;
   lastDeliveredRound: number;
   cooldownUntilRound: number;
   exhausted: boolean;
   nextAvailableAt: number;
+};
+
+type AnalyticsEvent = {
+  occurredAt: number;
+  actorKey: string;
+  l1Id: string;
+  l2Id: string;
+  eventName: GameEvent["eventName"];
+  toolId?: string;
+  action?: string;
+};
+
+type AnalyticsCounter = {
+  exposures: number;
+  starts: number;
+  completes: number;
+  rerolls: number;
+  replays: number;
+  switches: number;
+  toolOpens: number;
+  abandons: number;
+  actors: Set<string>;
+  toolOpensByTool: Map<string, number>;
 };
 
 const RUNTIME_STATE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -75,6 +101,46 @@ export type CreateL1Input = {
   outcomeModel: L1Game["outcomeModel"];
   certificateEligible?: boolean;
   tags?: string[];
+  scenes?: string[];
+};
+
+export type ListContentOptions = {
+  status?: ContentLifecycle;
+  search?: string;
+  scene?: string;
+  tool?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type ListL1Options = {
+  status?: ContentLifecycle;
+  search?: string;
+  withoutL2?: boolean;
+};
+
+export type ImportContentRow = {
+  code: string;
+  name: string;
+  l0Ids: string[];
+  minPlayers: number;
+  maxPlayers: number | null;
+  durationMin: number | null;
+  durationMax: number | null;
+  outcomeModel: L1Game["outcomeModel"];
+  scenes: string[];
+  tags: string[];
+  toolIds: string[];
+  title?: string;
+  contentType?: L2ContentType;
+  payload?: Record<string, unknown>;
+  hook?: string;
+  displayHook?: string;
+  rule?: string;
+  shortRule?: string;
+  completionCondition?: string;
+  failureCondition?: string | null;
+  changeNote?: string | null;
 };
 
 export type CreateL2Input = {
@@ -85,6 +151,7 @@ export type CreateL2Input = {
   qualityTier?: number;
   reusePolicy?: L2ReusePolicy;
   sourceMode?: L2Content["sourceMode"];
+  toolIds?: string[];
 };
 
 export type UpdateL2Input = Partial<Pick<CreateL2Input, "title" | "contentType" | "qualityTier" | "sourceMode">> & {
@@ -93,12 +160,15 @@ export type UpdateL2Input = Partial<Pick<CreateL2Input, "title" | "contentType" 
 
 export interface ContentRepository {
   next(input: ContentNextInput): DeliveredContentCard | null;
+  featured(limit?: number): Card[];
   startSession(input: ContentSessionInput): DeliveredContentCard | null;
   completeSession(input: CompleteContentSessionInput): number | null;
   ingestEvents(events: GameEvent[]): number;
-  listContent(status?: ContentLifecycle): Array<{ l1: L1Game; version: L1GameVersion; l2: L2Content }>;
+  listContent(options?: ContentLifecycle | ListContentOptions): Array<{ l1: L1Game; version: L1GameVersion; l2: L2Content }>;
+  listL1(options?: ListL1Options): Array<{ l1: L1Game; version: L1GameVersion | null; l2Count: number }>;
   overview(): ContentOverview;
   createL1(input: CreateL1Input): L1Game | null;
+  updateL1(l1Id: string, input: Partial<Pick<CreateL1Input, "name" | "l0Ids" | "minPlayers" | "maxPlayers" | "durationMin" | "durationMax" | "outcomeModel" | "certificateEligible" | "tags" | "scenes">>): L1Game | null;
   createL2(input: CreateL2Input): L2Content | null;
   updateDraftL2(l2Id: string, input: UpdateL2Input): L2Content | null;
   createVersion(l1Id: string, input: CreateVersionInput): L1GameVersion | null;
@@ -110,6 +180,7 @@ export interface ContentRepository {
   reviewL2(l2Id: string, decision: ContentReviewDecision): L2Content | null;
   publishL2(l2Id: string): L2Content | null;
   metrics(): ContentMetric[];
+  analytics(window?: "all" | "7d" | "30d"): ContentAnalytics;
   setFavorite(actorKey: string, l1Id: string, favorite: boolean): boolean;
   updateReusePolicy(l2Id: string, policy: L2ReusePolicy, actor?: string): ContentReuseAudit | null;
   listReuseAudits(l2Id: string): ContentReuseAudit[];
@@ -167,6 +238,13 @@ function inferOutcome(card: Card): L1Game["outcomeModel"] {
   return "shared_completion";
 }
 
+function inferScenes(card: Card) {
+  const scenes = [card.participantMax > 2 ? "多人聚会" : "双人对局"];
+  if (card.durationMinutes !== null) scenes.push(card.durationMinutes <= 3 ? "碎片时间" : "朋友聚会");
+  if (card.category === "hidden") scenes.push("安静推理");
+  return [...new Set(scenes)];
+}
+
 function cardFromContent(l1: L1Game, version: L1GameVersion, l2: L2Content, cardId = l2.id): Card {
   const payload = l2.payload;
   const category = payload.category === "rule" || payload.category === "hidden" ? payload.category : "challenge";
@@ -185,6 +263,7 @@ function cardFromContent(l1: L1Game, version: L1GameVersion, l2: L2Content, card
     hook: version.displayHook,
     steps,
     tone,
+    scenes: l1.scenes,
     winCondition: version.completionCondition,
     reveal: typeof payload.reveal === "string" ? payload.reveal : version.failureCondition ?? undefined,
     tools: version.toolIds as Card["tools"],
@@ -212,6 +291,7 @@ function createRecord(card: Card): ContentRecord {
       certificateEligible: true,
       favoriteCount: 0,
       tags: [card.category === "hidden" ? "推理" : card.mode === "versus" ? "对决" : "共创"],
+      scenes: inferScenes(card),
       updatedAt: createdAt
     },
     version: {
@@ -266,8 +346,10 @@ export function createContentRepository(): ContentRepository {
   const l1Exposure = new Map<string, { exposures: number; lastDeliveredRound: number; cooldownUntilRound: number }>();
   const seenEvents = new Map<string, number>();
   const favorites = new Map<string, Set<string>>();
+  const actorsByL2 = new Map<string, Set<string>>();
   const recommendationRounds = new Map<string, number>();
   const actorLastSeen = new Map<string, number>();
+  const analyticsEvents: AnalyticsEvent[] = [];
   const reuseAudits = new Map<string, ContentReuseAudit[]>();
   const sessions = new Map<string, {
     actorKey: string;
@@ -276,6 +358,12 @@ export function createContentRepository(): ContentRepository {
     createdAt: number;
     completedAt: number | null;
   }>();
+
+  function touchCardsForL1(l1Id: string, updatedAt: string) {
+    for (const record of records.values()) {
+      if (record.l1.id === l1Id) record.l2.updatedAt = updatedAt;
+    }
+  }
 
   for (const card of dailyCards) {
     const record = records.get(card.id)!;
@@ -319,6 +407,8 @@ export function createContentRepository(): ContentRepository {
       replays: 0,
       switches: 0,
       toolOpens: 0,
+      abandons: 0,
+      toolOpensByTool: {},
       lastShownAt: 0,
       lastDeliveredRound: 0,
       cooldownUntilRound: 0,
@@ -327,6 +417,11 @@ export function createContentRepository(): ContentRepository {
     };
     exposure.set(key, next);
     return next;
+  }
+
+  function recordAnalyticsEvent(event: AnalyticsEvent) {
+    analyticsEvents.push(event);
+    if (analyticsEvents.length > 100_000) analyticsEvents.splice(0, analyticsEvents.length - 100_000);
   }
 
   function getL1State(actorKey: string, l1Id: string) {
@@ -361,6 +456,12 @@ export function createContentRepository(): ContentRepository {
     actorLastSeen.set(actorKey, Date.now());
   }
 
+  function touchCardActor(actorKey: string, l2Id: string) {
+    const actors = actorsByL2.get(l2Id) ?? new Set<string>();
+    actors.add(actorKey);
+    actorsByL2.set(l2Id, actors);
+  }
+
   function next(input: ContentNextInput) {
     pruneRuntimeState();
     touchActor(input.actorKey);
@@ -391,10 +492,18 @@ export function createContentRepository(): ContentRepository {
     const selected = pool[0];
     const selectedVersion = publishedVersions.get(selected.l1.id)!;
     const state = getState(input.actorKey, selected.l2.id);
+    touchCardActor(input.actorKey, selected.l2.id);
     const l1State = getL1State(input.actorKey, selected.l1.id);
     state.exposures += 1;
     state.lastShownAt = Date.now();
     state.lastDeliveredRound = round;
+    recordAnalyticsEvent({
+      occurredAt: Date.now(),
+      actorKey: input.actorKey,
+      l1Id: selected.l1.id,
+      l2Id: selected.l2.id,
+      eventName: "exposed"
+    });
     l1State.exposures += 1;
     l1State.lastDeliveredRound = round;
     if (!input.preferredL1Id) l1State.cooldownUntilRound = round + 2;
@@ -423,6 +532,19 @@ export function createContentRepository(): ContentRepository {
     return delivered;
   }
 
+  function featured(limit = 3) {
+    const safeLimit = Math.min(12, Math.max(1, Math.floor(limit) || 3));
+    return [...records.values()]
+      .filter((record) => record.l1.lifecycle === "published" && record.version.reviewStatus === "published" && record.l2.status === "published")
+      .sort((left, right) => {
+        const rightUpdatedAt = Date.parse(right.l2.updatedAt) || 0;
+        const leftUpdatedAt = Date.parse(left.l2.updatedAt) || 0;
+        return rightUpdatedAt - leftUpdatedAt || right.l2.qualityTier - left.l2.qualityTier;
+      })
+      .slice(0, safeLimit)
+      .map((record) => cardFromContent(record.l1, record.version, record.l2, record.card.id));
+  }
+
   function startSession(input: ContentSessionInput) {
     pruneRuntimeState();
     touchActor(input.actorKey);
@@ -432,6 +554,7 @@ export function createContentRepository(): ContentRepository {
     if (!record || record.l1.lifecycle !== "published" || record.l2.status !== "published") return null;
     const selectedVersion = publishedVersions.get(record.l1.id);
     if (!selectedVersion) return null;
+    touchCardActor(input.actorKey, record.l2.id);
     const delivered = {
       ...cardFromContent(record.l1, selectedVersion, record.l2, record.card.id),
       deliveryId: `delivery_${randomUUID()}`,
@@ -486,6 +609,15 @@ export function createContentRepository(): ContentRepository {
       seenEvents.set(eventKey, Date.now());
       accepted += 1;
       const item = getState(event.actorKey, record.l2.id);
+      recordAnalyticsEvent({
+        occurredAt: Date.parse(event.occurredAt) || Date.now(),
+        actorKey: event.actorKey,
+        l1Id: record.l1.id,
+        l2Id: record.l2.id,
+        eventName: event.eventName,
+        toolId: typeof event.payload?.tool === "string" ? event.payload.tool : undefined,
+        action: typeof event.payload?.action === "string" ? event.payload.action : undefined
+      });
       if (event.eventName === "started") item.starts += 1;
       if (event.eventName === "completed") {
         item.completes += 1;
@@ -525,15 +657,56 @@ export function createContentRepository(): ContentRepository {
         if (action === "replay_same_l1") item.replays += 1;
         if (action === "switch_l1") item.switches += 1;
       }
-      if (event.eventName === "tool_opened") item.toolOpens += 1;
+      if (event.eventName === "abandoned") item.abandons += 1;
+      if (event.eventName === "tool_opened") {
+        item.toolOpens += 1;
+        const tool = typeof event.payload?.tool === "string" ? event.payload.tool : "unknown";
+        item.toolOpensByTool[tool] = (item.toolOpensByTool[tool] ?? 0) + 1;
+      }
     }
     return accepted;
   }
 
-  function listContent(status?: ContentLifecycle) {
+  function listContent(input?: ContentLifecycle | ListContentOptions) {
+    const options: ListContentOptions = typeof input === "string" ? { status: input } : input ?? {};
+    const normalizedSearch = options.search?.trim().toLowerCase();
     return [...records.values()]
-      .filter((item) => !status || item.l1.lifecycle === status || item.version.reviewStatus === status || item.l2.status === status)
+      .filter((item) => {
+        const statusMatches = !options.status || item.l1.lifecycle === options.status || item.version.reviewStatus === options.status || item.l2.status === options.status;
+        const searchText = [item.l1.name, item.l1.code, item.l2.title, item.version.displayHook, item.version.shortRule, typeof item.l2.payload.content === "string" ? item.l2.payload.content : ""].join(" ").toLowerCase();
+        const searchMatches = !normalizedSearch || searchText.includes(normalizedSearch);
+        const sceneMatches = !options.scene || item.l1.scenes.includes(options.scene);
+        const toolMatches = !options.tool || item.version.toolIds.includes(options.tool);
+        return statusMatches && searchMatches && sceneMatches && toolMatches;
+      })
+      .sort((left, right) => {
+        const rightUpdatedAt = Date.parse(right.l2.updatedAt) || 0;
+        const leftUpdatedAt = Date.parse(left.l2.updatedAt) || 0;
+        return rightUpdatedAt - leftUpdatedAt || right.l2.id.localeCompare(left.l2.id);
+      })
       .map(({ l1, version, l2 }) => ({ l1, version, l2 }));
+  }
+
+  function listL1(options: ListL1Options = {}) {
+    const normalizedSearch = options.search?.trim().toLowerCase();
+    return [...l1s.values()]
+      .map((l1) => {
+        const versionsForL1 = [...versions.values()].filter((version) => version.l1Id === l1.id).sort((left, right) => right.versionNo - left.versionNo);
+        const l2Count = [...records.values()].filter((record) => record.l1.id === l1.id).length;
+        return { l1, version: versionsForL1[0] ?? null, l2Count };
+      })
+      .filter(({ l1, version, l2Count }) => {
+        const statusMatches = !options.status || l1.lifecycle === options.status || version?.reviewStatus === options.status;
+        const searchText = [l1.name, l1.code, ...l1.scenes].join(" ").toLowerCase();
+        const searchMatches = !normalizedSearch || searchText.includes(normalizedSearch);
+        const withoutL2Matches = !options.withoutL2 || l2Count === 0;
+        return statusMatches && searchMatches && withoutL2Matches;
+      })
+      .sort((left, right) => {
+        const rightUpdatedAt = Date.parse(right.l1.updatedAt) || 0;
+        const leftUpdatedAt = Date.parse(left.l1.updatedAt) || 0;
+        return rightUpdatedAt - leftUpdatedAt || right.l1.id.localeCompare(left.l1.id);
+      });
   }
 
   function createL1(input: CreateL1Input) {
@@ -553,10 +726,25 @@ export function createContentRepository(): ContentRepository {
       certificateEligible: input.certificateEligible ?? true,
       favoriteCount: 0,
       tags: input.tags ?? [],
+      scenes: input.scenes ?? [],
       updatedAt: createdAt
     };
     l1s.set(l1.id, l1);
     return l1;
+  }
+
+  function updateL1(l1Id: string, input: Partial<Pick<CreateL1Input, "name" | "l0Ids" | "minPlayers" | "maxPlayers" | "durationMin" | "durationMax" | "outcomeModel" | "certificateEligible" | "tags" | "scenes">>) {
+    const l1 = l1s.get(l1Id);
+    if (!l1 || !["draft", "changes_requested"].includes(l1.lifecycle)) return null;
+    const updated = {
+      ...l1,
+      ...input,
+      updatedAt: now()
+    };
+    l1s.set(l1Id, updated);
+    for (const record of records.values()) if (record.l1.id === l1Id) record.l1 = updated;
+    touchCardsForL1(l1Id, updated.updatedAt);
+    return updated;
   }
 
   function createL2(input: CreateL2Input) {
@@ -573,7 +761,7 @@ export function createContentRepository(): ContentRepository {
         failureCondition: null,
         displayHook: input.title,
         reviewStatus: "draft",
-        toolIds: [],
+        toolIds: input.toolIds ?? [],
         changeNote: "创建 L1 时自动生成的初始草稿",
         publishedAt: null,
         createdAt: now()
@@ -602,6 +790,7 @@ export function createContentRepository(): ContentRepository {
     const l1 = l1s.get(l1Id);
     if (!l1) return null;
     const current = [...versions.values()].filter((version) => version.l1Id === l1Id).sort((a, b) => b.versionNo - a.versionNo)[0];
+    const createdAt = now();
     const version: L1GameVersion = {
       id: `l1v_${randomUUID()}`,
       l1Id,
@@ -614,17 +803,26 @@ export function createContentRepository(): ContentRepository {
       changeNote: input.changeNote ?? null,
       reviewStatus: "draft",
       publishedAt: null,
-      createdAt: now()
+      createdAt
     };
     versions.set(version.id, version);
-    for (const record of records.values()) if (record.l1.id === l1Id) record.version = version;
+    for (const record of records.values()) {
+      if (record.l1.id === l1Id) {
+        record.version = version;
+        record.l2.updatedAt = createdAt;
+      }
+    }
     return version;
   }
 
   function updateVersion(version: L1GameVersion) {
     versions.set(version.id, version);
+    const updatedAt = now();
     for (const record of records.values()) {
-      if (record.l1.id === version.l1Id) record.version = version;
+      if (record.l1.id === version.l1Id) {
+        record.version = version;
+        record.l2.updatedAt = updatedAt;
+      }
     }
     return version;
   }
@@ -745,13 +943,14 @@ export function createContentRepository(): ContentRepository {
   }
 
   function metrics() {
-    const totalsByL1 = new Map<string, { l1Name: string; exposures: number; starts: number; completes: number; rerolls: number; replays: number; switches: number; toolOpens: number }>();
+    const totalsByL1 = new Map<string, { l1Name: string; scenes: string[]; exposures: number; starts: number; completes: number; rerolls: number; replays: number; switches: number; toolOpens: number }>();
     const l1ByL2 = new Map<string, L1Game>();
     for (const record of records.values()) {
       l1ByL2.set(record.l2.id, record.l1);
       if (!totalsByL1.has(record.l1.id)) {
         totalsByL1.set(record.l1.id, {
           l1Name: record.l1.name,
+          scenes: record.l1.scenes,
           exposures: 0,
           starts: 0,
           completes: 0,
@@ -781,6 +980,195 @@ export function createContentRepository(): ContentRepository {
       completionRate: totals.starts ? totals.completes / totals.starts : 0,
       startRate: totals.exposures ? totals.starts / totals.exposures : 0
     } satisfies ContentMetric));
+  }
+
+  function analytics(window: "all" | "7d" | "30d" = "all") {
+    const cutoff = window === "all" ? 0 : Date.now() - (window === "7d" ? 7 : 30) * 86_400_000;
+    const emptyCounter = (): AnalyticsCounter => ({
+      exposures: 0,
+      starts: 0,
+      completes: 0,
+      rerolls: 0,
+      replays: 0,
+      switches: 0,
+      toolOpens: 0,
+      abandons: 0,
+      actors: new Set<string>(),
+      toolOpensByTool: new Map<string, number>()
+    });
+    const counters = new Map<string, AnalyticsCounter>();
+    for (const record of records.values()) counters.set(record.l2.id, emptyCounter());
+
+    for (const event of analyticsEvents) {
+      if (event.occurredAt < cutoff) continue;
+      const counter = counters.get(event.l2Id);
+      if (!counter) continue;
+      counter.actors.add(event.actorKey);
+      if (event.eventName === "exposed") counter.exposures += 1;
+      if (event.eventName === "started") counter.starts += 1;
+      if (event.eventName === "completed") counter.completes += 1;
+      if (event.eventName === "rerolled") counter.rerolls += 1;
+      if (event.eventName === "abandoned") counter.abandons += 1;
+      if (event.eventName === "tool_opened") {
+        counter.toolOpens += 1;
+        if (event.toolId) counter.toolOpensByTool.set(event.toolId, (counter.toolOpensByTool.get(event.toolId) ?? 0) + 1);
+      }
+      if (event.action === "replay_same_l1") counter.replays += 1;
+      if (event.action === "switch_l1") counter.switches += 1;
+    }
+
+    const favoriteActorsByL1 = new Map<string, Set<string>>();
+    for (const [actorKey, l1Ids] of favorites) {
+      for (const l1Id of l1Ids) {
+        const actors = favoriteActorsByL1.get(l1Id) ?? new Set<string>();
+        actors.add(actorKey);
+        favoriteActorsByL1.set(l1Id, actors);
+      }
+    }
+    const cardMetrics = [...records.values()].map((record) => {
+      const totals = counters.get(record.l2.id) ?? emptyCounter();
+      const favoriteActors = favoriteActorsByL1.get(record.l1.id)?.size ?? 0;
+      const heatScore = Math.max(0, Math.round(
+        totals.exposures * 0.5 +
+        totals.starts * 1.5 +
+        totals.completes * 2 +
+        favoriteActors * 3 +
+        totals.actors.size -
+        totals.rerolls * 0.5
+      ));
+      return {
+        l1Id: record.l1.id,
+        l1Name: record.l1.name,
+        l2Id: record.l2.id,
+        l2Title: record.l2.title,
+        scenes: record.l1.scenes,
+        status: record.l2.status,
+        exposures: totals.exposures,
+        starts: totals.starts,
+        completes: totals.completes,
+        rerolls: totals.rerolls,
+        replays: totals.replays,
+        switches: totals.switches,
+        toolOpens: totals.toolOpens,
+        abandons: totals.abandons,
+        activeActors: totals.actors.size,
+        favoriteActors,
+        heatScore,
+        completionRate: totals.starts ? totals.completes / totals.starts : 0,
+        startRate: totals.exposures ? totals.starts / totals.exposures : 0,
+        skipRate: totals.exposures ? totals.rerolls / totals.exposures : 0
+      };
+    }).sort((left, right) => (right.heatScore - left.heatScore) || (right.completes - left.completes) || right.l2Title.localeCompare(left.l2Title));
+
+    type DimensionTotal = { exposures: number; starts: number; completes: number; rerolls: number; toolOpens: number; activeActors: number };
+    const emptyDimension = (): DimensionTotal => ({ exposures: 0, starts: 0, completes: 0, rerolls: 0, toolOpens: 0, activeActors: 0 });
+    const addCardMetric = (target: DimensionTotal, source: typeof cardMetrics[number]) => {
+      target.exposures += source.exposures;
+      target.starts += source.starts;
+      target.completes += source.completes;
+      target.rerolls += source.rerolls;
+      target.toolOpens += source.toolOpens;
+      target.activeActors += source.activeActors;
+    };
+    const sceneTotals = new Map<string, DimensionTotal>();
+    for (const metric of cardMetrics) {
+      if (!metric.exposures && !metric.starts && !metric.completes && !metric.rerolls && !metric.toolOpens) continue;
+      for (const scene of metric.scenes.length ? metric.scenes : ["未标注"]) {
+        const totals = sceneTotals.get(scene) ?? emptyDimension();
+        sceneTotals.set(scene, totals);
+        addCardMetric(totals, metric);
+      }
+    }
+    const toDimension = (key: string, totals: DimensionTotal) => ({
+      key,
+      label: key,
+      ...totals,
+      completionRate: totals.starts ? totals.completes / totals.starts : 0,
+      startRate: totals.exposures ? totals.starts / totals.exposures : 0,
+      skipRate: totals.exposures ? totals.rerolls / totals.exposures : 0
+    });
+    const sceneMetrics = [...sceneTotals.entries()]
+      .map(([key, totals]) => toDimension(key, totals))
+      .sort((left, right) => right.exposures - left.exposures);
+
+    const actorTotals = new Map<string, { exposures: number; starts: number; completes: number; rerolls: number }>();
+    for (const event of analyticsEvents) {
+      if (event.occurredAt < cutoff) continue;
+      const totals = actorTotals.get(event.actorKey) ?? { exposures: 0, starts: 0, completes: 0, rerolls: 0 };
+      if (event.eventName === "exposed") totals.exposures += 1;
+      if (event.eventName === "started") totals.starts += 1;
+      if (event.eventName === "completed") totals.completes += 1;
+      if (event.eventName === "rerolled") totals.rerolls += 1;
+      actorTotals.set(event.actorKey, totals);
+    }
+    const segment = (key: "new" | "returning" | "favorited", label: string, predicate: (actorKey: string) => boolean) => {
+      const totals = { actors: 0, exposures: 0, starts: 0, completes: 0, rerolls: 0 };
+      for (const [actorKey, item] of actorTotals) {
+        if (!predicate(actorKey)) continue;
+        totals.actors += 1;
+        totals.exposures += item.exposures;
+        totals.starts += item.starts;
+        totals.completes += item.completes;
+        totals.rerolls += item.rerolls;
+      }
+      return {
+        key,
+        label,
+        ...totals,
+        completionRate: totals.starts ? totals.completes / totals.starts : 0,
+        startRate: totals.exposures ? totals.starts / totals.exposures : 0
+      };
+    };
+    const uniqueActors = new Set(actorTotals.keys());
+    const favoriteActors = new Set([...favorites.entries()].filter(([, items]) => items.size > 0).map(([actorKey]) => actorKey));
+    const userSegments = [
+      segment("new", "新用户", (actorKey) => (recommendationRounds.get(actorKey) ?? 0) <= 1),
+      segment("returning", "回访用户", (actorKey) => (recommendationRounds.get(actorKey) ?? 0) > 1),
+      segment("favorited", "收藏用户", (actorKey) => favoriteActors.has(actorKey))
+    ];
+
+    const toolTotals = new Map<string, { opens: number; associatedExposures: number }>();
+    for (const record of records.values()) {
+      const totals = counters.get(record.l2.id) ?? emptyCounter();
+      for (const toolId of record.version.toolIds) {
+        const tool = toolTotals.get(toolId) ?? { opens: 0, associatedExposures: 0 };
+        tool.opens += totals.toolOpensByTool.get(toolId) ?? 0;
+        tool.associatedExposures += totals.exposures;
+        toolTotals.set(toolId, tool);
+      }
+    }
+    const toolMetrics = defaultTools.map((tool) => {
+      const totals = toolTotals.get(tool.code) ?? { opens: 0, associatedExposures: 0 };
+      return {
+        toolId: tool.code,
+        toolName: tool.name,
+        ...totals,
+        openRate: totals.associatedExposures ? totals.opens / totals.associatedExposures : 0
+      };
+    });
+    const funnel = cardMetrics.reduce((sum, item) => ({
+      exposures: sum.exposures + item.exposures,
+      starts: sum.starts + item.starts,
+      completes: sum.completes + item.completes,
+      rerolls: sum.rerolls + item.rerolls,
+      toolOpens: sum.toolOpens + item.toolOpens,
+      abandons: sum.abandons + item.abandons
+    }), { exposures: 0, starts: 0, completes: 0, rerolls: 0, toolOpens: 0, abandons: 0 });
+    return {
+      generatedAt: now(),
+      window,
+      cardMetrics,
+      userSummary: {
+        activeActors: uniqueActors.size,
+        returningActors: userSegments.find((item) => item.key === "returning")?.actors ?? 0,
+        favoriteActors: favoriteActors.size,
+        newActors: userSegments.find((item) => item.key === "new")?.actors ?? 0
+      },
+      funnel,
+      sceneMetrics,
+      userSegments,
+      toolMetrics
+    } satisfies ContentAnalytics;
   }
 
   function setFavorite(actorKey: string, l1Id: string, favorite: boolean) {
@@ -815,11 +1203,14 @@ export function createContentRepository(): ContentRepository {
 
   return {
     next,
+    featured,
     startSession,
     completeSession,
     ingestEvents,
     listContent,
+    listL1,
     createL1,
+    updateL1,
     createL2,
     updateDraftL2,
     createVersion,
@@ -831,6 +1222,7 @@ export function createContentRepository(): ContentRepository {
     reviewL2,
     publishL2,
     metrics,
+    analytics,
     setFavorite,
     updateReusePolicy,
     listReuseAudits,

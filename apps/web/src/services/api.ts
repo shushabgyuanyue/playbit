@@ -16,7 +16,9 @@ import type {
   GameEvent,
   ContentOverview,
   ContentListItem,
-  DeliveredContentCard
+  ContentL1ListItem,
+  DeliveredContentCard,
+  ContentAnalytics
 } from "@playbit/shared";
 
 function normalizeApiBaseUrl(value: string | undefined) {
@@ -137,12 +139,38 @@ export const api = {
       signal: AbortSignal.timeout(1200)
     });
   },
+  getFeaturedCards(limit = 3) {
+    return request<{ cards: Card[] }>(`/content/cards/featured?limit=${Math.max(1, Math.min(12, limit))}`);
+  },
   getStudioOverview() {
     return request<ContentOverview>("/studio/overview");
   },
-  listStudioContent(status?: string) {
-    const query = status ? `?status=${encodeURIComponent(status)}` : "";
-    return request<{ items: ContentListItem[]; total: number }>(`/studio/content${query}`);
+  listStudioContent(options: { status?: string; search?: string; scene?: string; tool?: string; page?: number; pageSize?: number } = {}) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(options)) if (value !== undefined && value !== "" && value !== "all") query.set(key, String(value));
+    return request<{ items: ContentListItem[]; total: number; page: number; pageSize: number }>(`/studio/content${query.size ? `?${query}` : ""}`);
+  },
+  listStudioL1(options: { status?: string; search?: string; withoutL2?: boolean } = {}) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(options)) if (value !== undefined && value !== "" && value !== "all") query.set(key, String(value));
+    return request<{ items: ContentL1ListItem[]; total: number }>(`/studio/l1${query.size ? `?${query}` : ""}`);
+  },
+  importStudioContent(rows: Array<Record<string, unknown>>) {
+    return request<{ createdL1: number; createdCards: number; errors: Array<{ index: number; message: string }> }>("/studio/import", {
+      method: "POST",
+      body: JSON.stringify({ rows })
+    });
+  },
+  exportStudioContent(options: { status?: string; search?: string; scene?: string; tool?: string } = {}) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(options)) if (value !== undefined && value !== "" && value !== "all") query.set(key, String(value));
+    return fetch(`${apiBaseUrl}/studio/content/export${query.size ? `?${query}` : ""}`, { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) throw new ApiRequestError(`Export failed: ${response.status}`, response.status);
+      return response.blob();
+    });
+  },
+  updateStudioL1(l1Id: string, payload: { name?: string; l0Ids?: string[]; minPlayers?: number; maxPlayers?: number | null; durationMin?: number | null; durationMax?: number | null; scenes?: string[]; tags?: string[] }) {
+    return request<{ l1: ContentListItem["l1"] }>(`/studio/l1/${l1Id}`, { method: "PATCH", body: JSON.stringify(payload) });
   },
   createStudioL1(payload: {
     code: string;
@@ -155,6 +183,7 @@ export const api = {
     outcomeModel: "no_winner" | "self_reported_winner" | "ranked_result" | "shared_completion";
     certificateEligible?: boolean;
     tags?: string[];
+    scenes?: string[];
   }) {
     return request<{ l1: { id: string; name: string; code: string } }>("/studio/l1", { method: "POST", body: JSON.stringify(payload) });
   },
@@ -165,6 +194,7 @@ export const api = {
     payload: Record<string, unknown>;
     qualityTier?: number;
     reusePolicy?: { cooldownRounds?: number; cooldownDays?: number; permanentExhaustion?: boolean; skipCooldownRounds?: number };
+    toolIds?: string[];
     sourceMode?: "system" | "human" | "environment" | "external_ai" | "hybrid";
   }) {
     return request<{ l2: ContentListItem["l2"] }>("/studio/l2", { method: "POST", body: JSON.stringify(payload) });
@@ -211,8 +241,9 @@ export const api = {
   listStudioReuseAudits(l2Id: string) {
     return request<{ audits: Array<{ id: string; action: string; before: unknown; after: unknown; createdAt: string }> }>(`/studio/l2/${l2Id}/reuse-policy/audits`);
   },
-  getStudioAnalytics() {
-    return request<{ generatedAt: string; metrics: ContentOverview["metrics"] }>("/studio/analytics/content");
+  getStudioAnalytics(window: ContentAnalytics["window"] = "all") {
+    const query = window === "all" ? "" : `?window=${window}`;
+    return request<ContentAnalytics>(`/studio/analytics/content${query}`);
   },
   setGameFavorite(actorKey: string, l1Id: string, isFavorite: boolean) {
     return request<{ ok: boolean }>("/content/preferences", {

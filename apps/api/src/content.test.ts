@@ -14,6 +14,17 @@ async function json<T>(path: string, init?: RequestInit) {
   return response.json() as Promise<T>;
 }
 
+type StudioContentPage = { items: Array<{ l1: { id: string; favoriteCount: number } }>; total: number; pageSize: number };
+
+async function allStudioItems() {
+  const first = await json<StudioContentPage>("/studio/content?page=1&pageSize=10");
+  const pageCount = Math.ceil(first.total / first.pageSize);
+  const rest = await Promise.all(Array.from({ length: Math.max(0, pageCount - 1) }, (_, index) =>
+    json<StudioContentPage>(`/studio/content?page=${index + 2}&pageSize=10`)
+  ));
+  return [first, ...rest].flatMap((page) => page.items);
+}
+
 const next = await json<{ card: { id: string; deliveryId: string; l1Id: string; l2Id: string } }>(
   `/content/cards/next?actorKey=actor-test&previousIds=${encodeURIComponent(JSON.stringify([]))}`
 );
@@ -37,8 +48,8 @@ const favorite = await json<{ ok: boolean }>("/content/preferences", {
   body: JSON.stringify({ actorKey: "actor-test", l1Id: next.card.l1Id, isFavorite: true })
 });
 assert.equal(favorite.ok, true);
-const favoriteItems = await json<{ items: Array<{ l1: { id: string; favoriteCount: number } }> }>("/studio/content");
-const favoriteRecords = favoriteItems.items.filter((item) => item.l1.id === next.card.l1Id);
+const favoriteItems = await allStudioItems();
+const favoriteRecords = favoriteItems.filter((item) => item.l1.id === next.card.l1Id);
 assert.ok(favoriteRecords.length >= 1);
 assert.equal(new Set(favoriteRecords.map((item) => item.l1.favoriteCount)).size, 1);
 assert.equal(favoriteRecords[0].l1.favoriteCount, 1);
@@ -47,9 +58,9 @@ const unfavorite = await json<{ ok: boolean }>("/content/preferences", {
   body: JSON.stringify({ actorKey: "actor-test", l1Id: next.card.l1Id, isFavorite: false })
 });
 assert.equal(unfavorite.ok, true);
-const unfavoriteItems = await json<{ items: Array<{ l1: { id: string; favoriteCount: number } }> }>("/studio/content");
-assert.equal(new Set(unfavoriteItems.items.filter((item) => item.l1.id === next.card.l1Id).map((item) => item.l1.favoriteCount)).size, 1);
-assert.equal(unfavoriteItems.items.find((item) => item.l1.id === next.card.l1Id)?.l1.favoriteCount, 0);
+const unfavoriteItems = await allStudioItems();
+assert.equal(new Set(unfavoriteItems.filter((item) => item.l1.id === next.card.l1Id).map((item) => item.l1.favoriteCount)).size, 1);
+assert.equal(unfavoriteItems.find((item) => item.l1.id === next.card.l1Id)?.l1.favoriteCount, 0);
 
 const event = {
   clientEventId: "client-event-1",
@@ -116,6 +127,20 @@ assert.equal(overview.counts.l1, new Set([
 assert.equal(overview.counts.l2, dailyCards.length + curatedDraftSeeds.length);
 assert.equal(new Set(overview.metrics.map((metric) => metric.l1Id)).size, overview.counts.l1);
 assert.ok(overview.metrics.some((metric) => metric.starts > 0));
+const analytics = await json<{
+  window: string;
+  cardMetrics: Array<{ heatScore: number; favoriteActors: number; abandons: number }>;
+  sceneMetrics: Array<{ label: string }>;
+  userSegments: Array<{ key: string }>;
+  toolMetrics: Array<{ toolId: string }>;
+  funnel: { exposures: number; starts: number; completes: number; abandons: number };
+}>("/studio/analytics/content?window=7d");
+assert.equal(analytics.window, "7d");
+assert.ok(analytics.cardMetrics.some((metric) => metric.heatScore >= 0 && metric.favoriteActors >= 0 && metric.abandons >= 0));
+assert.ok(Array.isArray(analytics.sceneMetrics));
+assert.ok(analytics.userSegments.some((segment) => segment.key === "new"));
+assert.ok(analytics.toolMetrics.some((metric) => metric.toolId === "timer"));
+assert.ok(analytics.funnel.exposures >= analytics.funnel.starts);
 
 const content = await json<{ items: Array<{ l1: { id: string; name: string; l0Ids: string[] }; version: { id: string; reviewStatus: string }; l2: { status: string; payload: { source?: string } } }> }>("/studio/content");
 const wrongAnswers = content.items.find((item) => item.l1.name === "只许答错");
@@ -146,6 +171,55 @@ const published = await json<{ version: { reviewStatus: string; publishedAt: str
 assert.equal(published.version.reviewStatus, "published");
 assert.ok(published.version.publishedAt);
 
+const importedTemplate = await json<{ createdL1: number; createdCards: number; errors: Array<{ index: number }> }>("/studio/import", {
+  method: "POST",
+  body: JSON.stringify({
+    rows: [
+      {
+        code: "import_template_word",
+        name: "导入模板玩法",
+        title: "导入一张卡",
+        l0Ids: ["l0-constraint"],
+        scenes: ["双人对局"],
+        tags: ["模板"],
+        minPlayers: 2,
+        maxPlayers: 2,
+        durationMin: 3,
+        durationMax: 5,
+        outcomeModel: "shared_completion",
+        toolIds: ["timer"],
+        contentType: "prompt",
+        hook: "越认真，越容易接错。",
+        rule: "轮流接住上一句，但不能重复关键词。",
+        completionCondition: "连续完成三轮。",
+        failureCondition: "重复关键词或停顿超过三秒。",
+        changeNote: "来自 Agent 模板",
+        payload: { content: "模板题面", mode: "together", category: "challenge", tone: "blue" }
+      },
+      { code: "", name: "无效行", minPlayers: 2, l0Ids: [] }
+    ]
+  })
+});
+assert.equal(importedTemplate.createdL1, 1);
+assert.equal(importedTemplate.createdCards, 1);
+assert.equal(importedTemplate.errors.length, 1);
+const importedTemplateItems = await json<{ items: Array<{ l1: { code: string; scenes: string[]; tags: string[] }; version: { displayHook: string; shortRule: string; completionCondition: string; failureCondition: string | null; toolIds: string[]; changeNote: string | null }; l2: { title: string; payload: { content: string } } }> }>("/studio/content?search=import_template_word");
+assert.equal(importedTemplateItems.items.length, 1);
+assert.equal(importedTemplateItems.items[0].l1.code, "import_template_word");
+assert.equal(importedTemplateItems.items[0].version.displayHook, "越认真，越容易接错。");
+assert.equal(importedTemplateItems.items[0].version.shortRule, "轮流接住上一句，但不能重复关键词。");
+assert.equal(importedTemplateItems.items[0].version.completionCondition, "连续完成三轮。");
+assert.equal(importedTemplateItems.items[0].version.failureCondition, "重复关键词或停顿超过三秒。");
+assert.deepEqual(importedTemplateItems.items[0].version.toolIds, ["timer"]);
+assert.equal(importedTemplateItems.items[0].l2.payload.content, "模板题面");
+const exportedTemplate = await app.request("/studio/content/export?search=import_template_word");
+assert.equal(exportedTemplate.status, 200);
+const exportedTemplateBytes = new Uint8Array(await exportedTemplate.arrayBuffer());
+assert.deepEqual([...exportedTemplateBytes.slice(0, 3)], [0xef, 0xbb, 0xbf]);
+const exportedTemplateText = new TextDecoder().decode(exportedTemplateBytes);
+assert.ok(exportedTemplateText.includes("import_template_word"));
+assert.ok(exportedTemplateText.includes("越认真，越容易接错。"));
+
 console.log("Content system passed: delivery, event idempotency, metrics, review and publish.");
 
 const createdL1 = await json<{ l1: { id: string; lifecycle: string } }>("/studio/l1", {
@@ -163,6 +237,11 @@ const createdL1 = await json<{ l1: { id: string; lifecycle: string } }>("/studio
   })
 });
 assert.equal(createdL1.l1.lifecycle, "draft");
+const l1Only = await json<{ items: Array<{ l1: { id: string }; version: { id: string } | null; l2Count: number }> }>("/studio/l1?withoutL2=true");
+const l1OnlyItem = l1Only.items.find((item) => item.l1.id === createdL1.l1.id);
+assert.ok(l1OnlyItem);
+assert.equal(l1OnlyItem.version, null);
+assert.equal(l1OnlyItem.l2Count, 0);
 const createdL2 = await json<{ l2: { id: string; status: string; contentType: string; payload: { content: string } } }>("/studio/l2", {
   method: "POST",
   body: JSON.stringify({
@@ -200,6 +279,9 @@ assert.equal(publishedNewL2.l2.status, "published");
 const newCard = await json<{ card: { id: string; l1Id: string; content: string } }>(`/content/cards/next?actorKey=new-content-actor&l1Id=${encodeURIComponent(createdL1.l1.id)}`);
 assert.equal(newCard.card.l1Id, createdL1.l1.id);
 assert.equal(newCard.card.content, "轮流接住上一句反话，不能直接重复关键词。");
+const featured = await json<{ cards: Array<{ id: string; name: string; content: string }> }>("/content/cards/featured?limit=12");
+assert.ok(featured.cards.some((card) => card.name === "今天只能接住反话"));
+assert.equal(featured.cards.find((card) => card.name === "今天只能接住反话")?.content, "轮流接住上一句反话，不能直接重复关键词。");
 
 const policy = await json<{ audit: { id: string } }>(`/studio/l2/${createdL2.l2.id}/reuse-policy`, {
   method: "PATCH",
