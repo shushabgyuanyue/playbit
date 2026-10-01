@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { standaloneGameCopy as copy } from "@playbit/content";
 import type { Card, CardToolId } from "@playbit/shared";
-import { Bookmark, BookmarkCheck, ChevronRight, Gift, RotateCcw, Sparkles, Trophy, X } from "lucide-vue-next";
+import { ChevronRight, Gift, Heart, RotateCcw, Sparkles, Trophy, X } from "lucide-vue-next";
 import { computed, ref } from "vue";
 import type { LocalPlayResult, LocalPlayer } from "../../composables/useStandaloneGameFlow";
 import GameToolTray from "./GameToolTray.vue";
@@ -109,12 +109,11 @@ function openCertificate() {
               class="standalone-favorite-action"
               :disabled="props.favoriteBusy"
               :aria-pressed="props.favorite"
-              :aria-label="props.favorite ? '取消收藏玩法' : '收藏玩法'"
-              :title="props.favorite ? '取消收藏玩法' : '收藏玩法'"
-              @click="emit('toggle-favorite')"
-            >
-              <BookmarkCheck v-if="props.favorite" :size="14" aria-hidden="true" />
-              <Bookmark v-else :size="14" aria-hidden="true" />
+               :aria-label="props.favorite ? copy.unlikeCard : copy.likeCard"
+               :title="props.favorite ? copy.unlikeCard : copy.likeCard"
+               @click="emit('toggle-favorite')"
+             >
+               <Heart :size="14" :fill="props.favorite ? 'currentColor' : 'none'" aria-hidden="true" />
             </button>
           </template>
           <template #actions>
@@ -131,6 +130,7 @@ function openCertificate() {
       </div>
 
       <p v-if="props.phase === 'result'" class="standalone-game-hint">{{ copy.resultHint }}</p>
+      <p v-else class="standalone-game-hint standalone-game-product-line">{{ copy.playingHint }}</p>
 
       <section v-if="props.phase === 'playing'" class="standalone-bottom-actions" aria-label="本局操作">
         <button type="button" class="standalone-bottom-action is-stake" :aria-expanded="stakeOpen" aria-controls="standalone-stake-dialog" @click="openStake">
@@ -221,7 +221,8 @@ function openCertificate() {
 .standalone-card-frame :deep(.game-tool-tray) { width: auto; margin-left: auto; }
 .standalone-card-frame :deep(.game-card-tool-actions) { min-height: 28px; margin: -2px 0 0; }
 .standalone-card-frame :deep(.game-card-tool-button) { min-height: 28px; padding: 0 8px; }
-.standalone-game-hint { margin: 0 auto; color: var(--pb-text-3); font-size: var(--pb-font-sm); line-height: 1.5; text-align: center; }
+.standalone-game-hint { position: relative; z-index: 2; margin: 0 auto; color: var(--pb-text-2); font-size: var(--pb-font-sm); line-height: 1.5; text-align: center; }
+.standalone-game-product-line { padding: 0 8px; font-size: var(--pb-font-xs); font-weight: 500; }
 .standalone-bottom-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: min(100%, 390px); margin: 4px auto 0; }
 .standalone-bottom-action { display: inline-flex; min-height: 43px; align-items: center; justify-content: center; gap: 6px; border: 1px solid rgba(128, 145, 164, .25); border-radius: 12px; background: rgba(255, 255, 255, .66); color: var(--pb-text-2); padding: 0 10px; font: inherit; font-size: var(--pb-font-sm); font-weight: 600; box-shadow: 0 3px 10px rgba(22, 47, 75, .045); transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
 .standalone-bottom-action.is-stake { color: #916017; }

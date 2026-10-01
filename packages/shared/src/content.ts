@@ -41,6 +41,30 @@ export const l0MechanismSchema = z.object({
   status: z.enum(["candidate", "formal", "provisional", "retired"])
 });
 
+// Research metadata stays on the L1 admin object so imported source evidence is
+// not lost, while the playable L2 payload remains focused on the user card.
+export const contentResearchSchema = z.object({
+  sampleCode: z.string().optional(),
+  sourceType: z.string().optional(),
+  sourceRegion: z.string().optional(),
+  sourceWork: z.string().optional(),
+  sourceUrl: z.string().optional(),
+  sourceEvidence: z.string().optional(),
+  sourceOriginalRule: z.string().optional(),
+  coreInteraction: z.string().optional(),
+  informationStructure: z.array(z.string()).default([]),
+  controlStructure: z.array(z.string()).default([]),
+  propsRequirement: z.string().optional(),
+  movementLevel: z.string().optional(),
+  l2Mode: z.string().optional(),
+  l2Source: z.string().optional(),
+  externalAiRequired: z.boolean().optional(),
+  externalAiRole: z.string().optional(),
+  variantFamily: z.string().optional(),
+  editorialPriority: z.string().optional(),
+  editorialNote: z.string().optional()
+});
+
 export const l1GameSchema = z.object({
   id: z.string(),
   code: z.string(),
@@ -56,6 +80,7 @@ export const l1GameSchema = z.object({
   favoriteCount: z.number().int().nonnegative().default(0),
   tags: z.array(z.string()).default([]),
   scenes: z.array(z.string()).default([]),
+  research: contentResearchSchema.optional(),
   updatedAt: z.string()
 });
 
@@ -238,6 +263,7 @@ export type ContentReviewDecision = z.infer<typeof contentReviewDecisionSchema>;
 export type L2ReusePolicy = z.infer<typeof l2ReusePolicySchema>;
 export type L2ContentType = z.infer<typeof l2ContentTypeSchema>;
 export type L0Mechanism = z.infer<typeof l0MechanismSchema>;
+export type ContentResearch = z.infer<typeof contentResearchSchema>;
 export type L1Game = z.infer<typeof l1GameSchema>;
 export type L1GameVersion = z.infer<typeof l1GameVersionSchema>;
 export type L2Content = z.infer<typeof l2ContentSchema>;

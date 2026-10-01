@@ -326,6 +326,7 @@
 }
 
 .voucher-ticket-title-row strong {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   color: var(--pb-text-1);
@@ -334,6 +335,13 @@
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.voucher-ticket-state {
+  flex: 0 0 auto;
+  color: var(--pb-theme-pending);
+  font-size: var(--pb-font-xs);
+  font-weight: var(--pb-weight-semibold);
 }
 
 .voucher-ticket-time {
@@ -393,6 +401,11 @@
 .status-pending .voucher-ticket-action {
   background: var(--pb-fill-muted);
   color: var(--pb-text-3);
+}
+
+.voucher-ticket-action.is-delete {
+  background: var(--pb-theme-pending);
+  color: var(--pb-text-on-color);
 }
 
 .status-used .voucher-ticket-action {

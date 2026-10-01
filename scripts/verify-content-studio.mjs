@@ -39,10 +39,16 @@ await evaluate("[...document.querySelectorAll('button')].find((button) => button
 await new Promise((resolve) => setTimeout(resolve, 300));
 const libraryScreenshot = (await call("Page.captureScreenshot", { format: "png" })).result.data;
 fs.writeFileSync(new URL("../artifacts/verification/studio-content-library.png", import.meta.url), Buffer.from(libraryScreenshot, "base64"));
+await evaluate("[...document.querySelectorAll('button')].find((button) => button.textContent.includes('分发总览')).click()");
+await new Promise((resolve) => setTimeout(resolve, 500));
+const overviewBody = (await evaluate("document.body.innerText")).result.result.value;
+if (!overviewBody.includes("项目分发总览") || overviewBody.includes("卡片热榜") || overviewBody.includes("用户分群") || overviewBody.includes("工具使用")) throw new Error("Distribution overview still mixes card, user or tool analytics");
+await evaluate("[...document.querySelectorAll('button')].find((button) => button.textContent.includes('内容库')).click()");
+await new Promise((resolve) => setTimeout(resolve, 300));
 await evaluate("document.querySelector('.studio-row-action[title=\"查看卡片分析\"]')?.click()");
 await new Promise((resolve) => setTimeout(resolve, 500));
 const analyticsBody = (await evaluate("document.body.innerText")).result.result.value;
-if (!analyticsBody.includes("DISTRIBUTION & ANALYTICS") || !analyticsBody.includes("从展示到完成") || !analyticsBody.includes("卡片热榜") || !analyticsBody.includes("用户分群")) throw new Error("Analytics dashboard sections are missing");
+if (!analyticsBody.includes("卡片分析") || !analyticsBody.includes("卡片热榜") || analyticsBody.includes("用户分群") || analyticsBody.includes("工具使用")) throw new Error("Card analytics dashboard sections are missing or contain removed sections");
 const selectedWindow = await evaluate("document.querySelector('.studio-analytics-window select')?.value");
 if (selectedWindow.result.result.value !== "all") throw new Error("Analytics default window is not all");
 await evaluate("const select = document.querySelector('.studio-analytics-window select'); select.value = '7d'; select.dispatchEvent(new Event('change', { bubbles: true }))");

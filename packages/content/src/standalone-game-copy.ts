@@ -1,9 +1,9 @@
 export const standaloneGameCopy = {
   loading: "正在准备一张卡",
-  title: "来一局",
+  title: "开一局",
   eyebrow: "PLAYBIT · 现场游戏",
   readyHint: "抽到就玩，主持人把节奏交给现场",
-  playingHint: "",
+  playingHint: "现场开玩，结果和彩头按你们的约定来。",
   resultHint: "本局已经留下记录，彩头由你们线下约定",
   reroll: "换一张",
   start: "开玩这张",
@@ -27,6 +27,9 @@ export const standaloneGameCopy = {
   startSettlement: "发起结算",
   openCertificate: "开具比赛证书",
   clearScoreboard: "清空积分",
+  clearScoreboardTitle: "清空记分牌",
+  clearScoreboardMessage: "当前所有玩家的积分都会归零，确定要清空吗？",
+  clearScoreboardConfirm: "确认清空",
   resultRecorded: "结果已记录",
   noWinner: "只记录完成，不分胜负",
   closeTools: "收起工具",
@@ -39,6 +42,8 @@ export const standaloneGameCopy = {
   decrement: "减一",
   increment: "加一",
   emptyCard: "正在准备一张卡",
+  likeCard: "喜欢这张玩法",
+  unlikeCard: "取消喜欢",
   participantRange: (min: number, max: number) => min === max ? `${min} 人` : `${min}-${max} 人`,
   duration: (minutes: number | null) => minutes ? `${minutes} 分钟` : "不限时"
 } as const;

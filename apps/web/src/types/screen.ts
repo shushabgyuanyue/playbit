@@ -14,4 +14,6 @@ export type Screen =
   | "sign"
   | "account"
   | "vouchers"
-  | "voucherDetail";
+  | "voucherDetail"
+  | "issueVoucher"
+  | "couponClaim";

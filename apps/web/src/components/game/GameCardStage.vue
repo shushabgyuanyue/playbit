@@ -50,14 +50,14 @@ watch(() => props.loading, (loading, previous) => {
 </template>
 
 <style scoped>
-.game-card-stage { position: relative; width: calc(100% - 24px); max-width: 360px; margin: 18px auto 25px; perspective: 1200px; }
-.game-card-stack { position: absolute; inset: 2px 0 -4px; pointer-events: none; }
-.game-card-stack-shadow { position: absolute; inset: 7px 8px 0; border-radius: 24px; background: #dfe7f1; box-shadow: 0 11px 22px rgba(45, 70, 96, .12); transform: translateY(7px); }
+.game-card-stage { position: relative; width: calc(100% - 24px); max-width: 360px; margin: 18px auto 34px; perspective: 1200px; }
+.game-card-stack { position: absolute; inset: 0 0 -12px; pointer-events: none; }
+.game-card-stack-shadow { position: absolute; inset: 9px 8px -2px; border-radius: 24px; background: #dfe7f1; box-shadow: 0 13px 24px rgba(45, 70, 96, .13); transform: translateY(12px) scale(.985); }
 .game-card-stack-card { position: absolute; inset: 0; overflow: hidden; border: 1px solid rgba(82, 112, 145, .16); border-radius: 22px; background: #f7fbff; box-shadow: var(--pb-shadow-game-stack); }
 .game-card-stack-card img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: .52; filter: saturate(.62) brightness(1.04); }
-.game-card-stack-far { transform: translate(9px, -11px) rotate(3.5deg) scale(.95); opacity: .45; }
-.game-card-stack-middle { transform: translate(-7px, -6px) rotate(-2.4deg) scale(.975); opacity: .7; }
-.game-card-stack-near { transform: translate(3px, -2px) rotate(1deg) scale(.992); opacity: .9; }
+.game-card-stack-far { transform: translate(9px, 12px) rotate(3.5deg) scale(.96); opacity: .46; }
+.game-card-stack-middle { transform: translate(-7px, 7px) rotate(-2.4deg) scale(.978); opacity: .7; }
+.game-card-stack-near { transform: translate(3px, 3px) rotate(1deg) scale(.992); opacity: .9; }
 .game-card-turn { position: relative; transform-style: preserve-3d; }
 .game-card-front, .game-card-reverse { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .game-card-reverse { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 22px; transform: rotateY(180deg); }

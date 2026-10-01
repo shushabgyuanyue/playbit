@@ -16,6 +16,7 @@ const emit = defineEmits<{
   openDetail: [voucher: VoucherItem];
   openRules: [voucher: VoucherItem];
   redeem: [voucher: VoucherItem];
+  delete: [voucher: VoucherItem];
   loadMore: [];
 }>();
 
@@ -38,9 +39,11 @@ watch(
 );
 
 function requestMore() {
-  if (!listLoading.value && hasMore.value) {
-    emit("loadMore");
+  if (props.loading || !hasMore.value) {
+    listLoading.value = false;
+    return;
   }
+  emit("loadMore");
 }
 </script>
 
@@ -72,6 +75,7 @@ function requestMore() {
           @open-detail="emit('openDetail', voucher)"
           @open-rules="emit('openRules', voucher)"
           @redeem="emit('redeem', voucher)"
+          @delete="emit('delete', voucher)"
         />
       </div>
     </van-list>

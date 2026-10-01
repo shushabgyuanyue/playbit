@@ -23,6 +23,7 @@ export const agreementStatus = pgEnum("agreement_status", [
 ]);
 export const stakeType = pgEnum("stake_type", ["point", "coupon", "custom"]);
 export const couponStatus = pgEnum("coupon_status", ["available", "reserved", "used", "waived"]);
+export const couponClaimStatus = pgEnum("coupon_claim_status", ["available", "used"]);
 export const flipStatus = pgEnum("flip_status", ["pending_acceptance", "active", "declined", "settled"]);
 export const graceTicketStatus = pgEnum("grace_ticket_status", ["available", "reserved", "used"]);
 export const graceWaiverStatus = pgEnum("grace_waiver_status", ["pending", "approved", "rejected"]);
@@ -137,6 +138,9 @@ export const coupons = pgTable(
     sourceFlipId: text("source_flip_id"),
     issuerUserId: text("issuer_user_id").references(() => users.id, { onDelete: "set null" }),
     holderUserId: text("holder_user_id").references(() => users.id, { onDelete: "set null" }),
+    claimToken: text("claim_token").unique(),
+    claimLimit: integer("claim_limit").default(1).notNull(),
+    claimedCount: integer("claimed_count").default(0).notNull(),
     name: text("name").notNull(),
     description: text("description").notNull(),
     issuerNickname: text("issuer_nickname").notNull(),
@@ -152,6 +156,29 @@ export const coupons = pgTable(
     sourceFlipUnique: uniqueIndex("coupons_source_flip_id_unique")
       .on(table.sourceFlipId)
       .where(sql`${table.sourceFlipId} is not null`)
+  })
+);
+
+export const couponClaims = pgTable(
+  "coupon_claims",
+  {
+    id: text("id").primaryKey(),
+    couponId: text("coupon_id")
+      .notNull()
+      .references(() => coupons.id, { onDelete: "cascade" }),
+    holderUserId: text("holder_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    holderNickname: text("holder_nickname").notNull(),
+    status: couponClaimStatus("status").default("available").notNull(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }).defaultNow().notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    couponIdIndex: index("coupon_claims_coupon_id_created_at_idx").on(table.couponId, table.createdAt),
+    couponHolderUnique: uniqueIndex("coupon_claims_coupon_holder_unique").on(table.couponId, table.holderUserId),
+    holderCreatedIndex: index("coupon_claims_holder_created_at_idx").on(table.holderUserId, table.createdAt)
   })
 );
 

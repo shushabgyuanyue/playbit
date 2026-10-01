@@ -16,7 +16,8 @@ import type {
   L2ReusePolicy,
   ContentReuseAudit,
   L2ContentType,
-  ContentLifecycle
+  ContentLifecycle,
+  ContentResearch
 } from "@playbit/shared";
 import { contentReviewDecisionSchema, l2ReusePolicySchema } from "@playbit/shared";
 import { curatedDraftSeeds } from "./contentSeeds.js";
@@ -102,6 +103,7 @@ export type CreateL1Input = {
   certificateEligible?: boolean;
   tags?: string[];
   scenes?: string[];
+  research?: ContentResearch;
 };
 
 export type ListContentOptions = {
@@ -141,6 +143,7 @@ export type ImportContentRow = {
   completionCondition?: string;
   failureCondition?: string | null;
   changeNote?: string | null;
+  research?: ContentResearch;
 };
 
 export type CreateL2Input = {
@@ -168,7 +171,7 @@ export interface ContentRepository {
   listL1(options?: ListL1Options): Array<{ l1: L1Game; version: L1GameVersion | null; l2Count: number }>;
   overview(): ContentOverview;
   createL1(input: CreateL1Input): L1Game | null;
-  updateL1(l1Id: string, input: Partial<Pick<CreateL1Input, "name" | "l0Ids" | "minPlayers" | "maxPlayers" | "durationMin" | "durationMax" | "outcomeModel" | "certificateEligible" | "tags" | "scenes">>): L1Game | null;
+  updateL1(l1Id: string, input: Partial<Pick<CreateL1Input, "name" | "l0Ids" | "minPlayers" | "maxPlayers" | "durationMin" | "durationMax" | "outcomeModel" | "certificateEligible" | "tags" | "scenes" | "research">>): L1Game | null;
   createL2(input: CreateL2Input): L2Content | null;
   updateDraftL2(l2Id: string, input: UpdateL2Input): L2Content | null;
   createVersion(l1Id: string, input: CreateVersionInput): L1GameVersion | null;
@@ -727,13 +730,14 @@ export function createContentRepository(): ContentRepository {
       favoriteCount: 0,
       tags: input.tags ?? [],
       scenes: input.scenes ?? [],
+      research: input.research,
       updatedAt: createdAt
     };
     l1s.set(l1.id, l1);
     return l1;
   }
 
-  function updateL1(l1Id: string, input: Partial<Pick<CreateL1Input, "name" | "l0Ids" | "minPlayers" | "maxPlayers" | "durationMin" | "durationMax" | "outcomeModel" | "certificateEligible" | "tags" | "scenes">>) {
+  function updateL1(l1Id: string, input: Partial<Pick<CreateL1Input, "name" | "l0Ids" | "minPlayers" | "maxPlayers" | "durationMin" | "durationMax" | "outcomeModel" | "certificateEligible" | "tags" | "scenes" | "research">>) {
     const l1 = l1s.get(l1Id);
     if (!l1 || !["draft", "changes_requested"].includes(l1.lifecycle)) return null;
     const updated = {

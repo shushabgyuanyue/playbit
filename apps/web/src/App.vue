@@ -35,6 +35,8 @@ const SignScreen = asyncScreen(() => import("./components/SignScreen.vue"));
 const SettlementScreen = asyncScreen(() => import("./components/SettlementScreen.vue"));
 const VoucherCenterScreen = asyncScreen(() => import("./components/VoucherCenterScreen.vue"));
 const VoucherDetailScreen = asyncScreen(() => import("./components/VoucherDetailScreen.vue"));
+const IssueVoucherScreen = asyncScreen(() => import("./components/IssueVoucherScreen.vue"));
+const CouponClaimScreen = asyncScreen(() => import("./components/CouponClaimScreen.vue"));
 const StudioScreen = asyncScreen(() => import("./components/StudioScreen.vue"));
 
 const {
@@ -59,6 +61,7 @@ const {
   certificateKind,
   certificateAction,
   coupons,
+  voucherCenterView,
   graceTickets,
   graceWaivers,
   createDraft,
@@ -99,6 +102,17 @@ const {
   openVoucherFlip,
   retryVoucherFlip,
   openVouchers,
+  openIssueVoucher,
+  issueIndependentCoupon,
+  issueVoucherLoading,
+  issuedCoupon,
+  deleteCoupon,
+  couponClaim,
+  couponClaimLoading,
+  couponClaiming,
+  couponClaimError,
+  loginForCouponClaim,
+  claimCoupon,
   redeemCoupon,
   startFlip,
   activeFlip,
@@ -300,7 +314,7 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :record-ranking="standaloneGame.recordRanking"
         :record-completed="standaloneGame.recordCompleted"
         @toggle-favorite="standaloneGame.toggleFavorite"
-        @start-settlement="openCreate"
+        @start-settlement="openIssueVoucher"
         @back="goBack"
         @home="goHome"
       />
@@ -353,6 +367,27 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         @view-vouchers="openVouchers"
         @open-voucher="openVoucherDetail"
       />
+      <IssueVoucherScreen
+        v-else-if="screen === 'issueVoucher'"
+        :loading="issueVoucherLoading"
+        :created-coupon="issuedCoupon"
+        @back="goBack"
+        @home="goHome"
+        @submit="issueIndependentCoupon"
+        @view-issued="() => openVouchers('issued')"
+      />
+      <CouponClaimScreen
+        v-else-if="screen === 'couponClaim'"
+        :coupon="couponClaim"
+        :current-user-nickname="currentUser?.nickname ?? null"
+        :loading="couponClaimLoading"
+        :claiming="couponClaiming"
+        :error="couponClaimError"
+        @back="goBack"
+        @home="goHome"
+        @login="loginForCouponClaim"
+        @claim="claimCoupon"
+      />
       <HistoryScreen
         v-else-if="screen === 'history'"
         :agreements="agreements"
@@ -368,10 +403,13 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         :coupons="coupons"
         :current-user-id="currentUser?.id ?? null"
         :grace-tickets="graceTickets"
+        :initial-view="voucherCenterView"
         @back="goBack"
         @home="goHome"
         @open-agreement="(agreementId: string) => openAgreementById(agreementId, 'vouchers')"
         @open-voucher="openVoucherDetail"
+        @issue="openIssueVoucher"
+        @delete-voucher="deleteCoupon"
       />
       <VoucherDetailScreen
         v-else-if="screen === 'voucherDetail' && activeVoucher"

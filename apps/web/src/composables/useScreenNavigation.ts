@@ -43,9 +43,10 @@ export function useScreenNavigation(
     const key = screenBeingLeft === "game" ? "game"
       : screenBeingLeft === "sign" ? "share"
       : screenBeingLeft === "flip" ? "flip"
+      : screenBeingLeft === "couponClaim" ? "coupon"
       : null;
     const url = new URL(window.location.href);
-    const keys = key ? [key] : ["share", "game", "flip"];
+    const keys = key ? [key] : ["share", "game", "flip", "coupon"];
     if (!keys.some((item) => url.searchParams.has(item))) return;
     keys.forEach((item) => url.searchParams.delete(item));
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);

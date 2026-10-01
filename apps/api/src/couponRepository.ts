@@ -1,4 +1,4 @@
-import { agreements, coupons } from "./db/schema.js";
+import { agreements, couponClaims, coupons } from "./db/schema.js";
 import type { Agreement, Coupon, Participant } from "@playbit/shared";
 import { getEffectiveStakeLabel, hasCouponEquity } from "@playbit/game-core";
 import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
@@ -14,19 +14,32 @@ export type IndependentCouponInput = {
   transferNote?: string | null;
   issuerUserId: string | null;
   issuerNickname: string;
-  holderUserId: string | null;
-  holderNickname: string;
+  claimLimit?: number;
 };
 
 type CouponRow = typeof coupons.$inferSelect;
+type CouponClaimRow = typeof couponClaims.$inferSelect;
+type MemoryCouponClaim = {
+  id: string;
+  couponId: string;
+  holderUserId: string;
+  holderNickname: string;
+  status: "available" | "used";
+  claimedAt: string;
+  usedAt: string | null;
+};
 
 function makeId(prefix: string): string {
   return `${prefix}_${randomBytes(8).toString("hex")}`;
 }
 
 function fromRow(row: CouponRow): Coupon {
+  const claimLimit = row.claimLimit ?? 1;
+  const claimedCount = row.claimedCount ?? 0;
   return {
     id: row.id,
+    claimId: null,
+    parentCouponId: null,
     agreementId: row.agreementId,
     gameResultId: row.gameResultId,
     certificateId: row.certificateId,
@@ -37,11 +50,44 @@ function fromRow(row: CouponRow): Coupon {
     issuerNickname: row.issuerNickname,
     holderUserId: row.holderUserId,
     holderNickname: row.holderNickname,
+    claimToken: row.claimToken,
+    claimLimit,
+    claimedCount,
+    remainingClaims: Math.max(0, claimLimit - claimedCount),
     status: row.waivedAt ? "waived" : row.status,
     transferNote: row.transferNote,
     createdAt: row.createdAt.toISOString(),
     usedAt: row.usedAt?.toISOString() ?? null,
     waivedAt: row.waivedAt?.toISOString() ?? null
+  };
+}
+
+function fromClaimRow(row: CouponRow | Coupon, claim: CouponClaimRow | MemoryCouponClaim): Coupon {
+  const claimLimit = row.claimLimit ?? 1;
+  const claimedCount = row.claimedCount ?? 0;
+  return {
+    id: claim.id,
+    claimId: claim.id,
+    parentCouponId: row.id,
+    agreementId: row.agreementId,
+    gameResultId: row.gameResultId,
+    certificateId: row.certificateId,
+    sourceFlipId: row.sourceFlipId,
+    name: row.name,
+    description: row.description,
+    issuerUserId: row.issuerUserId,
+    issuerNickname: row.issuerNickname,
+    holderUserId: claim.holderUserId,
+    holderNickname: claim.holderNickname,
+    claimToken: null,
+    claimLimit,
+    claimedCount,
+    remainingClaims: Math.max(0, claimLimit - claimedCount),
+    status: claim.status,
+    transferNote: row.transferNote,
+    createdAt: claim.claimedAt instanceof Date ? claim.claimedAt.toISOString() : claim.claimedAt,
+    usedAt: claim.usedAt instanceof Date ? claim.usedAt.toISOString() : claim.usedAt,
+    waivedAt: row.waivedAt instanceof Date ? row.waivedAt.toISOString() : row.waivedAt
   };
 }
 
@@ -58,6 +104,9 @@ function toRow(coupon: Coupon): typeof coupons.$inferInsert {
     description: coupon.description,
     issuerNickname: coupon.issuerNickname,
     holderNickname: coupon.holderNickname,
+    claimToken: coupon.claimToken,
+    claimLimit: coupon.claimLimit ?? 1,
+    claimedCount: coupon.claimedCount ?? 0,
     status: coupon.status,
     transferNote: coupon.transferNote,
     waivedAt: coupon.waivedAt ? new Date(coupon.waivedAt) : null,
@@ -85,6 +134,8 @@ export function couponFromRecordedAgreement(agreement: Agreement): Coupon | null
 
   return {
     id: makeId("coupon"),
+    claimId: null,
+    parentCouponId: null,
     agreementId: agreement.id,
     gameResultId: null,
     certificateId: null,
@@ -95,6 +146,10 @@ export function couponFromRecordedAgreement(agreement: Agreement): Coupon | null
     issuerNickname: loser.nickname,
     holderUserId: winner.userId,
     holderNickname: winner.nickname,
+    claimToken: null,
+    claimLimit: 1,
+    claimedCount: 1,
+    remainingClaims: 0,
     status: agreement.stake.fulfilled ? "used" : "available",
     createdAt: agreement.resultRecordedAt ?? new Date().toISOString(),
     usedAt,
@@ -105,6 +160,7 @@ export function couponFromRecordedAgreement(agreement: Agreement): Coupon | null
 
 class MemoryCouponRepository {
   private coupons = new Map<string, Coupon>();
+  private claims = new Map<string, MemoryCouponClaim>();
   private deletedAgreements = new Set<string>();
 
   constructor(private readonly agreements: AgreementRepository) {
@@ -136,8 +192,11 @@ class MemoryCouponRepository {
   }
 
   async createIndependent(input: IndependentCouponInput): Promise<Coupon> {
+    const claimLimit = Math.max(1, input.claimLimit ?? 1);
     const coupon: Coupon = {
       id: makeId("coupon"),
+      claimId: null,
+      parentCouponId: null,
       agreementId: null,
       gameResultId: input.gameResultId ?? null,
       certificateId: input.certificateId ?? null,
@@ -147,8 +206,12 @@ class MemoryCouponRepository {
       transferNote: input.transferNote ?? null,
       issuerUserId: input.issuerUserId,
       issuerNickname: input.issuerNickname,
-      holderUserId: input.holderUserId,
-      holderNickname: input.holderNickname,
+      holderUserId: null,
+      holderNickname: "待领取",
+      claimToken: makeId("claim"),
+      claimLimit,
+      claimedCount: 0,
+      remainingClaims: claimLimit,
       status: "available",
       createdAt: new Date().toISOString(),
       usedAt: null,
@@ -159,13 +222,57 @@ class MemoryCouponRepository {
   }
 
   async listByUser(userId: string): Promise<Coupon[]> {
-    return Array.from(this.coupons.values())
-      .filter((coupon) => coupon.holderUserId === userId || coupon.issuerUserId === userId)
+    const items = new Map<string, Coupon>();
+    for (const coupon of this.coupons.values()) {
+      if (coupon.issuerUserId === userId || coupon.holderUserId === userId) items.set(coupon.id, coupon);
+    }
+    for (const claim of this.claims.values()) {
+      if (claim.holderUserId !== userId) continue;
+      const parent = this.coupons.get(claim.couponId);
+      if (parent) items.set(claim.id, fromClaimRow(parent, claim));
+    }
+    return Array.from(items.values())
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async findById(id: string): Promise<Coupon | null> {
-    return this.coupons.get(id) ?? null;
+    const coupon = this.coupons.get(id);
+    if (coupon) return coupon;
+    const claim = this.claims.get(id);
+    const parent = claim ? this.coupons.get(claim.couponId) : null;
+    return parent && claim ? fromClaimRow(parent, claim) : null;
+  }
+
+  async findByClaimToken(token: string): Promise<Coupon | null> {
+    return Array.from(this.coupons.values()).find((coupon) => coupon.claimToken === token) ?? null;
+  }
+
+  async claimByToken(token: string, holderUserId: string, holderNickname: string): Promise<Coupon | null> {
+    const coupon = await this.findByClaimToken(token);
+    if (!coupon || coupon.status !== "available" || coupon.claimedCount >= coupon.claimLimit) return null;
+    if (Array.from(this.claims.values()).some((claim) => claim.couponId === coupon.id && claim.holderUserId === holderUserId)) return null;
+    const claim: MemoryCouponClaim = {
+      id: makeId("claim"),
+      couponId: coupon.id,
+      holderUserId,
+      holderNickname,
+      status: "available",
+      claimedAt: new Date().toISOString(),
+      usedAt: null
+    };
+    this.claims.set(claim.id, claim);
+    const updated = { ...coupon, claimedCount: coupon.claimedCount + 1, remainingClaims: Math.max(0, coupon.claimLimit - coupon.claimedCount - 1) };
+    this.coupons.set(coupon.id, updated);
+    return fromClaimRow(updated, claim);
+  }
+
+  async deleteIndependent(id: string, issuerUserId: string): Promise<boolean> {
+    const coupon = this.coupons.get(id);
+    if (!coupon || coupon.agreementId || coupon.sourceFlipId || coupon.issuerUserId !== issuerUserId || coupon.holderUserId || coupon.claimedCount > 0 || coupon.status !== "available") {
+      return false;
+    }
+    this.coupons.delete(id);
+    return true;
   }
 
   async findByAgreementId(agreementId: string): Promise<Coupon | null> {
@@ -205,6 +312,14 @@ class MemoryCouponRepository {
   }
 
   async redeem(id: string, holderUserId: string, recorderUserId: string): Promise<Coupon | null> {
+    const claim = this.claims.get(id);
+    if (claim) {
+      const parent = this.coupons.get(claim.couponId);
+      if (!parent || claim.holderUserId !== holderUserId || claim.status !== "available") return null;
+      const usedClaim = { ...claim, status: "used" as const, usedAt: new Date().toISOString() };
+      this.claims.set(id, usedClaim);
+      return fromClaimRow(parent, usedClaim);
+    }
     const coupon = this.coupons.get(id);
     if (!coupon || coupon.status !== "available" || coupon.holderUserId !== holderUserId) return null;
     const used: Coupon = { ...coupon, status: "used", usedAt: new Date().toISOString() };
@@ -296,8 +411,11 @@ class PostgresCouponRepository {
   }
 
   async createIndependent(input: IndependentCouponInput): Promise<Coupon> {
+    const claimLimit = Math.max(1, input.claimLimit ?? 1);
     const coupon: Coupon = {
       id: makeId("coupon"),
+      claimId: null,
+      parentCouponId: null,
       agreementId: null,
       gameResultId: input.gameResultId ?? null,
       certificateId: input.certificateId ?? null,
@@ -307,8 +425,12 @@ class PostgresCouponRepository {
       transferNote: input.transferNote ?? null,
       issuerUserId: input.issuerUserId,
       issuerNickname: input.issuerNickname,
-      holderUserId: input.holderUserId,
-      holderNickname: input.holderNickname,
+      holderUserId: null,
+      holderNickname: "待领取",
+      claimToken: makeId("claim"),
+      claimLimit,
+      claimedCount: 0,
+      remainingClaims: claimLimit,
       status: "available",
       createdAt: new Date().toISOString(),
       usedAt: null,
@@ -323,12 +445,72 @@ class PostgresCouponRepository {
       eq(coupons.holderUserId, userId),
       eq(coupons.issuerUserId, userId)
     )).orderBy(desc(coupons.createdAt));
-    return rows.map(fromRow);
+    const claims = await this.db
+      .select({ coupon: coupons, claim: couponClaims })
+      .from(couponClaims)
+      .innerJoin(coupons, eq(couponClaims.couponId, coupons.id))
+      .where(eq(couponClaims.holderUserId, userId))
+      .orderBy(desc(couponClaims.createdAt));
+    return [...rows.map(fromRow), ...claims.map(({ coupon, claim }) => fromClaimRow(coupon, claim))]
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }
 
   async findById(id: string): Promise<Coupon | null> {
     const [row] = await this.db.select().from(coupons).where(eq(coupons.id, id)).limit(1);
+    if (row) return fromRow(row);
+    const [claim] = await this.db
+      .select({ coupon: coupons, claim: couponClaims })
+      .from(couponClaims)
+      .innerJoin(coupons, eq(couponClaims.couponId, coupons.id))
+      .where(eq(couponClaims.id, id))
+      .limit(1);
+    return claim ? fromClaimRow(claim.coupon, claim.claim) : null;
+  }
+
+  async findByClaimToken(token: string): Promise<Coupon | null> {
+    const [row] = await this.db.select().from(coupons).where(eq(coupons.claimToken, token)).limit(1);
     return row ? fromRow(row) : null;
+  }
+
+  async claimByToken(token: string, holderUserId: string, holderNickname: string): Promise<Coupon | null> {
+    return this.db.transaction(async (tx) => {
+      const [parent] = await tx.select().from(coupons).where(eq(coupons.claimToken, token)).for("update");
+      if (!parent || parent.status !== "available" || parent.claimedCount >= parent.claimLimit) return null;
+      const [existing] = await tx
+        .select({ id: couponClaims.id })
+        .from(couponClaims)
+        .where(and(eq(couponClaims.couponId, parent.id), eq(couponClaims.holderUserId, holderUserId)))
+        .limit(1);
+      if (existing) return null;
+      const [claim] = await tx.insert(couponClaims).values({
+        id: makeId("claim"),
+        couponId: parent.id,
+        holderUserId,
+        holderNickname
+      }).returning();
+      const [updated] = await tx
+        .update(coupons)
+        .set({ claimedCount: sql`${coupons.claimedCount} + 1` })
+        .where(eq(coupons.id, parent.id))
+        .returning();
+      return updated && claim ? fromClaimRow(updated, claim) : null;
+    });
+  }
+
+  async deleteIndependent(id: string, issuerUserId: string): Promise<boolean> {
+    const deleted = await this.db
+      .delete(coupons)
+      .where(and(
+        eq(coupons.id, id),
+        eq(coupons.issuerUserId, issuerUserId),
+        isNull(coupons.agreementId),
+        isNull(coupons.sourceFlipId),
+        isNull(coupons.holderUserId),
+        eq(coupons.claimedCount, 0),
+        eq(coupons.status, "available")
+      ))
+      .returning({ id: coupons.id });
+    return deleted.length > 0;
   }
 
   async findByAgreementId(agreementId: string): Promise<Coupon | null> {
@@ -376,6 +558,16 @@ class PostgresCouponRepository {
 
   async redeem(id: string, holderUserId: string, recorderUserId: string): Promise<Coupon | null> {
     return this.db.transaction(async (tx) => {
+      const [claim] = await tx.select().from(couponClaims).where(eq(couponClaims.id, id)).limit(1);
+      if (claim) {
+        if (claim.holderUserId !== holderUserId || claim.status !== "available") return null;
+        const [usedClaim] = await tx.update(couponClaims).set({ status: "used", usedAt: new Date() })
+          .where(and(eq(couponClaims.id, id), eq(couponClaims.holderUserId, holderUserId), eq(couponClaims.status, "available")))
+          .returning();
+        if (!usedClaim) return null;
+        const [parent] = await tx.select().from(coupons).where(eq(coupons.id, claim.couponId)).limit(1);
+        return parent ? fromClaimRow(parent, usedClaim) : null;
+      }
       const [current] = await tx.select().from(coupons).where(eq(coupons.id, id)).limit(1);
       if (!current || current.holderUserId !== holderUserId || current.status !== "available") return null;
       const [used] = await tx.update(coupons).set({ status: "used", usedAt: new Date() })

@@ -2,6 +2,7 @@
 import { copy } from "@playbit/content";
 import type { Agreement, Coupon, GraceTicket } from "@playbit/shared";
 import { computed, onUnmounted, ref, watch } from "vue";
+import { TicketPlus } from "lucide-vue-next";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
 import { useVoucherAssets } from "../composables/useVoucherAssets";
 import type { VoucherItem, VoucherStatusFilter, VoucherViewFilter } from "../types/voucher";
@@ -13,6 +14,7 @@ const props = defineProps<{
   coupons: Coupon[];
   currentUserId: string | null;
   graceTickets: GraceTicket[];
+  initialView?: VoucherViewFilter;
 }>();
 
 const emit = defineEmits<{
@@ -20,9 +22,11 @@ const emit = defineEmits<{
   home: [];
   openAgreement: [agreementId: string];
   openVoucher: [voucherId: string];
+  issue: [];
+  deleteVoucher: [voucherId: string];
 }>();
 
-const activeView = ref<VoucherViewFilter>("all");
+const activeView = ref<VoucherViewFilter>(props.initialView ?? "all");
 const visibleCounts = ref<Record<VoucherStatusFilter, number>>({
   pending: 3,
   available: 3,
@@ -35,7 +39,7 @@ const loadingStatus = ref<Record<VoucherStatusFilter, boolean>>({
 });
 const loadTimers = new Map<VoucherStatusFilter, number>();
 
-const { statusCounts, totalCount, voucherSections } = useVoucherAssets(
+const { statusCounts, totalCount, issuedCount, voucherSections } = useVoucherAssets(
   () => props.agreements,
   () => props.coupons,
   activeView,
@@ -44,6 +48,7 @@ const { statusCounts, totalCount, voucherSections } = useVoucherAssets(
 
 const statusOptions = computed(() => [
   { key: "all" as const, label: copy.vouchers.statusTabs.all, count: totalCount.value },
+  { key: "issued" as const, label: copy.vouchers.statusTabs.issued, count: issuedCount.value },
   { key: "pending" as const, label: copy.vouchers.statusTabs.pending, count: statusCounts.value.pending },
   { key: "available" as const, label: copy.vouchers.statusTabs.available, count: statusCounts.value.available },
   { key: "used" as const, label: copy.vouchers.statusTabs.used, count: statusCounts.value.used }
@@ -68,6 +73,7 @@ function redeemVoucher(voucher: VoucherItem) {
 function loadMore(status: VoucherStatusFilter) {
   const section = voucherSections.value.find((item) => item.status === status);
   if (!section || loadingStatus.value[status] || visibleCounts.value[status] >= section.items.length) {
+    loadingStatus.value = { ...loadingStatus.value, [status]: false };
     return;
   }
 
@@ -174,6 +180,7 @@ onUnmounted(() => {
         @open-detail="emit('openVoucher', $event.id)"
         @open-rules="emit('openVoucher', $event.id)"
         @redeem="redeemVoucher"
+        @delete="emit('deleteVoucher', $event.id)"
         @load-more="loadMore(section.status)"
       />
     </div>
@@ -181,5 +188,15 @@ onUnmounted(() => {
     <van-empty v-else class="life-empty" image-size="0" :description="copy.vouchers.emptyText">
       <strong>{{ copy.vouchers.emptyTitle }}</strong>
     </van-empty>
+
+    <button
+      type="button"
+      class="voucher-issue-fab"
+      :aria-label="copy.vouchers.issue.title"
+      :title="copy.vouchers.issue.title"
+      @click="emit('issue')"
+    >
+      <TicketPlus :size="20" aria-hidden="true" />
+    </button>
   </section>
 </template>

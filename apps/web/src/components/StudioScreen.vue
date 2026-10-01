@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { dailyCards } from "@playbit/cards";
-import type { ContentAnalytics, ContentL1ListItem, ContentListItem, ContentOverview } from "@playbit/shared";
-import { Archive, BarChart3, Beaker, BookOpen, CheckCircle2, ChevronRight, FlaskConical, LayoutDashboard, Search, Send, Sparkles, TimerReset } from "lucide-vue-next";
+import type { ContentAnalytics, ContentL1ListItem, ContentListItem, ContentOverview, ContentResearch } from "@playbit/shared";
+import { Activity, Archive, BarChart3, Beaker, BookOpen, CheckCircle2, ChevronRight, FlaskConical, LayoutDashboard, Search, Send, Sparkles, TimerReset } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 import { api } from "../services/api";
+import { parseContentWorkbook } from "../services/contentImport";
 import StudioCreateCardSheet, { type CreateCardForm } from "./StudioCreateCardSheet.vue";
 import StudioDataTransfer from "./StudioDataTransfer.vue";
 import StudioAnalyticsDashboard from "./StudioAnalyticsDashboard.vue";
+import StudioCardAnalyticsDashboard from "./StudioCardAnalyticsDashboard.vue";
 import StudioLabContext from "./StudioLabContext.vue";
 import StudioWorkflowActions from "./StudioWorkflowActions.vue";
 
-type StudioSection = "overview" | "library" | "lab" | "distribution";
+type StudioSection = "overview" | "library" | "lab" | "distribution" | "cardAnalytics";
 type StudioRow = {
   id: string;
   l1Id: string;
@@ -30,6 +32,7 @@ type StudioRow = {
   tools: string[];
   scenes: string[];
   l0Ids: string[];
+  research?: ContentResearch;
   contentType: "prompt" | "truth" | "sequence" | "environment";
   payload: Record<string, unknown>;
   reusePolicy: { cooldownRounds: number; cooldownDays: number; permanentExhaustion: boolean; skipCooldownRounds: number };
@@ -43,7 +46,8 @@ const sections: Array<{ id: StudioSection; label: string; icon: typeof LayoutDas
   { id: "overview", label: "总览", icon: LayoutDashboard },
   { id: "library", label: "内容库", icon: BookOpen },
   { id: "lab", label: "卡片实验室", icon: FlaskConical },
-  { id: "distribution", label: "分发与分析", icon: BarChart3 }
+  { id: "distribution", label: "分发总览", icon: Activity },
+  { id: "cardAnalytics", label: "卡片分析", icon: BarChart3 }
 ];
 
 const activeSection = ref<StudioSection>("overview");
@@ -148,7 +152,23 @@ const createForm = ref({
   durationMinutes: 5,
   l0Ids: ["l0-association"] as string[],
   scenes: "双人对局, 碎片时间",
-  toolIds: ["timer"] as string[]
+  toolIds: ["timer"] as string[],
+  research: {
+    sourceType: "",
+    sourceRegion: "",
+    sourceWork: "",
+    sourceUrl: "",
+    propsRequirement: "NONE",
+    movementLevel: "LOW",
+    l2Mode: "OPTIONAL",
+    l2Source: "SYSTEM",
+    externalAiRequired: false,
+    externalAiRole: "",
+    informationStructure: "",
+    controlStructure: "",
+    editorialPriority: "",
+    editorialNote: ""
+  }
 });
 const draftEditable = computed(() => Boolean(selected.value?.versionId) && ["draft", "changes_requested"].includes(selected.value?.status ?? ""));
 const l2Editable = computed(() => ["draft", "changes_requested"].includes(selected.value?.l2Status ?? ""));
@@ -170,9 +190,6 @@ const selectedAnalyticsRow = computed(() => {
   const cardId = selectedAnalyticsMetric.value?.l2Id;
   return rows.value.find((row) => row.l2Id === cardId) ?? null;
 });
-const analyticsSceneMetrics = computed(() => analytics.value?.sceneMetrics ?? []);
-const analyticsUserSegments = computed(() => analytics.value?.userSegments ?? []);
-const analyticsToolMetrics = computed(() => analytics.value?.toolMetrics ?? []);
 
 function syncDraftForm(row: StudioRow | null) {
   draftForm.value = {
@@ -200,7 +217,7 @@ function selectSection(section: StudioSection) {
   activeSection.value = section;
   if (section === "library") void fetchLibrary();
   if (section === "lab") void fetchL1Only();
-  if (section === "distribution") void fetchAnalytics();
+  if (section === "distribution" || section === "cardAnalytics") void fetchAnalytics();
 }
 
 function applyContent(items: ContentListItem[], total = items.length) {
@@ -223,6 +240,7 @@ function applyContent(items: ContentListItem[], total = items.length) {
     tools: version.toolIds,
     scenes: l1.scenes,
     l0Ids: l1.l0Ids,
+    research: l1.research,
     contentType: l2.contentType,
     payload: l2.payload,
     reusePolicy: l2.reusePolicy,
@@ -255,6 +273,7 @@ function applyL1Only(items: ContentL1ListItem[]) {
     tools: version?.toolIds ?? [],
     scenes: l1.scenes,
     l0Ids: l1.l0Ids,
+    research: l1.research,
     contentType: "prompt",
     payload: {},
     reusePolicy: { cooldownRounds: 0, cooldownDays: 0, permanentExhaustion: false, skipCooldownRounds: 1 },
@@ -329,30 +348,57 @@ function parseImportText(text: string) {
   return sourceRows.map((source, index) => {
     if (!source || typeof source !== "object" || Array.isArray(source)) throw new Error(`第 ${index + 1} 行不是对象`);
     const record = source as Record<string, unknown>;
+    const pick = (...keys: string[]) => keys.map((key) => record[key]).find((value) => value !== undefined && value !== null && String(value).trim() !== "");
     let payload: Record<string, unknown> = {};
-    const rawPayload = record.payload ?? record.payloadJson;
+    const rawPayload = pick("payload", "payloadJson", "payload_json");
     if (rawPayload && typeof rawPayload === "object" && !Array.isArray(rawPayload)) payload = rawPayload as Record<string, unknown>;
     else if (String(rawPayload ?? "").trim()) payload = JSON.parse(String(rawPayload));
+    const playerRange = String(pick("playerCount", "player_count") ?? "").match(/\d+/g)?.map(Number) ?? [];
+    const numberOrDefault = (value: unknown, fallback: number | null) => {
+      const parsed = numberOrNull(value);
+      return parsed === null || Number.isNaN(parsed) ? fallback : parsed;
+    };
     return {
-      code: String(record.code ?? "").trim(),
-      name: String(record.name ?? "").trim(),
-      title: String(record.title ?? "").trim(),
-      l0Ids: list(record.l0Ids),
-      scenes: list(record.scenes),
-      tags: list(record.tags),
-      minPlayers: Number(record.minPlayers || 1),
-      maxPlayers: numberOrNull(record.maxPlayers),
-      durationMin: numberOrNull(record.durationMin),
-      durationMax: numberOrNull(record.durationMax),
-      outcomeModel: String(record.outcomeModel || "shared_completion"),
-      toolIds: list(record.toolIds),
-      contentType: String(record.contentType || "prompt"),
-      hook: String(record.hook ?? record.displayHook ?? "").trim(),
-      rule: String(record.rule ?? record.shortRule ?? "").trim(),
-      completionCondition: String(record.completionCondition ?? "").trim(),
-      failureCondition: String(record.failureCondition ?? "").trim() || null,
-      changeNote: String(record.changeNote ?? "").trim() || null,
-      payload
+      code: String(pick("code", "l1Code", "l1_code", "sampleId", "sample_id") ?? "").trim(),
+      name: String(pick("name", "l1Name", "l1_name", "sampleName", "sample_name") ?? "").trim(),
+      title: String(pick("title", "l2Title", "l2_title") ?? "").trim(),
+      l0Ids: list(pick("l0Ids", "l0_ids", "l0Codes", "l0_codes", "l0Primary", "l0_primary")),
+      scenes: list(pick("scenes", "sceneTags", "scene_tags")),
+      tags: list(pick("tags")),
+      minPlayers: numberOrDefault(pick("minPlayers", "min_players"), playerRange[0] ?? 2),
+      maxPlayers: numberOrDefault(pick("maxPlayers", "max_players"), playerRange[1] ?? playerRange[0] ?? null),
+      durationMin: numberOrNull(pick("durationMin", "duration_min")),
+      durationMax: numberOrNull(pick("durationMax", "duration_max")),
+      outcomeModel: String(pick("outcomeModel", "outcome_model") || "shared_completion"),
+      toolIds: list(pick("toolIds", "tool_ids")),
+      contentType: String(pick("contentType", "content_type") || "prompt"),
+      hook: String(pick("hook", "displayHook", "display_hook") ?? "").trim(),
+      rule: String(pick("rule", "shortRule", "short_rule", "originalRule", "original_rule") ?? "").trim(),
+      completionCondition: String(pick("completionCondition", "completion_condition") ?? "").trim(),
+      failureCondition: String(pick("failureCondition", "failure_condition") ?? "").trim() || null,
+      changeNote: String(pick("changeNote", "change_note") ?? "").trim() || null,
+      payload,
+      research: {
+        sampleCode: String(pick("sampleCode", "sample_code", "sampleId", "sample_id") ?? "").trim() || undefined,
+        sourceType: String(pick("sourceType", "source_type") ?? "").trim() || undefined,
+        sourceRegion: String(pick("sourceRegion", "source_region", "region") ?? "").trim() || undefined,
+        sourceWork: String(pick("sourceWork", "source_work", "workName", "work_name") ?? "").trim() || undefined,
+        sourceUrl: String(pick("sourceUrl", "source_url") ?? "").trim() || undefined,
+        sourceEvidence: String(pick("sourceEvidence", "source_evidence", "evidenceLevel", "evidence_level") ?? "").trim() || undefined,
+        sourceOriginalRule: String(pick("sourceOriginalRule", "source_original_rule", "originalRule", "original_rule") ?? "").trim() || undefined,
+        coreInteraction: String(pick("coreInteraction", "core_interaction") ?? "").trim() || undefined,
+        informationStructure: list(pick("informationStructure", "information_structure")),
+        controlStructure: list(pick("controlStructure", "control_structure")),
+        propsRequirement: String(pick("propsRequirement", "props_requirement", "props") ?? "").trim() || undefined,
+        movementLevel: String(pick("movementLevel", "movement_level") ?? "").trim() || undefined,
+        l2Mode: String(pick("l2Mode", "l2_mode") ?? "").trim() || undefined,
+        l2Source: String(pick("l2Source", "l2_source") ?? "").trim() || undefined,
+        externalAiRequired: ["true", "1", "yes", "是"].includes(String(pick("externalAiRequired", "external_ai_required") ?? "").trim().toLowerCase()) || undefined,
+        externalAiRole: String(pick("externalAiRole", "external_ai_role") ?? "").trim() || undefined,
+        variantFamily: String(pick("variantFamily", "variant_family") ?? "").trim() || undefined,
+        editorialPriority: String(pick("editorialPriority", "editorial_priority", "priority") ?? "").trim() || undefined,
+        editorialNote: String(pick("editorialNote", "editorial_note", "editorialComment", "editorial_comment") ?? "").trim() || undefined
+      }
     };
   });
 }
@@ -360,7 +406,9 @@ function parseImportText(text: string) {
 async function handleImportFile(file: File) {
   workflowBusy.value = true;
   try {
-    const rows = parseImportText(await file.text());
+    const rows = file.name.toLowerCase().endsWith(".xlsx")
+      ? await parseContentWorkbook(file)
+      : parseImportText(await file.text());
     const result = await api.importStudioContent(rows);
     await Promise.all([fetchLibrary(), api.getStudioOverview().then((value) => { overview.value = value; connected.value = true; })]);
     const errorHint = result.errors.length ? `，${result.errors.length} 条未导入：${result.errors.slice(0, 2).map((error) => `第 ${error.index + 1} 行 ${error.message}`).join("；")}` : "";
@@ -386,8 +434,8 @@ function csvCell(value: unknown) {
 }
 
 function downloadTemplate() {
-  const headers = ["code", "name", "title", "status", "version", "l0Ids", "scenes", "tags", "minPlayers", "maxPlayers", "durationMin", "durationMax", "outcomeModel", "toolIds", "contentType", "hook", "rule", "completionCondition", "failureCondition", "changeNote", "payloadJson"];
-  const example = ["example_word", "示例玩法", "示例卡片", "", "", "l0-constraint", "双人对局|碎片时间", "", 2, 2, 5, 5, "shared_completion", "timer", "prompt", "越认真越容易接错", "轮流完成三轮", "完成三轮", "", "Agent 来源或人工备注", "{}"];
+  const headers = ["code", "name", "title", "l0Ids", "scenes", "tags", "minPlayers", "maxPlayers", "durationMin", "durationMax", "outcomeModel", "toolIds", "contentType", "hook", "rule", "completionCondition", "failureCondition", "changeNote", "cooldownRounds", "cooldownDays", "permanentExhaustion", "skipCooldownRounds", "payloadJson", "sampleCode", "sourceType", "sourceRegion", "sourceWork", "sourceUrl", "sourceEvidence", "sourceOriginalRule", "coreInteraction", "informationStructure", "controlStructure", "propsRequirement", "movementLevel", "l2Mode", "l2Source", "externalAiRequired", "externalAiRole", "variantFamily", "editorialPriority", "editorialNote"];
+  const example = ["example_word", "示例玩法", "示例卡片", "L0-01", "双人对局|碎片时间", "", 2, 2, 5, 5, "shared_completion", "timer", "prompt", "越认真越容易接错", "轮流完成三轮", "完成三轮", "", "Agent 来源或人工备注", 30, 0, false, 1, "{}", "S-DEMO", "party", "中国", "Agent 试玩", "", "USER_PROVIDED", "", "约束冲突导致失误", "公开", "轮流", "NONE", "LOW", "OPTIONAL", "SYSTEM", false, "", "", "HIGH", "导入后默认草稿，审核通过后再发布"];
   downloadText(`\uFEFF${[headers, example].map((row) => row.map(csvCell).join(",")).join("\n")}\n`, "playbit-content-template.csv");
 }
 
@@ -416,7 +464,7 @@ function openRow(row: StudioRow) {
 function openRowAnalytics(row: StudioRow) {
   selectedId.value = row.id;
   analyticsCardId.value = row.l2Id;
-  activeSection.value = "distribution";
+  activeSection.value = "cardAnalytics";
   void fetchAnalytics();
 }
 
@@ -448,7 +496,7 @@ watch(libraryPage, () => {
   if (activeSection.value === "library") void fetchLibrary().catch(() => { workflowMessage.value = "内容库加载失败，请重试"; });
 });
 watch(analyticsWindow, () => {
-  if (activeSection.value === "distribution") void fetchAnalytics();
+  if (activeSection.value === "distribution" || activeSection.value === "cardAnalytics") void fetchAnalytics();
 });
 
 async function saveReusePolicy() {
@@ -536,7 +584,7 @@ function versionPayload() {
 }
 
 function resetCreateForm() {
-  createForm.value = { code: "", name: "", createL2: true, title: "", hook: "", rule: "", content: "", completionCondition: "", contentType: "prompt", mode: "together", category: "challenge", tone: "blue", minPlayers: 2, maxPlayers: 2, durationMinutes: 5, l0Ids: ["l0-association"], scenes: "双人对局, 碎片时间", toolIds: ["timer"] };
+  createForm.value = { code: "", name: "", createL2: true, title: "", hook: "", rule: "", content: "", completionCondition: "", contentType: "prompt", mode: "together", category: "challenge", tone: "blue", minPlayers: 2, maxPlayers: 2, durationMinutes: 5, l0Ids: ["l0-association"], scenes: "双人对局, 碎片时间", toolIds: ["timer"], research: { sourceType: "", sourceRegion: "", sourceWork: "", sourceUrl: "", propsRequirement: "NONE", movementLevel: "LOW", l2Mode: "OPTIONAL", l2Source: "SYSTEM", externalAiRequired: false, externalAiRole: "", informationStructure: "", controlStructure: "", editorialPriority: "", editorialNote: "" } };
 }
 
 async function createNewContent() {
@@ -545,6 +593,11 @@ async function createNewContent() {
   if (form.createL2 && (!form.title.trim() || !form.content.trim())) return;
   workflowBusy.value = true;
   try {
+    const research: ContentResearch = {
+      ...form.research,
+      informationStructure: form.research.informationStructure.split(",").map((item) => item.trim()).filter(Boolean),
+      controlStructure: form.research.controlStructure.split(",").map((item) => item.trim()).filter(Boolean)
+    };
     const l1 = await api.createStudioL1({
       code: form.code.trim(),
       name: form.name.trim(),
@@ -555,7 +608,8 @@ async function createNewContent() {
       durationMax: Math.max(1, Number(form.durationMinutes)),
       outcomeModel: form.mode === "versus" ? "self_reported_winner" : "shared_completion",
       tags: [form.mode === "versus" ? "对决" : "共创"],
-      scenes: form.scenes.split(",").map((item) => item.trim()).filter(Boolean)
+      scenes: form.scenes.split(",").map((item) => item.trim()).filter(Boolean),
+      research
     });
     const createdVersion = await api.createStudioVersion(l1.l1.id, {
       shortRule: form.rule.trim(),
@@ -752,9 +806,16 @@ onMounted(async () => {
           <div class="studio-table-panel"><div class="studio-table-heading"><div><span class="studio-eyebrow">CARD DELIVERY</span><h2>卡片目录</h2></div><span class="studio-muted">第 {{ libraryPage }} / {{ totalPages }} 页 · 每页 10 条</span></div><div class="studio-table-wrap"><table><thead><tr><th>卡片</th><th>玩法 / 版本</th><th>状态</th><th>场景</th><th>工具</th><th>表现</th><th>动作</th></tr></thead><tbody><tr v-for="row in filteredRows" :key="row.id" :class="{ selected: selectedId === row.id }" @click="openRow(row)"><td><div class="studio-table-title"><span class="studio-table-dot" :class="row.status === 'published' ? 'is-live' : 'is-review'" /><span><strong>{{ row.name }}</strong><small>{{ row.hook }}</small></span></div></td><td><span class="studio-tool-text">{{ row.players }} · {{ row.version }}</span></td><td><div class="studio-status-stack"><span class="studio-status" :class="statusClass(row.status)">{{ statusLabel(row.status) }}</span><small v-if="row.l2Status !== row.status">内容 · {{ statusLabel(row.l2Status) }}</small></div></td><td><span class="studio-scene-list">{{ row.scenes.join(' · ') || '未标注' }}</span></td><td><span class="studio-tool-text">{{ row.tools.join(' · ') || '无' }}</span></td><td><span class="studio-quality">{{ row.starts ? `${Math.round(row.completes / row.starts * 100)}% 完成` : '暂无数据' }}</span></td><td><div class="studio-row-actions"><button type="button" class="studio-row-action" title="进入卡片实验室" @click.stop="openRow(row)"><FlaskConical :size="15" /></button><button type="button" class="studio-row-action" title="查看卡片分析" @click.stop="openRowAnalytics(row)"><BarChart3 :size="15" /></button></div></td></tr><tr v-if="!filteredRows.length"><td colspan="7" class="studio-empty-cell">没有符合条件的卡片</td></tr></tbody></table></div><div class="studio-pagination"><button type="button" class="studio-button studio-button-light" :disabled="libraryPage <= 1" @click="libraryPage -= 1">上一页</button><span>{{ libraryTotal ? `${(libraryPage - 1) * libraryPageSize + 1}-${Math.min(libraryPage * libraryPageSize, libraryTotal)}` : '0' }} / {{ libraryTotal }}</span><button type="button" class="studio-button studio-button-light" :disabled="libraryPage >= totalPages" @click="libraryPage += 1">下一页</button></div></div>
         </section>
 
-        <section v-else-if="activeSection === 'lab'" class="studio-lab"><div class="studio-lab-heading"><div><span class="studio-eyebrow">PLAYABLE CARD LAB</span><h2>把一条内容，打磨成一局</h2><p>这里编辑的是后台版本，发布后生成不可变快照；用户端只会看到一张可以立即玩的卡。</p></div><button v-if="draftEditable" type="button" class="studio-button studio-button-primary" :disabled="workflowBusy" @click="submitSelected"><Send :size="16" />提交人工审核</button><button v-else-if="selected?.status === 'published'" type="button" class="studio-button studio-button-light" :disabled="workflowBusy" @click="createDraftFromSelected"><Sparkles :size="16" />基于此版本创建草稿</button></div><StudioLabContext :visible="Boolean(selected)" :code="selected?.code ?? ''" :name="selected?.name ?? ''" :l0-ids="selected?.l0Ids ?? []" :l0s="overview.l0s" :scenes="selected?.scenes ?? []" :tools="selected?.tools ?? []" :tool-definitions="overview.tools" :l2-title="selected?.l2Id ? selected?.name ?? '' : ''" :has-l2="Boolean(selected?.l2Id)" /><div class="studio-lab-grid"><section class="studio-editor studio-panel"><div class="studio-panel-heading"><div><span class="studio-eyebrow">L1 VERSION · {{ selected?.version }}</span><h3>{{ selected?.name }}</h3></div><span class="studio-status" :class="statusClass(selected?.status ?? '')">{{ statusLabel(selected?.status ?? '') }}</span></div><label>卡面 Hook<input v-model="draftForm.hook" :readonly="!draftEditable" /></label><label>主持人规则<textarea v-model="draftForm.rule" :readonly="!draftEditable" rows="4" /></label><label>结束条件<input v-model="draftForm.completionCondition" :readonly="!draftEditable" /></label><div class="studio-editor-row"><label>适用人数<input :value="selected?.players" readonly /></label><label>预计时长<input :value="selected?.duration" readonly /></label></div><div class="studio-tool-chips"><span>关联工具</span><b v-for="tool in selected?.tools ?? []" :key="tool"><TimerReset :size="13" />{{ overview.tools.find((item) => item.code === tool || item.id === tool)?.name ?? tool }}</b></div><div v-if="selected?.l2Id" class="studio-policy-block"><div class="studio-policy-heading"><span>内容复用策略</span><small>L2 冻结规则</small></div><div class="studio-policy-grid"><label>冷却轮数<input v-model.number="policyForm.cooldownRounds" min="0" type="number" /></label><label>冷却天数<input v-model.number="policyForm.cooldownDays" min="0" type="number" /></label><label>跳过冷却<input v-model.number="policyForm.skipCooldownRounds" min="0" type="number" /></label><label class="studio-policy-check"><input v-model="policyForm.permanentExhaustion" type="checkbox" />玩过后不再展示</label></div><button type="button" class="studio-button studio-button-light" :disabled="workflowBusy" @click="saveReusePolicy"><CheckCircle2 :size="15" />保存冻结策略</button></div></section><section class="studio-card-preview"><div class="studio-preview-top"><span>用户端卡面</span></div><div class="studio-game-card"><span class="studio-card-kicker">{{ selected?.players }} · {{ selected?.duration }}</span><h3>{{ selected?.name }}</h3><p>{{ draftForm.hook }}</p><div class="studio-card-rule"><strong>怎么玩</strong><span>{{ draftForm.rule }}</span></div><div class="studio-card-footer"><span>结束条件</span><strong>{{ draftForm.completionCondition }}</strong></div></div><p class="studio-preview-note">完整卡面预览 · 不展示研发分层</p></section></div></section>
+        <section v-else-if="activeSection === 'lab'" class="studio-lab"><div class="studio-lab-heading"><div><span class="studio-eyebrow">PLAYABLE CARD LAB</span><h2>把一条内容，打磨成一局</h2><p>这里编辑的是后台版本，发布后生成不可变快照；用户端只会看到一张可以立即玩的卡。</p></div><button v-if="draftEditable" type="button" class="studio-button studio-button-primary" :disabled="workflowBusy" @click="submitSelected"><Send :size="16" />提交人工审核</button><button v-else-if="selected?.status === 'published'" type="button" class="studio-button studio-button-light" :disabled="workflowBusy" @click="createDraftFromSelected"><Sparkles :size="16" />基于此版本创建草稿</button></div><StudioLabContext :visible="Boolean(selected)" :code="selected?.code ?? ''" :name="selected?.name ?? ''" :l0-ids="selected?.l0Ids ?? []" :l0s="overview.l0s" :scenes="selected?.scenes ?? []" :tools="selected?.tools ?? []" :tool-definitions="overview.tools" :l2-title="selected?.l2Id ? selected?.name ?? '' : ''" :has-l2="Boolean(selected?.l2Id)" :research="selected?.research" /><div class="studio-lab-grid"><section class="studio-editor studio-panel"><div class="studio-panel-heading"><div><span class="studio-eyebrow">L1 VERSION · {{ selected?.version }}</span><h3>{{ selected?.name }}</h3></div><span class="studio-status" :class="statusClass(selected?.status ?? '')">{{ statusLabel(selected?.status ?? '') }}</span></div><label>卡面 Hook<input v-model="draftForm.hook" :readonly="!draftEditable" /></label><label>主持人规则<textarea v-model="draftForm.rule" :readonly="!draftEditable" rows="4" /></label><label>结束条件<input v-model="draftForm.completionCondition" :readonly="!draftEditable" /></label><div class="studio-editor-row"><label>适用人数<input :value="selected?.players" readonly /></label><label>预计时长<input :value="selected?.duration" readonly /></label></div><div class="studio-tool-chips"><span>关联工具</span><b v-for="tool in selected?.tools ?? []" :key="tool"><TimerReset :size="13" />{{ overview.tools.find((item) => item.code === tool || item.id === tool)?.name ?? tool }}</b></div><div v-if="selected?.l2Id" class="studio-policy-block"><div class="studio-policy-heading"><span>内容复用策略</span><small>L2 冻结规则</small></div><div class="studio-policy-grid"><label>冷却轮数<input v-model.number="policyForm.cooldownRounds" min="0" type="number" /></label><label>冷却天数<input v-model.number="policyForm.cooldownDays" min="0" type="number" /></label><label>跳过冷却<input v-model.number="policyForm.skipCooldownRounds" min="0" type="number" /></label><label class="studio-policy-check"><input v-model="policyForm.permanentExhaustion" type="checkbox" />玩过后不再展示</label></div><button type="button" class="studio-button studio-button-light" :disabled="workflowBusy" @click="saveReusePolicy"><CheckCircle2 :size="15" />保存冻结策略</button></div></section><section class="studio-card-preview"><div class="studio-preview-top"><span>用户端卡面</span></div><div class="studio-game-card"><span class="studio-card-kicker">{{ selected?.players }} · {{ selected?.duration }}</span><h3>{{ selected?.name }}</h3><p>{{ draftForm.hook }}</p><div class="studio-card-rule"><strong>怎么玩</strong><span>{{ draftForm.rule }}</span></div><div class="studio-card-footer"><span>结束条件</span><strong>{{ draftForm.completionCondition }}</strong></div></div><p class="studio-preview-note">完整卡面预览 · 不展示研发分层</p></section></div></section>
 
         <StudioAnalyticsDashboard
+          v-else-if="activeSection === 'distribution'"
+          :analytics="analytics"
+          :window="analyticsWindow"
+          :counts="overview.counts"
+          @update:window="analyticsWindow = $event"
+        />
+        <StudioCardAnalyticsDashboard
           v-else
           :analytics="analytics"
           :window="analyticsWindow"
@@ -772,6 +833,7 @@ onMounted(async () => {
   <StudioDataTransfer
     v-if="activeSection === 'library'"
     :busy="workflowBusy"
+    :message="workflowMessage"
     @import-file="handleImportFile"
     @export="exportFilteredContent"
     @template="downloadTemplate"

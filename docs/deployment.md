@@ -13,6 +13,11 @@ The repository root is deployable as-is.
 git push origin main
 ```
 
+推送代码只会触发应用重新构建和重启，不会重建 Railway PostgreSQL。只要
+`DATABASE_URL` 仍然指向同一个 Railway PostgreSQL 服务，数据库中的用户、合约、权益和结算数据会保留。
+真正会造成数据丢失的是删除/重建 PostgreSQL 服务、切换到另一条 `DATABASE_URL`、执行 `TRUNCATE`/`DROP`
+或把线上 API 启动在内存模式。
+
 ## 2. Deploy API On Railway
 
 Create a Railway project from the GitHub repository.
@@ -24,6 +29,7 @@ DATABASE_URL=<Railway PostgreSQL connection string>
 WEB_ORIGIN=https://<your-vercel-domain>
 PORT=8080
 DATABASE_SSL=false
+PLAYBIT_DATA_ENV=prod
 ```
 
 `WEB_ORIGIN` is the frontend domain allowed to call the API from a browser. If it is not set in production, the API falls back to permissive CORS so the app can still be tested, but setting the exact Vercel/custom domain is recommended.
@@ -41,6 +47,12 @@ The start command runs migrations before starting the API:
 ```bash
 pnpm --filter @playbit/api db:migrate && pnpm --filter @playbit/api start
 ```
+
+`PLAYBIT_DATA_ENV=prod` 或 `NODE_ENV=production` 且未配置 `DATABASE_URL` 时，API 会拒绝启动，不再静默退化为内存模式。
+迁移是 Drizzle 增量迁移：只新增或修改已声明的迁移，不要删除旧迁移文件，也不要把迁移命令替换为重建数据库。
+
+内容运营库目前仍有一部分使用内存 Repository。即使 API 配置了 PostgreSQL，内容库草稿、审核状态、推荐运行状态和内容分析缓存仍不能视为可恢复的线上数据；正式使用前必须完成内容域数据库迁移。详见
+[`docs/data-lifecycle.md`](data-lifecycle.md)。
 
 Check the API after deployment:
 

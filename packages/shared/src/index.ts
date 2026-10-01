@@ -54,6 +54,8 @@ export const stakeSchema = z.object({
 
 export const couponSchema = z.object({
   id: z.string(),
+  claimId: z.string().nullable().default(null),
+  parentCouponId: z.string().nullable().default(null),
   agreementId: z.string().nullable().default(null),
   gameResultId: z.string().nullable().default(null),
   certificateId: z.string().nullable().default(null),
@@ -64,6 +66,10 @@ export const couponSchema = z.object({
   issuerNickname: z.string(),
   holderUserId: z.string().nullable(),
   holderNickname: z.string(),
+  claimToken: z.string().nullable().default(null),
+  claimLimit: z.number().int().min(1).default(1),
+  claimedCount: z.number().int().min(0).default(0),
+  remainingClaims: z.number().int().min(0).default(0),
   status: z.enum(["available", "reserved", "used", "waived"]),
   transferNote: z.string().max(180).nullable().default(null),
   createdAt: z.string(),

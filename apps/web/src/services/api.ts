@@ -18,7 +18,8 @@ import type {
   ContentListItem,
   ContentL1ListItem,
   DeliveredContentCard,
-  ContentAnalytics
+  ContentAnalytics,
+  ContentResearch
 } from "@playbit/shared";
 
 function normalizeApiBaseUrl(value: string | undefined) {
@@ -169,7 +170,7 @@ export const api = {
       return response.blob();
     });
   },
-  updateStudioL1(l1Id: string, payload: { name?: string; l0Ids?: string[]; minPlayers?: number; maxPlayers?: number | null; durationMin?: number | null; durationMax?: number | null; scenes?: string[]; tags?: string[] }) {
+  updateStudioL1(l1Id: string, payload: { name?: string; l0Ids?: string[]; minPlayers?: number; maxPlayers?: number | null; durationMin?: number | null; durationMax?: number | null; scenes?: string[]; tags?: string[]; research?: ContentResearch }) {
     return request<{ l1: ContentListItem["l1"] }>(`/studio/l1/${l1Id}`, { method: "PATCH", body: JSON.stringify(payload) });
   },
   createStudioL1(payload: {
@@ -184,6 +185,7 @@ export const api = {
     certificateEligible?: boolean;
     tags?: string[];
     scenes?: string[];
+    research?: ContentResearch;
   }) {
     return request<{ l1: { id: string; name: string; code: string } }>("/studio/l1", { method: "POST", body: JSON.stringify(payload) });
   },
@@ -358,13 +360,23 @@ export const api = {
     name: string;
     description: string;
     transferNote?: string | null;
-    holderUserId?: string | null;
-    holderNickname: string;
+    claimLimit?: number;
   }) {
     return request<{ coupon: Coupon }>("/coupons/independent", {
       method: "POST",
       body: JSON.stringify(payload)
     });
+  },
+  getCouponShare(token: string) {
+    return request<{ coupon: Pick<Coupon, "id" | "name" | "description" | "issuerNickname" | "transferNote" | "status" | "createdAt" | "claimLimit" | "claimedCount" | "remainingClaims"> }>(`/coupons/share/${encodeURIComponent(token)}`);
+  },
+  claimCoupon(token: string) {
+    return request<{ coupon: Coupon }>(`/coupons/share/${encodeURIComponent(token)}/claim`, {
+      method: "POST"
+    });
+  },
+  deleteCoupon(id: string) {
+    return request<void>(`/coupons/${id}`, { method: "DELETE" });
   },
   listGrace() {
     return request<{ tickets: GraceTicket[]; waivers: GraceWaiver[] }>("/grace");

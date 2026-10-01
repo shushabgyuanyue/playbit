@@ -14,14 +14,20 @@ const emit = defineEmits<{
   openDetail: [];
   openRules: [];
   redeem: [];
+  delete: [];
 }>();
 
 const actionLabel = computed(() => {
+  if (props.voucher.canDelete) {
+    return copy.vouchers.issue.deleteAction;
+  }
   if (props.voucher.canRedeem) {
     return copy.vouchers.redeem;
   }
   if (props.voucher.status === "pending") {
-    return copy.vouchers.pendingAction;
+    return props.voucher.issuerState === "awaiting_claim"
+      ? copy.vouchers.awaitingClaim
+      : copy.vouchers.pendingAction;
   }
   return copy.vouchers.archivedAction;
 });
@@ -42,6 +48,7 @@ const actionLabel = computed(() => {
     <div class="voucher-ticket-copy">
       <div class="voucher-ticket-title-row">
         <strong>{{ props.voucher.agreementTitle }}</strong>
+        <span v-if="props.voucher.issuerState === 'awaiting_claim'" class="voucher-ticket-state">{{ copy.vouchers.awaitingClaim }}</span>
       </div>
 
       <p class="voucher-ticket-time">{{ props.voucher.timeText }}</p>
@@ -61,9 +68,10 @@ const actionLabel = computed(() => {
     <button
       type="button"
       class="voucher-ticket-action"
-      :disabled="props.voucher.status === 'pending'"
+      :class="{ 'is-delete': props.voucher.canDelete }"
+      :disabled="props.voucher.status === 'pending' && !props.voucher.canDelete"
       data-testid="voucher-redeem"
-      @click="props.voucher.canRedeem ? emit('redeem') : emit('openDetail')"
+      @click="props.voucher.canDelete ? emit('delete') : props.voucher.canRedeem ? emit('redeem') : emit('openDetail')"
     >
       {{ actionLabel }}
     </button>

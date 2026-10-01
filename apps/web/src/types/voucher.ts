@@ -1,5 +1,17 @@
 export type VoucherStatusFilter = "pending" | "available" | "used";
-export type VoucherViewFilter = "all" | VoucherStatusFilter;
+export type VoucherViewFilter = "all" | "issued" | VoucherStatusFilter;
+export type CouponClaimPreview = {
+  id: string;
+  name: string;
+  description: string;
+  issuerNickname: string;
+  transferNote: string | null;
+  status: "available" | "reserved" | "used" | "waived";
+  createdAt: string;
+  claimLimit: number;
+  claimedCount: number;
+  remainingClaims: number;
+};
 export type VoucherUiStatus = VoucherStatusFilter;
 export type VoucherKind = "housework" | "treat" | "decision" | "service" | "custom";
 
@@ -20,6 +32,8 @@ export type VoucherItem = {
   sourceStatus: "available" | "reserved" | "used" | "waived" | null;
   kind: VoucherKind;
   canRedeem: boolean;
+  canDelete: boolean;
+  issuerState: "awaiting_claim" | "pending_fulfillment" | "fulfilled" | null;
   role: "holder" | "issuer";
 };
 

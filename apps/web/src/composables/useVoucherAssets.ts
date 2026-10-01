@@ -30,6 +30,9 @@ export function useVoucherAssets(
     if (toValue(activeView) === "all") {
       return allVoucherItems.value;
     }
+    if (toValue(activeView) === "issued") {
+      return allVoucherItems.value.filter((item) => item.role === "issuer" && item.agreementId === null);
+    }
     return allVoucherItems.value.filter((item) => item.status === toValue(activeView));
   });
 
@@ -40,10 +43,12 @@ export function useVoucherAssets(
   }));
 
   const totalCount = computed(() => allVoucherItems.value.length);
+  const issuedCount = computed(() => allVoucherItems.value.filter((item) => item.role === "issuer" && item.agreementId === null).length);
   const voucherSections = computed(() => buildVoucherSections(voucherItems.value, toValue(activeView)));
 
   return {
     totalCount,
+    issuedCount,
     statusCounts,
     voucherItems,
     voucherSections
@@ -66,8 +71,8 @@ function buildRealVoucherItems(agreements: Agreement[], coupons: Coupon[], curre
     const agreement = coupon.agreementId ? sessionMap.get(coupon.agreementId) : undefined;
     const fallbackHolderId = agreement?.participants.find((participant) => participant.id === agreement.winnerId)?.userId;
     const fallbackIssuerId = agreement?.participants.find((participant) => participant.id === agreement.loserId)?.userId;
-    const isHolder = coupon.holderUserId === currentUserId || (!coupon.holderUserId && fallbackHolderId === currentUserId);
-    const isIssuer = coupon.issuerUserId === currentUserId || (!coupon.issuerUserId && fallbackIssuerId === currentUserId);
+    const isHolder = Boolean(currentUserId) && (coupon.holderUserId === currentUserId || (!coupon.holderUserId && fallbackHolderId === currentUserId));
+    const isIssuer = Boolean(currentUserId) && (coupon.issuerUserId === currentUserId || (!coupon.issuerUserId && fallbackIssuerId === currentUserId));
     if (!isHolder && !isIssuer) {
       return [];
     }
@@ -78,6 +83,14 @@ function buildRealVoucherItems(agreements: Agreement[], coupons: Coupon[], curre
           ? "pending"
           : "available";
     const benefit = formatVoucherBenefit(coupon.name);
+    const canDelete = isIssuer && !coupon.claimId && !coupon.agreementId && !coupon.sourceFlipId && !coupon.holderUserId && coupon.claimedCount === 0 && coupon.status === "available";
+    const issuerState = !isIssuer
+      ? null
+      : canDelete
+        ? "awaiting_claim"
+        : coupon.status === "used" || coupon.status === "waived"
+          ? "fulfilled"
+          : "pending_fulfillment";
     return [{
       id: coupon.id,
       couponId: coupon.id,
@@ -95,6 +108,8 @@ function buildRealVoucherItems(agreements: Agreement[], coupons: Coupon[], curre
       sourceStatus: coupon.status,
       kind: inferVoucherKind(coupon.name),
       canRedeem: isHolder && status === "available",
+      canDelete,
+      issuerState,
       role: isHolder ? "holder" : "issuer"
     } satisfies VoucherItem];
   });
@@ -129,6 +144,8 @@ function buildRealVoucherItems(agreements: Agreement[], coupons: Coupon[], curre
         sourceStatus: null,
         kind: inferVoucherKind(agreement.stake.label),
         canRedeem: false,
+        canDelete: false,
+        issuerState: "pending_fulfillment",
         role: "issuer"
       } satisfies VoucherItem;
     });
@@ -165,6 +182,9 @@ function formatCouponTime(coupon: Coupon) {
   if (coupon.status === "used" && coupon.usedAt) {
     return `${formatDate(coupon.usedAt)} ${copy.vouchers.redeemed}`;
   }
+  if (coupon.agreementId === null && !coupon.claimId) {
+    return `${formatDate(coupon.createdAt)} ${copy.vouchers.received} · ${copy.vouchers.issue.remainingClaims(coupon.remainingClaims)}`;
+  }
   return `${formatDate(coupon.createdAt)} ${copy.vouchers.received}`;
 }
 
@@ -197,7 +217,7 @@ function countByStatus(items: VoucherItem[], status: VoucherStatusFilter) {
 }
 
 function buildVoucherSections(items: VoucherItem[], activeView: VoucherViewFilter): VoucherSection[] {
-  const statuses = activeView === "all" ? statusOrder : [activeView];
+  const statuses = activeView === "all" || activeView === "issued" ? statusOrder : [activeView];
   return statuses
     .map((status) => {
       const sectionItems = items.filter((item) => item.status === status);

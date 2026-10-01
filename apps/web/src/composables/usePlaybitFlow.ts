@@ -31,6 +31,7 @@ import { useStandaloneGameFlow } from "./useStandaloneGameFlow";
 import { useGameTelemetry } from "./useGameTelemetry";
 import { useScreenNavigation } from "./useScreenNavigation";
 import { requestId } from "../utils/requestId";
+import type { CouponClaimPreview, VoucherViewFilter } from "../types/voucher";
 
 export type CreateBetDraft = {
   title: string;
@@ -62,6 +63,14 @@ export function usePlaybitFlow() {
   const agreements = ref<Agreement[]>([]);
   const removedAgreementIds = new Set<string>();
   const coupons = ref<Coupon[]>([]);
+  const voucherCenterView = ref<VoucherViewFilter>("all");
+  const issueVoucherLoading = ref(false);
+  const issuedCoupon = ref<Coupon | null>(null);
+  const couponClaimToken = ref<string | null>(null);
+  const couponClaim = ref<CouponClaimPreview | null>(null);
+  const couponClaimLoading = ref(false);
+  const couponClaiming = ref(false);
+  const couponClaimError = ref<string | null>(null);
   const graceTickets = ref<GraceTicket[]>([]);
   const graceWaivers = ref<GraceWaiver[]>([]);
   const activeAgreementId = ref<string | null>(null);
@@ -213,7 +222,8 @@ export function usePlaybitFlow() {
   }
 
   function openHistory() {
-    requireAccount("history");
+    screen.value = "history";
+    void refreshAgreements();
   }
 
   let agreementsRequestInFlight = false;
@@ -329,6 +339,56 @@ export function usePlaybitFlow() {
       showSharedAgreement();
     } finally {
       shareEntryLoading.value = false;
+    }
+  }
+
+  async function loadCouponClaim(token: string) {
+    couponClaimToken.value = token;
+    couponClaim.value = null;
+    couponClaimError.value = null;
+    couponClaimLoading.value = true;
+    screen.value = "couponClaim";
+    try {
+      const response = await api.getCouponShare(token);
+      couponClaim.value = response.coupon;
+    } catch {
+      couponClaimError.value = copy.vouchers.claim.unavailable;
+    } finally {
+      couponClaimLoading.value = false;
+    }
+  }
+
+  function loginForCouponClaim() {
+    if (currentUser.value) return;
+    authReturnScreen.value = "couponClaim";
+    authError.value = null;
+    authStep.value = "credentials";
+    authOpen.value = true;
+  }
+
+  async function claimCoupon() {
+    const token = couponClaimToken.value;
+    if (!token) return;
+    if (!currentUser.value) {
+      loginForCouponClaim();
+      return;
+    }
+    if (couponClaiming.value) return;
+    couponClaiming.value = true;
+    couponClaimError.value = null;
+    try {
+      const response = await api.claimCoupon(token);
+      coupons.value = [response.coupon, ...coupons.value.filter((coupon) => coupon.id !== response.coupon.id)];
+      couponClaim.value = null;
+      clearEntryQuery("couponClaim");
+      screen.value = "vouchers";
+      showToast(copy.vouchers.claim.claimAction);
+    } catch (error) {
+      couponClaimError.value = error instanceof ApiRequestError && error.status === 409
+        ? copy.vouchers.claim.unavailable
+        : copy.vouchers.claim.claimFailed;
+    } finally {
+      couponClaiming.value = false;
     }
   }
 
@@ -733,11 +793,69 @@ export function usePlaybitFlow() {
     void refreshGrace();
   }
 
-  function openVouchers() {
-    if (!requireAccount("vouchers")) {
+  function openVouchers(view: VoucherViewFilter = "all") {
+    voucherCenterView.value = view;
+    screen.value = "vouchers";
+    void refreshCoupons();
+    void refreshGrace();
+  }
+
+  function openIssueVoucher() {
+    if (!requireAccount("issueVoucher")) return;
+    issuedCoupon.value = null;
+    issueVoucherLoading.value = false;
+    screen.value = "issueVoucher";
+  }
+
+  async function issueIndependentCoupon(payload: {
+    stake: Stake;
+    claimLimit: number;
+    transferNote: string | null;
+  }) {
+    if (!currentUser.value) {
+      requireAccount("issueVoucher");
       return;
     }
-    void refreshCoupons();
+    if (issueVoucherLoading.value) return;
+    issueVoucherLoading.value = true;
+    try {
+      const response = await api.createIndependentCoupon({
+        name: payload.stake.label,
+        description: payload.stake.label,
+        claimLimit: payload.claimLimit,
+        transferNote: payload.transferNote
+      });
+      coupons.value = [response.coupon, ...coupons.value.filter((coupon) => coupon.id !== response.coupon.id)];
+      issuedCoupon.value = response.coupon;
+      showToast(copy.vouchers.issue.issuedTitle);
+    } catch {
+      showToast(copy.vouchers.issue.createFailed);
+    } finally {
+      issueVoucherLoading.value = false;
+    }
+  }
+
+  async function deleteCoupon(couponId: string) {
+    if (!currentUser.value) {
+      requireAccount(screen.value);
+      return;
+    }
+    try {
+      await showConfirmDialog({
+        title: copy.vouchers.issue.deleteConfirmTitle,
+        message: copy.vouchers.issue.deleteConfirmText
+      });
+    } catch {
+      return;
+    }
+    try {
+      await api.deleteCoupon(couponId);
+      coupons.value = coupons.value.filter((coupon) => coupon.id !== couponId);
+      if (activeVoucherId.value === couponId) activeVoucherId.value = null;
+      showToast(copy.vouchers.issue.deleted);
+    } catch {
+      showToast(copy.vouchers.issue.deleteFailed);
+    }
   }
 
   function openVoucherDetail(voucherId: string) {
@@ -755,6 +873,10 @@ export function usePlaybitFlow() {
   }
 
   async function redeemCoupon(couponId: string) {
+    if (!currentUser.value) {
+      requireAccount(screen.value);
+      return;
+    }
     try {
       await showConfirmDialog({
         title: copy.vouchers.confirmRedeemTitle,
@@ -940,6 +1062,10 @@ export function usePlaybitFlow() {
     pendingSignSignature.value = null;
     resetCreateDraft();
     activeVoucherId.value = null;
+    issuedCoupon.value = null;
+    couponClaim.value = null;
+    couponClaimToken.value = null;
+    couponClaimError.value = null;
     screen.value = "home";
   }
 
@@ -1109,6 +1235,7 @@ export function usePlaybitFlow() {
     const shareCode = params.get("share");
     const gameCode = params.get("game");
     const flipId = params.get("flip");
+    const couponToken = params.get("coupon");
     if (shareCode && !gameCode && !flipId) {
       activeShareCode.value = shareCode;
       shareEntryLoading.value = true;
@@ -1127,6 +1254,10 @@ export function usePlaybitFlow() {
         authReturnScreen.value = "flip";
         authOpen.value = true;
       }
+      return;
+    }
+    if (couponToken) {
+      await loadCouponClaim(couponToken);
       return;
     }
     if (shareCode) {
@@ -1172,6 +1303,7 @@ export function usePlaybitFlow() {
     certificateKind,
     certificateAction,
     coupons,
+    voucherCenterView,
     createDraft,
     currentUser,
     agreementRefreshing,
@@ -1210,6 +1342,19 @@ export function usePlaybitFlow() {
     closeCertificate,
     closeFlip,
     openVoucherDetail,
+    openIssueVoucher,
+    issueIndependentCoupon,
+    issueVoucherLoading,
+    issuedCoupon,
+    deleteCoupon,
+    couponClaim,
+    couponClaimToken,
+    couponClaimLoading,
+    couponClaiming,
+    couponClaimError,
+    loadCouponClaim,
+    loginForCouponClaim,
+    claimCoupon,
     openVoucherFlip,
     retryVoucherFlip,
     openVouchers,

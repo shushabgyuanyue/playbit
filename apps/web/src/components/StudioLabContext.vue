@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ContentResearch } from "@playbit/shared";
 const props = defineProps<{
   visible: boolean;
   code: string;
@@ -10,6 +11,7 @@ const props = defineProps<{
   toolDefinitions: Array<{ id: string; code: string; name: string }>;
   l2Title: string;
   hasL2: boolean;
+  research?: ContentResearch;
 }>();
 
 function l0Label(id: string) {
@@ -19,6 +21,19 @@ function l0Label(id: string) {
 
 function toolLabel(code: string) {
   return props.toolDefinitions.find((item) => item.code === code || item.id === code)?.name ?? code;
+}
+
+function researchItems(research?: ContentResearch) {
+  if (!research) return [];
+  return [
+    research.sourceType && `来源 ${research.sourceType}`,
+    research.sourceRegion,
+    research.propsRequirement && `道具 ${research.propsRequirement}`,
+    research.movementLevel && `动作 ${research.movementLevel}`,
+    research.l2Mode && `L2 ${research.l2Mode}`,
+    research.externalAiRequired && `AI ${research.externalAiRole || "参与"}`,
+    research.editorialPriority && `优先级 ${research.editorialPriority}`
+  ].filter((item): item is string => Boolean(item));
 }
 </script>
 
@@ -45,6 +60,10 @@ function toolLabel(code: string) {
       <span>关联工具</span>
       <b v-for="tool in props.tools" :key="tool">{{ toolLabel(tool) }}</b>
     </div>
+    <div v-if="researchItems(props.research).length" class="studio-lab-context-research">
+      <span>研发元数据</span>
+      <b v-for="item in researchItems(props.research)" :key="item">{{ item }}</b>
+    </div>
   </section>
 </template>
 
@@ -59,5 +78,7 @@ function toolLabel(code: string) {
 .studio-lab-context-note { display: flex; min-height: 82px; align-items: center; background: #fff; padding: 14px 16px; color: #92a0b0; font-size: 11px; line-height: 1.5; }
 .studio-lab-context-tools { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; background: #fff; border-top: 1px solid #edf1f5; padding: 10px 16px; color: #92a0b0; font-size: 10px; }
 .studio-lab-context-tools b { border-radius: 3px; background: #edf4ff; color: #3874b1; padding: 4px 7px; font-size: 10px; font-weight: 500; }
+.studio-lab-context-research { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; border-top: 1px solid #edf1f5; background: #fbfcfd; padding: 10px 16px; color: #92a0b0; font-size: 10px; }
+.studio-lab-context-research b { border-radius: 3px; background: #fff6e8; color: #93651f; padding: 4px 7px; font-size: 10px; font-weight: 500; }
 @media (max-width: 680px) { .studio-lab-context, .studio-lab-context.is-without-l2 { grid-template-columns: 1fr; }.studio-lab-context-tools { grid-column: auto; } }
 </style>

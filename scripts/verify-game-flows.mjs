@@ -36,7 +36,7 @@ const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mill
 const body = () => evaluate("document.body.innerText");
 const click = async (selector) => evaluate(`(() => { const node = document.querySelector(${JSON.stringify(selector)}); if (!node) return false; node.click(); return true; })()`);
 const clickText = async (text) => evaluate(`(() => { const node = [...document.querySelectorAll('button')].find((item) => item.textContent?.includes(${JSON.stringify(text)})); if (!node) return false; node.click(); return true; })()`);
-const clickFeaturedCard = async (title) => evaluate(`(() => { const node = [...document.querySelectorAll('.home-game-card')].find((item) => item.querySelector('strong')?.textContent?.includes(${JSON.stringify(title)})); if (!node) return false; node.click(); return true; })()`);
+const clickFeaturedCard = async (title) => evaluate(`(() => { const cards = [...document.querySelectorAll('.home-game-card')]; const node = ${title ? `[...document.querySelectorAll('.home-game-card')].find((item) => item.querySelector('strong')?.textContent?.includes(${JSON.stringify(title)}))` : "cards[0]"}; if (!node) return false; node.click(); return true; })()`);
 const screenshot = async (name) => {
   const data = (await call("Page.captureScreenshot", { format: "png" })).result.data;
   fs.mkdirSync("artifacts/verification", { recursive: true });
@@ -60,7 +60,7 @@ async function openDraw() {
 async function runVersus() {
   await call("Page.navigate", { url: "http://localhost:5173/" });
   await wait(1300);
-  if (!await clickFeaturedCard("只许答错")) throw new Error("Featured versus card is missing");
+  if (!await clickFeaturedCard()) throw new Error("Featured game card is missing");
   await wait(500);
   await assertBody("versus card", ["添个彩头", "记分牌"]);
   if (!await clickText("添个彩头")) throw new Error("Versus stake action is missing");

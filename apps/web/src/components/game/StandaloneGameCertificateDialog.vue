@@ -4,7 +4,6 @@ import { Download, Share2, Trophy, X } from "lucide-vue-next";
 import { computed, nextTick, ref, watch } from "vue";
 import { showToast } from "vant";
 import type { LocalPlayer } from "../../composables/useStandaloneGameFlow";
-import championTemplateUrl from "../../assets/certificates/champion-certificate.webp";
 import { drawPlaybitSeal } from "../../services/playbitSeal";
 
 const props = defineProps<{
@@ -16,6 +15,7 @@ const emit = defineEmits<{ close: [] }>();
 const canvas = ref<HTMLCanvasElement | null>(null);
 const winnerInput = ref("");
 const busy = ref(false);
+let championTemplatePromise: Promise<HTMLImageElement> | null = null;
 
 const rankedPlayers = computed(() => [...props.players].sort((a, b) => b.score - a.score));
 const topPlayer = computed(() => rankedPlayers.value[0] ?? null);
@@ -35,7 +35,7 @@ function fitText(ctx: CanvasRenderingContext2D, value: string, maxWidth: number,
   ctx.font = `600 ${size}px "STSong", "Songti SC", "SimSun", serif`;
   let display = value;
   while (ctx.measureText(display).width > maxWidth && display.length > 1) display = `${display.slice(0, -1)}…`;
-  return display;
+  return { display, size };
 }
 
 function formatDate() {
@@ -46,16 +46,26 @@ function formatDate() {
 function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
+    image.decoding = "async";
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error("CERTIFICATE_ASSET_FAILED"));
     image.src = src;
   });
 }
 
+async function loadChampionTemplate() {
+  if (!championTemplatePromise) {
+    championTemplatePromise = import("../../assets/certificates/champion-certificate.webp")
+      .then(({ default: url }) => loadImage(url));
+  }
+  return championTemplatePromise;
+}
+
 async function render() {
   const target = canvas.value;
   if (!target || !winnerName.value) return;
-  const image = await loadImage(championTemplateUrl);
+  await document.fonts.ready;
+  const image = await loadChampionTemplate();
   target.width = 1122;
   target.height = 1402;
   const ctx = target.getContext("2d");
@@ -66,19 +76,20 @@ async function render() {
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#653b0d";
-  ctx.font = `600 74px "STSong", "Songti SC", "SimSun", serif`;
-  ctx.fillText(fitText(ctx, winnerName.value, 420, 74, 34), 561, 626);
+  const fittedWinner = fitText(ctx, winnerName.value, 390, 66, 38);
+  ctx.font = `600 ${fittedWinner.size}px "STSong", "Songti SC", "SimSun", serif`;
+  ctx.fillText(fittedWinner.display, 561, 635);
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#653b0d";
   ctx.font = `500 25px "STKaiti", "KaiTi", "Kaiti SC", cursive`;
-  ctx.fillText(formatDate(), 561, 1327);
+  ctx.fillText(formatDate(), 561, 1328);
 
-  drawPlaybitSeal(ctx, 920, 1134, {
+  drawPlaybitSeal(ctx, 902, 1120, {
     topText: "PLAYBIT",
-    centerText: "结果留存",
-    bottomText: "★★★",
-    scale: 0.9
+    centerText: "胜出留存",
+    bottomText: "现场认证",
+    scale: 0.76
   });
 }
 

@@ -1,4 +1,4 @@
-import { gameEventSchema, l2ContentTypeSchema, l2ReusePolicySchema, outcomeModelSchema, type ContentLifecycle, type ContentReviewDecision, type GameEvent } from "@playbit/shared";
+import { gameEventSchema, l2ContentTypeSchema, l2ReusePolicySchema, outcomeModelSchema, type ContentLifecycle, type ContentResearch, type ContentReviewDecision, type GameEvent } from "@playbit/shared";
 import type { Context, Hono } from "hono";
 import type { ContentRepository, ImportContentRow } from "../contentRepository.js";
 
@@ -27,13 +27,82 @@ function textValue(value: unknown) {
 
 function listValue(value: unknown) {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean);
-  if (typeof value === "string") return value.split("|").map((item) => item.trim()).filter(Boolean);
+  if (typeof value === "string") return value.split(/[|,;\n]/).map((item) => item.trim()).filter(Boolean);
   return [];
 }
 
 function nullableInteger(value: unknown, fallback: number | null = null) {
   if (value === null || value === undefined || value === "") return fallback;
   return typeof value === "number" && Number.isInteger(value) ? value : Number.isInteger(Number(value)) ? Number(value) : Number.NaN;
+}
+
+function firstValue(record: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    if (record[key] !== undefined && record[key] !== null && String(record[key]).trim() !== "") return record[key];
+  }
+  return undefined;
+}
+
+function booleanValue(value: unknown) {
+  if (typeof value === "boolean") return value;
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "yes", "y", "是"].includes(normalized)) return true;
+  if (["false", "0", "no", "n", "否"].includes(normalized)) return false;
+  return undefined;
+}
+
+function parsePlayerRange(value: unknown) {
+  const parts = String(value ?? "").match(/\d+/g)?.map(Number) ?? [];
+  return { min: parts[0], max: parts[1] ?? parts[0] };
+}
+
+function parseResearch(record: Record<string, unknown>): ContentResearch | undefined {
+  const existing = isRecord(record.research) ? record.research : {};
+  const text = (...keys: string[]) => textValue(firstValue(record, ...keys) ?? firstValue(existing, ...keys));
+  const list = (...keys: string[]) => listValue(firstValue(record, ...keys) ?? firstValue(existing, ...keys));
+  const research: ContentResearch = {
+    sampleCode: text("sampleCode", "sample_code", "sampleId", "sample_id"),
+    sourceType: text("sourceType", "source_type"),
+    sourceRegion: text("sourceRegion", "source_region", "region"),
+    sourceWork: text("sourceWork", "source_work", "workName", "work_name"),
+    sourceUrl: text("sourceUrl", "source_url"),
+    sourceEvidence: text("sourceEvidence", "source_evidence", "evidenceLevel", "evidence_level"),
+    sourceOriginalRule: text("sourceOriginalRule", "source_original_rule", "originalRule", "original_rule"),
+    coreInteraction: text("coreInteraction", "core_interaction"),
+    informationStructure: list("informationStructure", "information_structure"),
+    controlStructure: list("controlStructure", "control_structure"),
+    propsRequirement: text("propsRequirement", "props_requirement", "props"),
+    movementLevel: text("movementLevel", "movement_level"),
+    l2Mode: text("l2Mode", "l2_mode"),
+    l2Source: text("l2Source", "l2_source"),
+    externalAiRequired: booleanValue(firstValue(record, "externalAiRequired", "external_ai_required") ?? firstValue(existing, "externalAiRequired", "external_ai_required")),
+    externalAiRole: text("externalAiRole", "external_ai_role"),
+    variantFamily: text("variantFamily", "variant_family"),
+    editorialPriority: text("editorialPriority", "editorial_priority", "priority"),
+    editorialNote: text("editorialNote", "editorial_note", "editorialComment", "editorial_comment")
+  };
+  const hasValue = Object.entries(research).some(([key, value]) => key === "externalAiRequired" ? value !== undefined : Array.isArray(value) ? value.length > 0 : Boolean(value));
+  return hasValue ? research : undefined;
+}
+
+function normalizeReferences(values: string[], definitions: Array<{ id: string; code: string; name: string }>) {
+  return values.map((value) => definitions.find((definition) => [definition.id, definition.code, definition.name].some((item) => item.toLowerCase() === value.toLowerCase()))?.id ?? value);
+}
+
+function objectValue(value: unknown) {
+  if (isRecord(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function nonNegativeInteger(value: unknown, fallback: number) {
+  const parsed = nullableInteger(value);
+  return typeof parsed === "number" && Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 export function registerContentRoutes(app: Hono, content: ContentRepository) {
@@ -131,9 +200,10 @@ export function registerContentRoutes(app: Hono, content: ContentRepository) {
       scene: context.req.query("scene"),
       tool: context.req.query("tool")
     });
-    const header = ["code", "name", "title", "status", "version", "l0Ids", "scenes", "tags", "minPlayers", "maxPlayers", "durationMin", "durationMax", "outcomeModel", "toolIds", "contentType", "hook", "rule", "completionCondition", "failureCondition", "changeNote", "payloadJson"];
+    const header = ["code", "name", "title", "status", "version", "l0Ids", "scenes", "tags", "minPlayers", "maxPlayers", "durationMin", "durationMax", "outcomeModel", "toolIds", "contentType", "hook", "rule", "completionCondition", "failureCondition", "changeNote", "payloadJson", "sampleCode", "sourceType", "sourceRegion", "sourceWork", "sourceUrl", "sourceEvidence", "sourceOriginalRule", "coreInteraction", "informationStructure", "controlStructure", "propsRequirement", "movementLevel", "l2Mode", "l2Source", "externalAiRequired", "externalAiRole", "variantFamily", "editorialPriority", "editorialNote"];
     const lines = items.map(({ l1, version, l2 }) => [
       l1.code, l1.name, l2.title, l2.status, version.versionNo, l1.l0Ids.join("|"), l1.scenes.join("|"), l1.tags.join("|"), l1.minPlayers, l1.maxPlayers ?? "", l1.durationMin ?? "", l1.durationMax ?? "", l1.outcomeModel, version.toolIds.join("|"), l2.contentType, version.displayHook, version.shortRule, version.completionCondition, version.failureCondition ?? "", version.changeNote ?? "", JSON.stringify(l2.payload)
+      , l1.research?.sampleCode ?? "", l1.research?.sourceType ?? "", l1.research?.sourceRegion ?? "", l1.research?.sourceWork ?? "", l1.research?.sourceUrl ?? "", l1.research?.sourceEvidence ?? "", l1.research?.sourceOriginalRule ?? "", l1.research?.coreInteraction ?? "", l1.research?.informationStructure?.join("|") ?? "", l1.research?.controlStructure?.join("|") ?? "", l1.research?.propsRequirement ?? "", l1.research?.movementLevel ?? "", l1.research?.l2Mode ?? "", l1.research?.l2Source ?? "", l1.research?.externalAiRequired ?? "", l1.research?.externalAiRole ?? "", l1.research?.variantFamily ?? "", l1.research?.editorialPriority ?? "", l1.research?.editorialNote ?? ""
     ].map(csvCell).join(","));
     return context.text(`\uFEFF${[header.map(csvCell).join(","), ...lines].join("\n")}`, 200, {
       "Content-Type": "text/csv; charset=utf-8",
@@ -157,25 +227,33 @@ export function registerContentRoutes(app: Hono, content: ContentRepository) {
     const errors: Array<{ index: number; message: string }> = [];
     let createdL1 = 0;
     let createdCards = 0;
+    const overview = content.overview();
+    const l0Definitions = overview.l0s;
     for (const [index, raw] of body.rows.entries()) {
       if (!isRecord(raw)) {
         errors.push({ index, message: "每行必须是对象" });
         continue;
       }
       const row = raw as Partial<ImportContentRow> & Record<string, unknown>;
-      const code = textValue(row.code);
-      const name = textValue(row.name);
-      const minPlayers = nullableInteger(row.minPlayers, Number.NaN);
-      const maxPlayers = nullableInteger(row.maxPlayers);
-      const durationMin = nullableInteger(row.durationMin);
-      const durationMax = nullableInteger(row.durationMax);
-      const outcomeModel = outcomeModelSchema.safeParse(row.outcomeModel ?? "shared_completion");
-      const contentType = l2ContentTypeSchema.safeParse(row.contentType ?? "prompt");
-      const l0Ids = listValue(row.l0Ids);
-      const scenes = listValue(row.scenes);
-      const tags = listValue(row.tags);
-      const toolIds = listValue(row.toolIds);
-      const payload = row.payload === undefined ? {} : isRecord(row.payload) ? row.payload : null;
+      const playerRange = parsePlayerRange(firstValue(row, "playerCount", "player_count"));
+      const code = textValue(firstValue(row, "code", "l1Code", "l1_code", "sampleId", "sample_id"));
+      const name = textValue(firstValue(row, "name", "l1Name", "l1_name", "sampleName", "sample_name"));
+      const minPlayers = nullableInteger(firstValue(row, "minPlayers", "min_players"), playerRange.min ?? 2);
+      const maxPlayers = nullableInteger(firstValue(row, "maxPlayers", "max_players"), playerRange.max ?? null);
+      const durationMin = nullableInteger(firstValue(row, "durationMin", "duration_min"));
+      const durationMax = nullableInteger(firstValue(row, "durationMax", "duration_max"));
+      const outcomeModel = outcomeModelSchema.safeParse(firstValue(row, "outcomeModel", "outcome_model") ?? "shared_completion");
+      const contentType = l2ContentTypeSchema.safeParse(firstValue(row, "contentType", "content_type") ?? "prompt");
+      const sourceModeValue = String(firstValue(row, "sourceMode", "source_mode", "l2Source", "l2_source") ?? "hybrid").toLowerCase();
+      const sourceMode = ["system", "human", "environment", "external_ai", "hybrid"].includes(sourceModeValue) ? sourceModeValue as "system" | "human" | "environment" | "external_ai" | "hybrid" : "hybrid";
+      const l0Ids = normalizeReferences(listValue(firstValue(row, "l0Ids", "l0_ids", "l0Codes", "l0_codes", "l0Primary", "l0_primary")), l0Definitions);
+      const scenes = listValue(firstValue(row, "scenes", "sceneTags", "scene_tags"));
+      const tags = listValue(firstValue(row, "tags"));
+      // Runtime cards use stable tool codes (timer/counter/scoreboard); keep
+      // those codes in the version even though the admin catalog also has IDs.
+      const toolIds = listValue(firstValue(row, "toolIds", "tool_ids"));
+      const rawPayload = firstValue(row, "payload", "payloadJson", "payload_json");
+      const payload = rawPayload === undefined ? {} : objectValue(rawPayload);
       const minPlayersNumber = typeof minPlayers === "number" ? minPlayers : null;
       const maxPlayersNumber = typeof maxPlayers === "number" ? maxPlayers : null;
       const durationMinNumber = typeof durationMin === "number" ? durationMin : null;
@@ -198,18 +276,20 @@ export function registerContentRoutes(app: Hono, content: ContentRepository) {
         durationMax,
         outcomeModel: outcomeModel.data,
         scenes,
-        tags
+        tags,
+        research: parseResearch(row)
       });
       if (!l1) {
         errors.push({ index, message: "code or name already exists" });
         continue;
       }
       createdL1 += 1;
-      const shortRule = textValue(row.rule ?? row.shortRule);
-      const completionCondition = textValue(row.completionCondition);
-      const failureCondition = textValue(row.failureCondition);
-      const displayHook = textValue(row.hook ?? row.displayHook);
-      const hasVersionFields = Boolean(shortRule || completionCondition || failureCondition || displayHook || toolIds.length || textValue(row.changeNote));
+      const shortRule = textValue(firstValue(row, "rule", "shortRule", "short_rule", "originalRule", "original_rule"));
+      const completionCondition = textValue(firstValue(row, "completionCondition", "completion_condition"));
+      const failureCondition = textValue(firstValue(row, "failureCondition", "failure_condition"));
+      const displayHook = textValue(firstValue(row, "hook", "displayHook", "display_hook"));
+      const changeNote = textValue(firstValue(row, "changeNote", "change_note"));
+      const hasVersionFields = Boolean(shortRule || completionCondition || failureCondition || displayHook || toolIds.length || changeNote);
       if (hasVersionFields) {
         const version = content.createVersion(l1.id, {
           shortRule: shortRule || undefined,
@@ -217,14 +297,14 @@ export function registerContentRoutes(app: Hono, content: ContentRepository) {
           failureCondition: failureCondition || null,
           displayHook: displayHook || undefined,
           toolIds,
-          changeNote: textValue(row.changeNote) || null
+          changeNote: changeNote || null
         });
         if (!version) {
           errors.push({ index, message: "玩法版本创建失败" });
           continue;
         }
       }
-      const title = textValue(row.title);
+      const title = textValue(firstValue(row, "title", "l2Title", "l2_title"));
       if (title) {
         const l2 = content.createL2({
           l1Id: l1.id,
@@ -235,7 +315,13 @@ export function registerContentRoutes(app: Hono, content: ContentRepository) {
             ...(typeof payload.content === "string" || !shortRule ? {} : { content: shortRule })
           },
           toolIds,
-          sourceMode: "hybrid"
+          sourceMode,
+          reusePolicy: {
+            cooldownRounds: nonNegativeInteger(firstValue(row, "cooldownRounds", "cooldown_rounds"), 0),
+            cooldownDays: nonNegativeInteger(firstValue(row, "cooldownDays", "cooldown_days"), 0),
+            permanentExhaustion: booleanValue(firstValue(row, "permanentExhaustion", "permanent_exhaustion")) ?? false,
+            skipCooldownRounds: nonNegativeInteger(firstValue(row, "skipCooldownRounds", "skip_cooldown_rounds"), 1)
+          }
         });
         if (l2) createdCards += 1;
         else errors.push({ index, message: "用户卡创建失败" });
@@ -254,7 +340,8 @@ export function registerContentRoutes(app: Hono, content: ContentRepository) {
       durationMin: body.durationMin === null ? null : Number.isInteger(body.durationMin) ? body.durationMin : undefined,
       durationMax: body.durationMax === null ? null : Number.isInteger(body.durationMax) ? body.durationMax : undefined,
       scenes: Array.isArray(body.scenes) ? body.scenes.filter((item): item is string => typeof item === "string") : undefined,
-      tags: Array.isArray(body.tags) ? body.tags.filter((item): item is string => typeof item === "string") : undefined
+      tags: Array.isArray(body.tags) ? body.tags.filter((item): item is string => typeof item === "string") : undefined,
+      research: isRecord(body.research) ? body.research as Parameters<ContentRepository["updateL1"]>[1]["research"] : undefined
     });
     if (!l1) return context.json({ message: "Only draft or changes-requested L1 can be edited" }, 409);
     return context.json({ l1 });
@@ -275,7 +362,8 @@ export function registerContentRoutes(app: Hono, content: ContentRepository) {
       outcomeModel: body.outcomeModel,
       certificateEligible: body.certificateEligible !== false,
       tags: Array.isArray(body.tags) ? body.tags.filter((item): item is string => typeof item === "string") : [],
-      scenes: Array.isArray(body.scenes) ? body.scenes.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim()) : []
+      scenes: Array.isArray(body.scenes) ? body.scenes.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim()) : [],
+      research: isRecord(body.research) ? body.research as Parameters<ContentRepository["createL1"]>[0]["research"] : undefined
     } as Parameters<ContentRepository["createL1"]>[0];
     if (!input.code || !input.name || !outcomeModelSchema.safeParse(input.outcomeModel).success || !Number.isInteger(input.minPlayers) || input.minPlayers < 1 || (input.maxPlayers !== null && (!Number.isInteger(input.maxPlayers) || input.maxPlayers < input.minPlayers))) {
       return context.json({ message: "code, name and valid player range are required" }, 422);

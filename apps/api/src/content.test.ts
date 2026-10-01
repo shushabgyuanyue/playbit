@@ -220,6 +220,33 @@ const exportedTemplateText = new TextDecoder().decode(exportedTemplateBytes);
 assert.ok(exportedTemplateText.includes("import_template_word"));
 assert.ok(exportedTemplateText.includes("越认真，越容易接错。"));
 
+const rawSampleImport = await json<{ createdL1: number; createdCards: number; errors: Array<{ index: number }> }>("/studio/import", {
+  method: "POST",
+  body: JSON.stringify({
+    rows: [{
+      sample_id: "S_TEST_RAW",
+      sample_name: "原始样本导入",
+      original_rule: "两人轮流做出动作，另一人判断并回应。",
+      l0_primary: "L0-09",
+      scene_tags: "双人碎片|现实环境",
+      player_count: "2",
+      source_type: "民间游戏",
+      source_region: "中国",
+      evidence_level: "USER_PROVIDED",
+      editorial_priority: "HIGH",
+      editorial_comment: "保留原始样本，后续再做 Playbit 化。"
+    }]
+  })
+});
+assert.equal(rawSampleImport.createdL1, 1);
+assert.equal(rawSampleImport.createdCards, 0);
+assert.equal(rawSampleImport.errors.length, 0);
+const rawSampleL1 = await json<{ items: Array<{ l1: { code: string; l0Ids: string[]; scenes: string[]; research?: { sourceType?: string; editorialPriority?: string } }; version: { shortRule: string } | null }> }>("/studio/l1?search=S_TEST_RAW&withoutL2=true");
+assert.equal(rawSampleL1.items[0]?.l1.code, "S_TEST_RAW");
+assert.deepEqual(rawSampleL1.items[0]?.l1.l0Ids, ["l0-sensory-action"]);
+assert.equal(rawSampleL1.items[0]?.l1.research?.sourceType, "民间游戏");
+assert.equal(rawSampleL1.items[0]?.l1.research?.editorialPriority, "HIGH");
+
 console.log("Content system passed: delivery, event idempotency, metrics, review and publish.");
 
 const createdL1 = await json<{ l1: { id: string; lifecycle: string } }>("/studio/l1", {
@@ -318,25 +345,76 @@ const outsider = await json<{ token: string }>("/auth/register", {
 assert.equal((await app.request("/coupons/independent", {
   method: "POST",
   headers: { "Content-Type": "application/json", Authorization: `Bearer ${identity.token}` },
-  body: JSON.stringify({ gameResultId: "result_invalid_holder", name: "无效绑定", description: "不能绑定不存在的账号", holderUserId: "user_missing", holderNickname: "不存在" })
+  body: JSON.stringify({ name: "额度无效", description: "次数必须大于零", claimLimit: 0 })
 })).status, 422);
-const independent = await json<{ coupon: { agreementId: string | null; gameResultId: string | null; transferNote: string | null } }>("/coupons/independent", {
+const independent = await json<{ coupon: { id: string; agreementId: string | null; gameResultId: string | null; transferNote: string | null; claimToken: string | null; claimLimit: number; claimedCount: number; remainingClaims: number } }>("/coupons/independent", {
   method: "POST",
   headers: { Authorization: `Bearer ${identity.token}` },
-  body: JSON.stringify({ gameResultId: "result_local_1", name: "请喝一杯", description: "现场结算权益", transferNote: null, holderNickname: "现场朋友" })
+  body: JSON.stringify({ gameResultId: "result_local_1", name: "请喝一杯", description: "请喝一杯", transferNote: null, claimLimit: 2 })
 });
 assert.equal(independent.coupon.agreementId, null);
 assert.equal(independent.coupon.gameResultId, "result_local_1");
 assert.equal(independent.coupon.transferNote, null);
+assert.ok(independent.coupon.claimToken);
+assert.equal(independent.coupon.claimLimit, 2);
+assert.equal(independent.coupon.claimedCount, 0);
+assert.equal(independent.coupon.remainingClaims, 2);
+const publicCoupon = await json<{ coupon: { id: string; issuerNickname: string; remainingClaims: number } }>(`/coupons/share/${independent.coupon.claimToken}`);
+assert.equal(publicCoupon.coupon.id, independent.coupon.id);
+assert.equal(publicCoupon.coupon.issuerNickname, "主持人");
+assert.equal(publicCoupon.coupon.remainingClaims, 2);
+const claimed = await json<{ coupon: { id: string; claimId: string | null; parentCouponId: string | null; holderUserId: string | null; holderNickname: string; claimToken: string | null; remainingClaims: number } }>(`/coupons/share/${independent.coupon.claimToken}/claim`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${receiver.token}` }
+});
+assert.equal(claimed.coupon.holderUserId, receiver.user.id);
+assert.equal(claimed.coupon.holderNickname, receiver.user.nickname);
+assert.equal(claimed.coupon.claimId, claimed.coupon.id);
+assert.equal(claimed.coupon.parentCouponId, independent.coupon.id);
+assert.equal(claimed.coupon.remainingClaims, 1);
+assert.equal(claimed.coupon.claimToken, null);
+assert.equal((await app.request(`/coupons/share/${independent.coupon.claimToken}/claim`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${receiver.token}` }
+})).status, 409, "one account may claim a voucher only once");
+const secondClaim = await json<{ coupon: { id: string; remainingClaims: number } }>(`/coupons/share/${independent.coupon.claimToken}/claim`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${outsider.token}` }
+});
+assert.notEqual(secondClaim.coupon.id, claimed.coupon.id);
+assert.equal(secondClaim.coupon.remainingClaims, 0);
+assert.equal((await app.request(`/coupons/share/${independent.coupon.claimToken}`)).status, 410, "share preview closes when capacity is exhausted");
+assert.equal((await json<{ coupons: Array<{ id: string }> }>(`/coupons`, { headers: { Authorization: `Bearer ${receiver.token}` } })).coupons.some(item => item.id === claimed.coupon.id), true);
+assert.equal((await app.request(`/coupons/${claimed.coupon.id}/use`, { method: "PATCH", headers: { Authorization: `Bearer ${receiver.token}` } })).status, 200);
+assert.equal((await app.request(`/coupons/${secondClaim.coupon.id}/use`, { method: "PATCH", headers: { Authorization: `Bearer ${outsider.token}` } })).status, 200, "each recipient redeems their own claim instance");
+assert.equal((await app.request(`/coupons/${independent.coupon.id}`, {
+  method: "DELETE",
+  headers: { Authorization: `Bearer ${identity.token}` }
+})).status, 409);
+const deletable = await json<{ coupon: { id: string; claimToken: string; claimLimit: number } }>("/coupons/independent", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${identity.token}` },
+  body: JSON.stringify({ name: "待删除权益", description: "对方领取前可以删除" })
+});
+assert.equal(deletable.coupon.claimLimit, 1, "claim limit defaults to one");
+assert.equal((await app.request(`/coupons/${deletable.coupon.id}`, {
+  method: "DELETE",
+  headers: { Authorization: `Bearer ${identity.token}` }
+})).status, 204);
+assert.equal((await app.request(`/coupons/share/${deletable.coupon.claimToken}`)).status, 410);
 const boundIndependent = await json<{ coupon: { id: string; transferNote: string | null } }>("/coupons/independent", {
   method: "POST",
   headers: { Authorization: `Bearer ${identity.token}` },
-  body: JSON.stringify({ gameResultId: "result_local_2", name: "请喝一杯", description: "绑定到账号的权益", transferNote: "   ", holderUserId: receiver.user.id, holderNickname: receiver.user.nickname })
+  body: JSON.stringify({ gameResultId: "result_local_2", name: "请喝一杯", description: "请喝一杯", transferNote: "   ", claimLimit: 2 })
 });
 assert.equal(boundIndependent.coupon.transferNote, null);
-assert.equal((await json<{ coupons: Array<{ id: string }> }>("/coupons", { headers: { Authorization: `Bearer ${receiver.token}` } })).coupons.some(item => item.id === boundIndependent.coupon.id), true);
+const latestIssuerCoupons = await json<{ coupons: Array<{ id: string; claimToken: string | null; name: string }> }>(`/coupons`, { headers: { Authorization: `Bearer ${identity.token}` } });
+const boundRecord = latestIssuerCoupons.coupons.find(item => item.id === boundIndependent.coupon.id)!;
+assert.ok(boundRecord.claimToken);
+const boundClaim = await json<{ coupon: { id: string } }>(`/coupons/share/${boundRecord.claimToken}/claim`, { method: "POST", headers: { Authorization: `Bearer ${receiver.token}` } });
+assert.equal((await json<{ coupons: Array<{ id: string }> }>("/coupons", { headers: { Authorization: `Bearer ${receiver.token}` } })).coupons.some(item => item.id === boundClaim.coupon.id), true);
 assert.equal((await app.request(`/coupons/${boundIndependent.coupon.id}/use`, { method: "PATCH", headers: { Authorization: `Bearer ${identity.token}` } })).status, 403);
-assert.equal((await app.request(`/coupons/${boundIndependent.coupon.id}/use`, { method: "PATCH", headers: { Authorization: `Bearer ${outsider.token}` } })).status, 403);
-assert.equal((await app.request(`/coupons/${boundIndependent.coupon.id}/use`, { method: "PATCH", headers: { Authorization: `Bearer ${receiver.token}` } })).status, 200);
-assert.equal((await app.request(`/coupons/${boundIndependent.coupon.id}/use`, { method: "PATCH", headers: { Authorization: `Bearer ${receiver.token}` } })).status, 409);
+assert.equal((await app.request(`/coupons/${boundClaim.coupon.id}/use`, { method: "PATCH", headers: { Authorization: `Bearer ${outsider.token}` } })).status, 403);
+assert.equal((await app.request(`/coupons/${boundClaim.coupon.id}/use`, { method: "PATCH", headers: { Authorization: `Bearer ${receiver.token}` } })).status, 200);
+assert.equal((await app.request(`/coupons/${boundClaim.coupon.id}/use`, { method: "PATCH", headers: { Authorization: `Bearer ${receiver.token}` } })).status, 409);
 console.log("Independent equity passed: agreement-free issuance contract.");
