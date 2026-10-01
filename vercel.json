@@ -2,5 +2,8 @@
   "framework": "vite",
   "buildCommand": "pnpm --filter @playbit/web build",
   "outputDirectory": "apps/web/dist",
-  "installCommand": "pnpm install"
+  "installCommand": "pnpm install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
