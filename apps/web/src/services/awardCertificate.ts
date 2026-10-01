@@ -3,6 +3,7 @@ import type { Agreement } from "@playbit/shared";
 import winnerTemplateUrl from "../assets/certificates/result-winner.jpg";
 import loserTemplateUrl from "../assets/certificates/result-loser.jpg";
 import { getEffectiveStakeLabel, getWinnerName } from "../utils/sessionDisplay";
+import { drawPlaybitSeal } from "./playbitSeal";
 
 export type AwardKind = "result" | "fulfillment" | "waiver";
 
@@ -253,10 +254,12 @@ function drawLegacyAwardCertificate(canvas: HTMLCanvasElement, agreement: Agreem
   ctx.textAlign = "right"; ctx.font = `26px ${serif}`; ctx.fillText(c.recordIssuer, 934, signatureY + 14);
   const date = new Date(agreement.resultRecordedAt ?? agreement.createdAt);
   ctx.font = `22px ${serif}`; ctx.fillText(`${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`, 934, signatureY + 54);
-  ctx.save(); ctx.translate(846, signatureY + 22); ctx.rotate(-.16); ctx.globalAlpha = .72;
-  ctx.strokeStyle = "#a63739"; ctx.fillStyle = "#a63739"; ctx.lineWidth = 3;
-  for (const radius of [66, 57]) { ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.stroke(); }
-  ctx.textAlign = "center"; ctx.font = `700 25px ${serif}`; ctx.fillText(c.awardSeal, 0, 8); ctx.font = `16px ${serif}`; ctx.fillText(c.resultStatus, 0, -25); ctx.restore();
+  drawPlaybitSeal(ctx, 846, signatureY + 22, {
+    topText: c.resultStatus,
+    centerText: c.awardSeal,
+    bottomText: "PLAYBIT",
+    scale: 1
+  });
   text(c.resultStatus, height - 116, `24px ${serif}`);
   text(c.disclaimer, height - 78, "17px ui-sans-serif, sans-serif", "#776e63");
   text(`${c.recordNumber} ${agreement.shareCode.toUpperCase()} · ${challenger ? "C" : "W"}`, height - 49, "14px ui-monospace, monospace", "#776e63");

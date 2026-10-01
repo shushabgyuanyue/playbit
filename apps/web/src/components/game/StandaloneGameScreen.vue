@@ -133,25 +133,12 @@ function openCertificate() {
       <p v-if="props.phase === 'result'" class="standalone-game-hint">{{ copy.resultHint }}</p>
 
       <section v-if="props.phase === 'playing'" class="standalone-bottom-actions" aria-label="本局操作">
-        <button type="button" class="standalone-bottom-action" :aria-expanded="stakeOpen" @click="openStake">
+        <button type="button" class="standalone-bottom-action is-stake" :aria-expanded="stakeOpen" aria-controls="standalone-stake-dialog" @click="openStake">
           <Gift :size="16" aria-hidden="true" />{{ copy.finish }}
         </button>
-        <button type="button" class="standalone-bottom-action" :aria-pressed="scoreboardOpen" @click="toggleScoreboard">
+        <button type="button" class="standalone-bottom-action is-scoreboard" :aria-pressed="scoreboardOpen" @click="toggleScoreboard">
           <Trophy :size="16" aria-hidden="true" />{{ copy.scoreboard }}
         </button>
-      </section>
-
-      <section v-if="stakeOpen" class="standalone-stake-panel" aria-label="添个彩头">
-        <header class="standalone-stake-heading">
-          <div><span class="standalone-stake-kicker"><Gift :size="14" />{{ copy.stakeTitle }}</span><h2>{{ copy.stakeTitle }}</h2></div>
-          <button type="button" class="standalone-stake-close" aria-label="关闭" @click="stakeOpen = false"><X :size="17" /></button>
-        </header>
-        <p>{{ copy.stakeHint }}</p>
-        <div class="standalone-stake-actions">
-          <button type="button" class="standalone-stake-action is-main" @click="openSettlement">{{ copy.startSettlement }}<ChevronRight :size="16" /></button>
-          <button type="button" class="standalone-stake-action" @click="openCertificate">{{ copy.openCertificate }}<Trophy :size="15" /></button>
-        </div>
-        <small>现场先约定彩头；只有确认创建权益卡券时才需要登录。</small>
       </section>
 
       <section v-if="props.phase === 'result'" class="standalone-result-panel" aria-live="polite">
@@ -179,6 +166,28 @@ function openCertificate() {
       </section>
     </div>
 
+    <Teleport to="body">
+      <div v-if="stakeOpen" class="standalone-stake-overlay" @click.self="stakeOpen = false">
+        <section id="standalone-stake-dialog" class="standalone-stake-dialog" role="dialog" aria-modal="true" aria-label="添个彩头">
+          <div class="standalone-sheet-grip" aria-hidden="true" />
+          <header class="standalone-stake-heading">
+            <div>
+              <span class="standalone-stake-kicker"><Gift :size="14" />{{ copy.stakeTitle }}</span>
+              <h2>{{ copy.stakeTitle }}</h2>
+            </div>
+            <button type="button" class="standalone-stake-close" aria-label="关闭" @click="stakeOpen = false"><X :size="17" /></button>
+          </header>
+          <p class="standalone-stake-copy">{{ copy.stakeHint }}</p>
+          <div class="standalone-stake-note"><span>线下约定彩头</span><ChevronRight :size="13" /><span>系统记录结果</span><ChevronRight :size="13" /><span>需要时再结算</span></div>
+          <div class="standalone-stake-actions">
+            <button type="button" class="standalone-stake-action is-main" @click="openSettlement">{{ copy.startSettlement }}<ChevronRight :size="16" /></button>
+            <button type="button" class="standalone-stake-action" @click="openCertificate">{{ copy.openCertificate }}<Trophy :size="15" /></button>
+          </div>
+          <p class="standalone-stake-footnote">只有确认创建权益卡券时才需要登录。</p>
+        </section>
+      </div>
+    </Teleport>
+
     <GameScoreboardDialog
       :open="scoreboardOpen"
       :players="props.players"
@@ -201,11 +210,12 @@ function openCertificate() {
 </template>
 
 <style scoped>
-.standalone-game-page { background: var(--pb-surface-game-stage); }
-.standalone-game-content { display: grid; align-content: start; gap: 10px; flex: 1 0 auto; padding: 10px var(--pb-page-x) calc(22px + env(safe-area-inset-bottom)); }
+.standalone-game-page { background: #f7f9fc; }
+.standalone-game-page :deep(.life-service-hero) { border-bottom-color: rgba(218, 225, 234, .84); background: rgba(255, 255, 255, .86); }
+.standalone-game-content { display: grid; width: min(100%, 480px); align-content: start; gap: 12px; flex: 1 0 auto; margin: 0 auto; padding: 12px var(--pb-page-x) calc(22px + env(safe-area-inset-bottom)); }
 .standalone-favorite-action { display: inline-grid; width: 28px; height: 28px; place-items: center; border: 1px solid color-mix(in srgb, var(--card-ink) 22%, transparent); border-radius: 50%; background: rgba(255, 255, 255, .58); color: var(--card-ink); padding: 0; }
 .standalone-favorite-action[aria-pressed="true"] { border-color: color-mix(in srgb, var(--card-ink) 40%, transparent); background: color-mix(in srgb, var(--card-ink) 10%, white); }
-.standalone-card-frame { width: min(100%, 390px); margin: 0 auto; }
+.standalone-card-frame { width: min(100%, 390px); margin: 0 auto; padding-top: 2px; }
 .standalone-card-frame :deep(.game-card-stage) { width: 100%; max-width: 360px; margin: 0 auto; }
 .standalone-card-frame :deep(.game-card-top-actions) { align-items: flex-start; gap: 6px; }
 .standalone-card-frame :deep(.game-tool-tray) { width: auto; margin-left: auto; }
@@ -213,18 +223,25 @@ function openCertificate() {
 .standalone-card-frame :deep(.game-card-tool-button) { min-height: 28px; padding: 0 8px; }
 .standalone-game-hint { margin: 0 auto; color: var(--pb-text-3); font-size: var(--pb-font-sm); line-height: 1.5; text-align: center; }
 .standalone-bottom-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: min(100%, 390px); margin: 4px auto 0; }
-.standalone-bottom-action { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--pb-line-soft); border-radius: 11px; background: rgba(255, 255, 255, .42); color: var(--pb-text-2); padding: 0 10px; font: inherit; font-size: var(--pb-font-sm); font-weight: 600; box-shadow: 0 2px 8px rgba(22, 47, 75, .04); }
-.standalone-bottom-action[aria-pressed="true"], .standalone-bottom-action[aria-expanded="true"] { border-color: color-mix(in srgb, var(--pb-blue) 32%, var(--pb-line-soft)); background: rgba(255, 255, 255, .8); color: var(--pb-blue); }
-.standalone-stake-panel { display: grid; gap: 9px; width: min(100%, 390px); margin: 3px auto 0; border: 1px solid rgba(145, 111, 48, .24); border-radius: 13px; background: rgba(255, 253, 247, .94); padding: 13px; box-shadow: 0 8px 24px rgba(67, 55, 31, .08); }
+.standalone-bottom-action { display: inline-flex; min-height: 43px; align-items: center; justify-content: center; gap: 6px; border: 1px solid rgba(128, 145, 164, .25); border-radius: 12px; background: rgba(255, 255, 255, .66); color: var(--pb-text-2); padding: 0 10px; font: inherit; font-size: var(--pb-font-sm); font-weight: 600; box-shadow: 0 3px 10px rgba(22, 47, 75, .045); transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
+.standalone-bottom-action.is-stake { color: #916017; }
+.standalone-bottom-action.is-scoreboard { color: var(--pb-blue); }
+.standalone-bottom-action[aria-pressed="true"], .standalone-bottom-action[aria-expanded="true"] { border-color: rgba(145, 111, 48, .38); background: #fffdf7; color: #916017; }
+.standalone-bottom-action:active { transform: translateY(1px); }
+.standalone-stake-overlay { position: fixed; inset: 0; z-index: 110; display: flex; align-items: flex-end; justify-content: center; background: rgba(26, 41, 59, .28); padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); backdrop-filter: blur(5px); animation: standalone-overlay-in 180ms ease-out both; }
+.standalone-stake-dialog { position: relative; display: grid; gap: 12px; width: min(100%, 460px); border: 1px solid rgba(172, 132, 70, .28); border-radius: 22px; background: #fffdf8; padding: 15px 16px calc(16px + env(safe-area-inset-bottom)); box-shadow: 0 24px 70px rgba(34, 50, 71, .22); animation: standalone-sheet-in 260ms cubic-bezier(.2, .8, .25, 1.05) both; }
+.standalone-sheet-grip { width: 38px; height: 4px; margin: -4px auto 1px; border-radius: 999px; background: #d6c7ab; }
 .standalone-stake-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.standalone-stake-heading h2 { margin: 2px 0 0; color: var(--pb-text-1); font-family: var(--pb-font-serif); font-size: 19px; }
+.standalone-stake-heading h2 { margin: 3px 0 0; color: var(--pb-text-1); font-family: var(--pb-font-serif); font-size: 21px; }
 .standalone-stake-kicker { display: inline-flex; align-items: center; gap: 5px; color: var(--pb-ink-gold); font-size: var(--pb-font-xs); font-weight: 700; }
 .standalone-stake-close { display: inline-grid; width: 29px; height: 29px; place-items: center; border: 0; border-radius: 50%; background: var(--pb-fill-soft); color: var(--pb-text-2); }
-.standalone-stake-panel > p { margin: 0; color: var(--pb-text-2); font-size: var(--pb-font-sm); line-height: 1.55; }
+.standalone-stake-copy { margin: 0; color: var(--pb-text-2); font-size: var(--pb-font-sm); line-height: 1.6; }
+.standalone-stake-note { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; border-top: 1px solid rgba(184, 155, 101, .2); border-bottom: 1px solid rgba(184, 155, 101, .2); padding: 10px 0; color: #937144; font-size: var(--pb-font-xs); }
+.standalone-stake-note svg { color: #c6a86f; }
 .standalone-stake-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-.standalone-stake-action { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 4px; border: 1px solid rgba(145, 111, 48, .28); border-radius: 9px; background: transparent; color: var(--pb-ink-gold); padding: 0 7px; font: inherit; font-size: var(--pb-font-xs); font-weight: 700; }
-.standalone-stake-action.is-main { border-color: var(--pb-blue); background: var(--pb-blue); color: #fff; }
-.standalone-stake-panel small { color: var(--pb-text-3); font-size: 10px; line-height: 1.45; }
+.standalone-stake-action { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 4px; border: 1px solid rgba(145, 111, 48, .3); border-radius: 10px; background: transparent; color: #916017; padding: 0 7px; font: inherit; font-size: var(--pb-font-xs); font-weight: 700; }
+.standalone-stake-action.is-main { border-color: #a66d1e; background: #a66d1e; color: #fff; box-shadow: 0 4px 10px rgba(166, 109, 30, .16); }
+.standalone-stake-footnote { margin: -2px 0 0; color: var(--pb-text-3); font-size: 10px; line-height: 1.45; }
 .standalone-card-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .standalone-card-action { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 5px; border: 1px solid color-mix(in srgb, var(--card-ink) 20%, transparent); border-radius: var(--pb-radius-md); background: rgba(255, 255, 255, .72); color: var(--card-ink); padding: 0 9px; font: inherit; font-size: var(--pb-font-sm); font-weight: 600; }
 .standalone-card-action.is-primary { border-color: var(--card-ink); background: var(--card-ink); color: #fff; }
@@ -257,4 +274,14 @@ function openCertificate() {
 .standalone-game-empty { display: grid; flex: 1; place-items: center; align-content: center; gap: 14px; padding: 24px; color: var(--pb-text-3); }
 .standalone-game-empty p { margin: 0; }
 @media (max-height: 720px) { .standalone-game-content { gap: 7px; padding-top: 5px; } .standalone-card-frame { width: min(100%, 350px); } }
+@media (min-width: 720px) {
+  .standalone-stake-overlay { align-items: center; padding: 24px; }
+  .standalone-stake-dialog { border-radius: 24px; padding-bottom: 16px; }
+}
+@keyframes standalone-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes standalone-sheet-in { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .standalone-stake-overlay, .standalone-stake-dialog { animation: none; }
+  .standalone-bottom-action { transition: none; }
+}
 </style>

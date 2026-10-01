@@ -4,7 +4,8 @@ import { Download, Share2, Trophy, X } from "lucide-vue-next";
 import { computed, nextTick, ref, watch } from "vue";
 import { showToast } from "vant";
 import type { LocalPlayer } from "../../composables/useStandaloneGameFlow";
-import winnerTemplateUrl from "../../assets/certificates/result-winner.jpg";
+import championTemplateUrl from "../../assets/certificates/champion-certificate.webp";
+import { drawPlaybitSeal } from "../../services/playbitSeal";
 
 const props = defineProps<{
   open: boolean;
@@ -54,7 +55,7 @@ function loadImage(src: string) {
 async function render() {
   const target = canvas.value;
   if (!target || !winnerName.value) return;
-  const image = await loadImage(winnerTemplateUrl);
+  const image = await loadImage(championTemplateUrl);
   target.width = 1122;
   target.height = 1402;
   const ctx = target.getContext("2d");
@@ -66,32 +67,19 @@ async function render() {
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#653b0d";
   ctx.font = `600 74px "STSong", "Songti SC", "SimSun", serif`;
-  ctx.fillText(fitText(ctx, winnerName.value, 540, 74, 36), 561, 593);
+  ctx.fillText(fitText(ctx, winnerName.value, 420, 74, 34), 561, 626);
 
-  ctx.textAlign = "left";
-  ctx.fillStyle = "#653b0d";
-  ctx.font = `500 28px "STKaiti", "KaiTi", "Kaiti SC", cursive`;
-  ctx.fillText(formatDate(), 423, 1165);
-
-  // Keep the same restrained red seal language used by contract documents.
-  ctx.save();
-  ctx.translate(924, 1131);
-  ctx.rotate(-0.14);
-  ctx.globalAlpha = 0.72;
-  ctx.strokeStyle = "#a63739";
-  ctx.fillStyle = "#a63739";
-  ctx.lineWidth = 3;
-  for (const radius of [66, 57]) {
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, 0, Math.PI * 2);
-    ctx.stroke();
-  }
   ctx.textAlign = "center";
-  ctx.font = `700 23px "STSong", "Songti SC", "SimSun", serif`;
-  ctx.fillText("结果留存", 0, 8);
-  ctx.font = `16px "STSong", "Songti SC", "SimSun", serif`;
-  ctx.fillText("PLAYBIT", 0, -24);
-  ctx.restore();
+  ctx.fillStyle = "#653b0d";
+  ctx.font = `500 25px "STKaiti", "KaiTi", "Kaiti SC", cursive`;
+  ctx.fillText(formatDate(), 561, 1327);
+
+  drawPlaybitSeal(ctx, 920, 1134, {
+    topText: "PLAYBIT",
+    centerText: "结果留存",
+    bottomText: "★★★",
+    scale: 0.9
+  });
 }
 
 async function imageFile() {

@@ -49,8 +49,9 @@ const initialBody = await body();
 if (initialBody.includes("规则在卡上") || initialBody.includes("记录结果")) throw new Error("Old explanatory/result copy is still rendered");
 if (await evaluate("Boolean(document.querySelector('.standalone-scoreboard-action'))")) throw new Error("Scoreboard is still mounted in the top navigation");
 if (await evaluate("Boolean(document.querySelector('.standalone-finish-action'))")) throw new Error("Old heavy result action is still rendered");
-const cardStageState = await evaluate("({ stage: Boolean(document.querySelector('.game-card-stage')), stack: Boolean(document.querySelector('.game-card-stack')), reverse: Boolean(document.querySelector('.game-card-reverse')), topTools: Boolean(document.querySelector('.game-card-top-actions .game-card-tool-actions')) })");
+const cardStageState = await evaluate("({ stage: Boolean(document.querySelector('.game-card-stage')), stack: Boolean(document.querySelector('.game-card-stack')), stackLayers: document.querySelectorAll('.game-card-stack-card').length, reverse: Boolean(document.querySelector('.game-card-reverse')), topTools: Boolean(document.querySelector('.game-card-top-actions .game-card-tool-actions')) })");
 if (!cardStageState.stage || !cardStageState.stack || !cardStageState.reverse) throw new Error(`Card draw stage is incomplete: ${JSON.stringify(cardStageState)}`);
+if (cardStageState.stackLayers !== 3) throw new Error(`Card stack should have three restrained back layers: ${JSON.stringify(cardStageState)}`);
 await screenshot("standalone-playing-current");
 
 if (!await clickText("记分牌")) throw new Error("Scoreboard bottom action is missing");
@@ -63,6 +64,8 @@ await evaluate("document.querySelector('.game-scoreboard-close')?.click()");
 await clickText("添个彩头");
 await wait(120);
 await assertBody("stake panel", ["彩头由现场自行约定", "发起结算", "开具比赛证书"]);
+if (!await evaluate("Boolean(document.querySelector('.standalone-stake-overlay'))")) throw new Error("Stake flow should open as a modal overlay");
+if (await evaluate("Boolean(document.querySelector('.standalone-stake-panel'))")) throw new Error("Legacy inline stake panel is still rendered");
 await screenshot("standalone-stake-current");
 
 await clickText("开具比赛证书");
