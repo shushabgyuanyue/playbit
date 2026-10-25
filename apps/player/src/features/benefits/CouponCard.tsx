@@ -20,10 +20,9 @@ export function CouponCard({ coupon, index, onRedeem }: { coupon: Coupon; index:
       <div className="coupon-side coupon-front">
         {coupon.status === "redeemed" && <div className="coupon-used-wash" aria-hidden="true" />}
         <div className="ticket-main">
-          <small>{coupon.status === "redeemed" ? `${copy.wallet.used} · ${number}` : `PLAYBIT · ${number}`}</small>
+          <small>{coupon.status === "redeemed" ? `${copy.wallet.used} · ${number}${coupon.redeemedAt ? ` · ${formatDate(coupon.redeemedAt)}` : ""}` : `PLAYBIT · ${number}`}</small>
           <strong>{coupon.title}</strong>
           <span>{coupon.subtitle}</span>
-          {coupon.status === "redeemed" && coupon.redeemedAt && <time className="coupon-used-meta">{copy.wallet.redeemedAtLabel} {formatDate(coupon.redeemedAt)}</time>}
         </div>
         {coupon.status === "redeemed" ? <div className="used-seal"><Icon name="check" size={17} />{copy.wallet.redeemed}</div> : <div className="ticket-actions single"><button type="button" tabIndex={flipped ? -1 : 0} onClick={event => { event.stopPropagation(); onRedeem(); }}><Icon name="check" size={15} />{copy.wallet.redeem}</button><small className="coupon-flip-hint">{copy.wallet.flipHint}</small></div>}
       </div>

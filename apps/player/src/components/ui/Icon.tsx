@@ -4,5 +4,5 @@ const icons = { arrow: ArrowRight, bell: Bell, bookmark: Bookmark, date: Calenda
 export type IconName = keyof typeof icons;
 export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
   const Component = icons[name];
-  return <Component size={size} strokeWidth={1.8} aria-hidden="true" />;
+  return <Component size={size} strokeWidth={2} aria-hidden="true" />;
 }

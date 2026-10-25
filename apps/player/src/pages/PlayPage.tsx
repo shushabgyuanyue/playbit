@@ -40,6 +40,14 @@ export function PlayPage() {
     if (alreadySaved && pendingSaveCardId === card.id) setPendingSaveCardId(null);
   }, [alreadySaved, card.id, pendingSaveCardId]);
   useEffect(() => {
+    if (!issueNudge) return;
+    const timer = window.setTimeout(() => {
+      setIssueNudge(false);
+      pendingMove.current = null;
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [issueNudge]);
+  useEffect(() => {
     remember({ playFlippedCardId: flipped ? card.id : null });
   }, [card.id, flipped, remember]);
   function openCollection() {
@@ -47,10 +55,14 @@ export function PlayPage() {
     setPanel("save");
   }
   function openStake() {
+    setIssueNudge(false);
+    pendingMove.current = null;
     if (issuance) { setPanel("issue"); return; }
     setStakeInput(stake ?? copy.play.defaultStake); setPanel("stake");
   }
   function openIssue() {
+    setIssueNudge(false);
+    pendingMove.current = null;
     if (!stake) { setPanel("stake"); return; }
     setPanel("issue");
   }

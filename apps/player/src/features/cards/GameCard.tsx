@@ -47,7 +47,10 @@ export function GameCard({ card, scene, flipped, slide, saved, stake, stakeIssue
         <div className="play-state"><span>{copy.play.serious}</span><b>{card.time}</b></div>
         <button className={`corner-save light ${saved ? "saved" : ""}`} onClick={onSave} aria-label={copy.play.collect} aria-pressed={saved}><Icon name="bookmark" size={18} /></button>
         <div className="type-stage" onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}><div className="rule-kicker">{copy.play.rules}</div>{flipped && <TypedRule text={card.rule} />}<span className="type-note">{card.action}{copy.play.putDown}</span></div>
-        {stake && <button className="stake-token minimal" onClick={onStake}><span className="stake-trophy"><Icon name="trophy" size={14} /></span><span>{copy.play.stakeAdded}</span><b>{stake}</b></button>}
+        <div className="stake-token-row">
+          <button className="stake-token minimal" onClick={onStake} aria-label={stake ? copy.play.stakeEdit : copy.play.stake} title={stake ? copy.play.stakeEdit : copy.play.stake}><span className="stake-trophy"><Icon name="trophy" size={14} /></span><span>{stake ? copy.play.stakeAdded : copy.play.stake}</span><b>{stake ?? copy.play.anticipation}</b>{stake && !stakeIssued && <Icon name="edit" size={12} />}</button>
+          {stake && <button className={`stake-issue-icon back ${stakeIssued ? "issued" : ""}`} type="button" onClick={onIssue} aria-label={stakeIssued ? copy.play.issueStakeSigned : copy.play.issueStake} title={stakeIssued ? copy.play.issueStakeSigned : copy.play.issueStake}><Icon name={stakeIssued ? "check" : "sign"} size={14} /></button>}
+        </div>
         <button className="swipe-tip back-hint" onClick={() => onFlip(false)} aria-label={copy.play.backToPreview}>{copy.play.returnHint}</button>
       </div>
       </div>
