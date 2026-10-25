@@ -347,21 +347,24 @@ assert.equal((await app.request("/coupons/independent", {
   headers: { "Content-Type": "application/json", Authorization: `Bearer ${identity.token}` },
   body: JSON.stringify({ name: "额度无效", description: "次数必须大于零", claimLimit: 0 })
 })).status, 422);
-const independent = await json<{ coupon: { id: string; agreementId: string | null; gameResultId: string | null; transferNote: string | null; claimToken: string | null; claimLimit: number; claimedCount: number; remainingClaims: number } }>("/coupons/independent", {
+const independent = await json<{ coupon: { id: string; agreementId: string | null; gameResultId: string | null; sourceLabel: string; signatureDataUrl: string | null; transferNote: string | null; claimToken: string | null; claimLimit: number; claimedCount: number; remainingClaims: number } }>("/coupons/independent", {
   method: "POST",
   headers: { Authorization: `Bearer ${identity.token}` },
-  body: JSON.stringify({ gameResultId: "result_local_1", name: "请喝一杯", description: "请喝一杯", transferNote: null, claimLimit: 2 })
+  body: JSON.stringify({ gameResultId: "result_local_1", name: "请喝一杯", description: "请喝一杯", sourceLabel: "游戏彩头", signatureDataUrl: "data:image/png;base64,signature", transferNote: null, claimLimit: 2 })
 });
 assert.equal(independent.coupon.agreementId, null);
 assert.equal(independent.coupon.gameResultId, "result_local_1");
+assert.equal(independent.coupon.sourceLabel, "游戏彩头");
+assert.equal(independent.coupon.signatureDataUrl, "data:image/png;base64,signature");
 assert.equal(independent.coupon.transferNote, null);
 assert.ok(independent.coupon.claimToken);
 assert.equal(independent.coupon.claimLimit, 2);
 assert.equal(independent.coupon.claimedCount, 0);
 assert.equal(independent.coupon.remainingClaims, 2);
-const publicCoupon = await json<{ coupon: { id: string; issuerNickname: string; remainingClaims: number } }>(`/coupons/share/${independent.coupon.claimToken}`);
+const publicCoupon = await json<{ coupon: { id: string; issuerNickname: string; sourceLabel: string; remainingClaims: number } }>(`/coupons/share/${independent.coupon.claimToken}`);
 assert.equal(publicCoupon.coupon.id, independent.coupon.id);
 assert.equal(publicCoupon.coupon.issuerNickname, "主持人");
+assert.equal(publicCoupon.coupon.sourceLabel, "游戏彩头");
 assert.equal(publicCoupon.coupon.remainingClaims, 2);
 const claimed = await json<{ coupon: { id: string; claimId: string | null; parentCouponId: string | null; holderUserId: string | null; holderNickname: string; claimToken: string | null; remainingClaims: number } }>(`/coupons/share/${independent.coupon.claimToken}/claim`, {
   method: "POST",
@@ -391,12 +394,14 @@ assert.equal((await app.request(`/coupons/${independent.coupon.id}`, {
   method: "DELETE",
   headers: { Authorization: `Bearer ${identity.token}` }
 })).status, 409);
-const deletable = await json<{ coupon: { id: string; claimToken: string; claimLimit: number } }>("/coupons/independent", {
+const deletable = await json<{ coupon: { id: string; claimToken: string; claimLimit: number; sourceLabel: string; signatureDataUrl: string | null } }>("/coupons/independent", {
   method: "POST",
   headers: { Authorization: `Bearer ${identity.token}` },
   body: JSON.stringify({ name: "待删除权益", description: "对方领取前可以删除" })
 });
 assert.equal(deletable.coupon.claimLimit, 1, "claim limit defaults to one");
+assert.equal(deletable.coupon.sourceLabel, "手动签发", "source defaults to manual issuance");
+assert.equal(deletable.coupon.signatureDataUrl, null);
 assert.equal((await app.request(`/coupons/${deletable.coupon.id}`, {
   method: "DELETE",
   headers: { Authorization: `Bearer ${identity.token}` }

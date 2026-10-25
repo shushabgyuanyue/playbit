@@ -359,6 +359,8 @@ export const api = {
     certificateId?: string | null;
     name: string;
     description: string;
+    sourceLabel?: string | null;
+    signatureDataUrl?: string | null;
     transferNote?: string | null;
     claimLimit?: number;
   }) {
@@ -368,7 +370,7 @@ export const api = {
     });
   },
   getCouponShare(token: string) {
-    return request<{ coupon: Pick<Coupon, "id" | "name" | "description" | "issuerNickname" | "transferNote" | "status" | "createdAt" | "claimLimit" | "claimedCount" | "remainingClaims"> }>(`/coupons/share/${encodeURIComponent(token)}`);
+    return request<{ coupon: Pick<Coupon, "id" | "name" | "description" | "sourceLabel" | "issuerNickname" | "transferNote" | "status" | "createdAt" | "claimLimit" | "claimedCount" | "remainingClaims"> }>(`/coupons/share/${encodeURIComponent(token)}`);
   },
   claimCoupon(token: string) {
     return request<{ coupon: Coupon }>(`/coupons/share/${encodeURIComponent(token)}/claim`, {

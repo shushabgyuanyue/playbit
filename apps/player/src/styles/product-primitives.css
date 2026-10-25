@@ -1,0 +1,9 @@
+.player-focusable:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+canvas:focus-visible {
+  outline: 3px solid rgba(125, 84, 255, .45);
+  outline-offset: 3px;
+}

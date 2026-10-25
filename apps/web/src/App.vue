@@ -374,7 +374,6 @@ provide("playbit-authenticated", computed(() => Boolean(currentUser.value)));
         @back="goBack"
         @home="goHome"
         @submit="issueIndependentCoupon"
-        @view-issued="() => openVouchers('issued')"
       />
       <CouponClaimScreen
         v-else-if="screen === 'couponClaim'"

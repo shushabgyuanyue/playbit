@@ -1,6 +1,5 @@
 import { copy } from "@playbit/content";
-import { hasCouponEquity } from "@playbit/game-core";
-import type { Agreement, Coupon, AgreementStatus } from "@playbit/shared";
+import type { Agreement, Coupon } from "@playbit/shared";
 import { computed, type MaybeRefOrGetter, toValue } from "vue";
 import type {
   VoucherItem,
@@ -9,7 +8,6 @@ import type {
   VoucherUiStatus,
   VoucherViewFilter
 } from "../types/voucher";
-import { getEffectiveStakeLabel } from "../utils/sessionDisplay";
 import { formatVoucherBenefit, inferVoucherKind } from "../utils/voucherDisplay";
 
 const statusOrder: VoucherStatusFilter[] = ["pending", "available", "used"];
@@ -30,9 +28,6 @@ export function useVoucherAssets(
     if (toValue(activeView) === "all") {
       return allVoucherItems.value;
     }
-    if (toValue(activeView) === "issued") {
-      return allVoucherItems.value.filter((item) => item.role === "issuer" && item.agreementId === null);
-    }
     return allVoucherItems.value.filter((item) => item.status === toValue(activeView));
   });
 
@@ -43,12 +38,10 @@ export function useVoucherAssets(
   }));
 
   const totalCount = computed(() => allVoucherItems.value.length);
-  const issuedCount = computed(() => allVoucherItems.value.filter((item) => item.role === "issuer" && item.agreementId === null).length);
   const voucherSections = computed(() => buildVoucherSections(voucherItems.value, toValue(activeView)));
 
   return {
     totalCount,
-    issuedCount,
     statusCounts,
     voucherItems,
     voucherSections
@@ -65,32 +58,21 @@ export function buildVoucherItems(
 
 function buildRealVoucherItems(agreements: Agreement[], coupons: Coupon[], currentUserId: string | null): VoucherItem[] {
   const sessionMap = new Map(agreements.map((agreement) => [agreement.id, agreement]));
-  const couponAgreementIds = new Set(coupons.map((coupon) => coupon.agreementId));
 
   const couponItems = coupons.flatMap((coupon) => {
     const agreement = coupon.agreementId ? sessionMap.get(coupon.agreementId) : undefined;
     const fallbackHolderId = agreement?.participants.find((participant) => participant.id === agreement.winnerId)?.userId;
-    const fallbackIssuerId = agreement?.participants.find((participant) => participant.id === agreement.loserId)?.userId;
     const isHolder = Boolean(currentUserId) && (coupon.holderUserId === currentUserId || (!coupon.holderUserId && fallbackHolderId === currentUserId));
-    const isIssuer = Boolean(currentUserId) && (coupon.issuerUserId === currentUserId || (!coupon.issuerUserId && fallbackIssuerId === currentUserId));
-    if (!isHolder && !isIssuer) {
+    if (!isHolder) {
       return [];
     }
     const status: VoucherUiStatus =
       coupon.status === "used" || coupon.status === "waived"
         ? "used"
-        : coupon.status === "reserved" || !isHolder
+        : coupon.status === "reserved"
           ? "pending"
           : "available";
     const benefit = formatVoucherBenefit(coupon.name);
-    const canDelete = isIssuer && !coupon.claimId && !coupon.agreementId && !coupon.sourceFlipId && !coupon.holderUserId && coupon.claimedCount === 0 && coupon.status === "available";
-    const issuerState = !isIssuer
-      ? null
-      : canDelete
-        ? "awaiting_claim"
-        : coupon.status === "used" || coupon.status === "waived"
-          ? "fulfilled"
-          : "pending_fulfillment";
     return [{
       id: coupon.id,
       couponId: coupon.id,
@@ -98,81 +80,41 @@ function buildRealVoucherItems(agreements: Agreement[], coupons: Coupon[], curre
       agreementId: coupon.agreementId,
       benefitTitle: benefit.title,
       benefitSubtitle: coupon.status === "waived" ? copy.vouchers.waived : benefit.subtitle,
+      sourceLabel: coupon.sourceLabel ?? inferCouponSourceLabel(coupon, agreement),
+      signatureDataUrl: coupon.signatureDataUrl ?? agreement?.participants.find((participant) => participant.userId === coupon.issuerUserId)?.signatureDataUrl ?? null,
       agreementTitle: agreement?.title ?? coupon.description,
       agreementCode: agreement?.shareCode ?? (coupon.agreementId ? coupon.agreementId.slice(-8) : "独立发放"),
+      voucherNumber: formatVoucherNumber(coupon.id),
       ruleText: agreement?.challenge ?? coupon.description,
       issuerName: coupon.issuerNickname,
       holderName: coupon.holderNickname,
       timeText: formatCouponTime(coupon),
+      issuedAt: coupon.createdAt,
+      redeemedAt: coupon.usedAt,
       status,
       sourceStatus: coupon.status,
       kind: inferVoucherKind(coupon.name),
       canRedeem: isHolder && status === "available",
-      canDelete,
-      issuerState,
-      role: isHolder ? "holder" : "issuer"
+      canDelete: false,
+      issuerState: null,
+      role: "holder"
     } satisfies VoucherItem];
   });
 
-  const pendingItems = agreements
-    .filter((agreement) => {
-      const loser = agreement.participants.find((participant) => participant.id === agreement.loserId);
-      return (
-        hasCouponEquity(agreement) &&
-        agreement.status === "result_recorded" &&
-        !couponAgreementIds.has(agreement.id) &&
-        loser?.userId === currentUserId
-      );
-    })
-    .map((agreement) => {
-      const status = inferSessionVoucherStatus(agreement);
-      const benefit = formatVoucherBenefit(getEffectiveStakeLabel(agreement));
-      return {
-        id: `agreement-${agreement.id}`,
-        couponId: null,
-        sourceFlipId: null,
-        agreementId: agreement.id,
-        benefitTitle: benefit.title,
-        benefitSubtitle: benefit.subtitle,
-        agreementTitle: agreement.title,
-        agreementCode: agreement.shareCode,
-        ruleText: agreement.challenge,
-        issuerName: inferIssuerName(agreement),
-        holderName: inferHolderName(agreement),
-        timeText: formatAgreementStatus(agreement.status),
-        status,
-        sourceStatus: null,
-        kind: inferVoucherKind(agreement.stake.label),
-        canRedeem: false,
-        canDelete: false,
-        issuerState: "pending_fulfillment",
-        role: "issuer"
-      } satisfies VoucherItem;
-    });
-
-  return [...couponItems, ...pendingItems].sort((left, right) => {
+  return couponItems.sort((left, right) => {
     const priority = { pending: 0, available: 1, used: 2 };
     return priority[left.status] - priority[right.status];
   });
 }
 
-function inferSessionVoucherStatus(agreement: Agreement): VoucherUiStatus {
-  if (agreement.status === "fulfilled" || agreement.stake.fulfilled) {
-    return "used";
-  }
-  return "pending";
+function inferCouponSourceLabel(coupon: Coupon, agreement?: Agreement) {
+  if (agreement) return copy.vouchers.issueSourceOptions.promise;
+  if (coupon.gameResultId) return copy.vouchers.issueSourceOptions.game;
+  return copy.vouchers.issueSourceOptions.manual;
 }
 
-function inferIssuerName(agreement: Agreement) {
-  const loser = agreement.participants.find((participant) => participant.id === agreement.loserId);
-  const initiator = agreement.participants.find((participant) => participant.role === "initiator");
-  return loser?.nickname ?? initiator?.nickname ?? copy.vouchers.sources.signing;
-}
-
-function inferHolderName(agreement: Agreement) {
-  const winner = agreement.participants.find((participant) => participant.id === agreement.winnerId);
-  const counterparty = agreement.participants.find((participant) => participant.role === "counterparty");
-  return winner?.nickname ?? counterparty?.nickname ?? copy.vouchers.holderPending;
+function formatVoucherNumber(id: string) {
+  return id.slice(-10).toUpperCase();
 }
 
 function formatCouponTime(coupon: Coupon) {
@@ -200,24 +142,12 @@ function formatDate(value: string) {
   return `${month}${copy.vouchers.date.month}${day}${copy.vouchers.date.day} ${hour}:${minute}`;
 }
 
-function formatAgreementStatus(status: AgreementStatus) {
-  const text: Record<AgreementStatus, string> = {
-    pending_signature: copy.vouchers.agreementStatuses.pending_signature,
-    pending_confirmation: copy.vouchers.agreementStatuses.pending_confirmation,
-    active: copy.vouchers.agreementStatuses.active,
-    result_recorded: copy.vouchers.agreementStatuses.result_recorded,
-    fulfilled: copy.vouchers.agreementStatuses.fulfilled,
-    waived: copy.vouchers.agreementStatuses.waived
-  };
-  return text[status];
-}
-
 function countByStatus(items: VoucherItem[], status: VoucherStatusFilter) {
   return items.filter((item) => item.status === status).length;
 }
 
 function buildVoucherSections(items: VoucherItem[], activeView: VoucherViewFilter): VoucherSection[] {
-  const statuses = activeView === "all" || activeView === "issued" ? statusOrder : [activeView];
+  const statuses = activeView === "all" ? statusOrder : [activeView];
   return statuses
     .map((status) => {
       const sectionItems = items.filter((item) => item.status === status);

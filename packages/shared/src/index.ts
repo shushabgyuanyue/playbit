@@ -62,6 +62,8 @@ export const couponSchema = z.object({
   sourceFlipId: z.string().nullable().default(null),
   name: z.string().min(1).max(323),
   description: z.string().min(1).max(180),
+  sourceLabel: z.string().trim().min(1).max(80).default("手动签发"),
+  signatureDataUrl: z.string().nullable().default(null),
   issuerUserId: z.string().nullable(),
   issuerNickname: z.string(),
   holderUserId: z.string().nullable(),

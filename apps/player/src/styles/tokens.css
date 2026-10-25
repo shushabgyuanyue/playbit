@@ -1,0 +1,14 @@
+:root {
+  --pb-font-body: "DM Sans", "Noto Sans SC", sans-serif;
+  --pb-radius-control: 12px;
+  --pb-radius-card: 28px;
+  --pb-space-1: 4px;
+  --pb-space-2: 8px;
+  --pb-space-3: 12px;
+  --pb-space-4: 16px;
+  --pb-space-5: 20px;
+  --pb-space-6: 24px;
+  --pb-text-primary: #18151d;
+  --pb-text-secondary: #68717a;
+  --pb-line-subtle: rgba(24, 21, 29, .1);
+}

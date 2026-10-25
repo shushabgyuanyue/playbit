@@ -14,6 +14,8 @@ const independentCouponSchema = z.object({
   certificateId: z.string().nullable().optional(),
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().min(1).max(inputLimits.customEquity),
+  sourceLabel: z.string().trim().min(1).max(80).default("手动签发"),
+  signatureDataUrl: z.string().max(2_000_000).nullable().optional(),
   transferNote: z.string().trim().max(180).nullable().optional(),
   claimLimit: z.number().int().min(1).max(999).default(1)
 });
@@ -22,6 +24,7 @@ const publicCouponSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
+  sourceLabel: z.string(),
   issuerNickname: z.string(),
   transferNote: z.string().nullable(),
   status: z.enum(["available", "reserved", "used", "waived"]),
@@ -59,6 +62,8 @@ export function registerCouponRoutes(
       issuerUserId: currentUser.id,
       issuerNickname: currentUser.nickname,
       claimLimit: parsed.data.claimLimit,
+      sourceLabel: parsed.data.sourceLabel,
+      signatureDataUrl: parsed.data.signatureDataUrl ?? null,
       transferNote: parsed.data.transferNote?.trim() || null
     });
     return context.json({ coupon: couponSchema.parse(coupon) }, 201);

@@ -810,6 +810,8 @@ export function usePlaybitFlow() {
   async function issueIndependentCoupon(payload: {
     stake: Stake;
     claimLimit: number;
+    sourceLabel: string;
+    signatureDataUrl: string;
     transferNote: string | null;
   }) {
     if (!currentUser.value) {
@@ -822,6 +824,8 @@ export function usePlaybitFlow() {
       const response = await api.createIndependentCoupon({
         name: payload.stake.label,
         description: payload.stake.label,
+        sourceLabel: payload.sourceLabel,
+        signatureDataUrl: payload.signatureDataUrl || null,
         claimLimit: payload.claimLimit,
         transferNote: payload.transferNote
       });

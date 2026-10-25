@@ -11,6 +11,8 @@ export type IndependentCouponInput = {
   certificateId?: string | null;
   name: string;
   description: string;
+  sourceLabel?: string | null;
+  signatureDataUrl?: string | null;
   transferNote?: string | null;
   issuerUserId: string | null;
   issuerNickname: string;
@@ -46,6 +48,8 @@ function fromRow(row: CouponRow): Coupon {
     sourceFlipId: row.sourceFlipId,
     name: row.name,
     description: row.description,
+    sourceLabel: row.sourceLabel || "手动签发",
+    signatureDataUrl: row.signatureDataUrl,
     issuerUserId: row.issuerUserId,
     issuerNickname: row.issuerNickname,
     holderUserId: row.holderUserId,
@@ -75,6 +79,8 @@ function fromClaimRow(row: CouponRow | Coupon, claim: CouponClaimRow | MemoryCou
     sourceFlipId: row.sourceFlipId,
     name: row.name,
     description: row.description,
+    sourceLabel: row.sourceLabel || "手动签发",
+    signatureDataUrl: row.signatureDataUrl,
     issuerUserId: row.issuerUserId,
     issuerNickname: row.issuerNickname,
     holderUserId: claim.holderUserId,
@@ -85,7 +91,7 @@ function fromClaimRow(row: CouponRow | Coupon, claim: CouponClaimRow | MemoryCou
     remainingClaims: Math.max(0, claimLimit - claimedCount),
     status: claim.status,
     transferNote: row.transferNote,
-    createdAt: claim.claimedAt instanceof Date ? claim.claimedAt.toISOString() : claim.claimedAt,
+    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
     usedAt: claim.usedAt instanceof Date ? claim.usedAt.toISOString() : claim.usedAt,
     waivedAt: row.waivedAt instanceof Date ? row.waivedAt.toISOString() : row.waivedAt
   };
@@ -102,6 +108,8 @@ function toRow(coupon: Coupon): typeof coupons.$inferInsert {
     holderUserId: coupon.holderUserId,
     name: coupon.name,
     description: coupon.description,
+    sourceLabel: coupon.sourceLabel ?? "手动签发",
+    signatureDataUrl: coupon.signatureDataUrl ?? null,
     issuerNickname: coupon.issuerNickname,
     holderNickname: coupon.holderNickname,
     claimToken: coupon.claimToken,
@@ -142,6 +150,8 @@ export function couponFromRecordedAgreement(agreement: Agreement): Coupon | null
     sourceFlipId: null,
     name: getEffectiveStakeLabel(agreement),
     description: agreement.title,
+    sourceLabel: "赌约权益",
+    signatureDataUrl: loser.signatureDataUrl ?? null,
     issuerUserId: loser.userId,
     issuerNickname: loser.nickname,
     holderUserId: winner.userId,
@@ -203,6 +213,8 @@ class MemoryCouponRepository {
       sourceFlipId: null,
       name: input.name,
       description: input.description,
+      sourceLabel: input.sourceLabel?.trim() || "手动签发",
+      signatureDataUrl: input.signatureDataUrl ?? null,
       transferNote: input.transferNote ?? null,
       issuerUserId: input.issuerUserId,
       issuerNickname: input.issuerNickname,
@@ -396,6 +408,8 @@ class PostgresCouponRepository {
           .set({
           name: coupon.name,
           description: coupon.description,
+          sourceLabel: coupon.sourceLabel,
+          signatureDataUrl: coupon.signatureDataUrl,
           issuerUserId: coupon.issuerUserId,
           issuerNickname: coupon.issuerNickname,
           holderUserId: coupon.holderUserId,
@@ -422,6 +436,8 @@ class PostgresCouponRepository {
       sourceFlipId: null,
       name: input.name,
       description: input.description,
+      sourceLabel: input.sourceLabel?.trim() || "手动签发",
+      signatureDataUrl: input.signatureDataUrl ?? null,
       transferNote: input.transferNote ?? null,
       issuerUserId: input.issuerUserId,
       issuerNickname: input.issuerNickname,

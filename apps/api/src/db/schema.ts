@@ -143,6 +143,8 @@ export const coupons = pgTable(
     claimedCount: integer("claimed_count").default(0).notNull(),
     name: text("name").notNull(),
     description: text("description").notNull(),
+    sourceLabel: text("source_label").default("手动签发").notNull(),
+    signatureDataUrl: text("signature_data_url"),
     issuerNickname: text("issuer_nickname").notNull(),
     holderNickname: text("holder_nickname").notNull(),
     status: couponStatus("status").default("available").notNull(),

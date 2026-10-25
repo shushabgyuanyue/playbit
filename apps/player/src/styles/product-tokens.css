@@ -1,0 +1,9 @@
+:root {
+  --pb-product-coral: #ff654d;
+  --pb-product-violet: #7d54ff;
+  --pb-product-lime: #c9f45d;
+  --pb-product-paper: #f6f3ee;
+  --pb-product-ink: #18151d;
+  --pb-shadow-game-card: 0 18px 45px rgba(39, 25, 51, .18);
+  --pb-shadow-sheet: 0 -16px 50px rgba(20, 16, 25, .2);
+}

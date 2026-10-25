@@ -43,6 +43,7 @@ const emit = defineEmits<{
         <p class="coupon-claim-kicker">{{ copy.vouchers.claim.issuer }} {{ props.coupon.issuerNickname }}</p>
         <h2 class="life-section-title">{{ props.coupon.name }}</h2>
         <p class="life-section-caption">{{ props.coupon.description }}</p>
+        <p class="coupon-claim-source">{{ copy.vouchers.sourceLabel }} · {{ props.coupon.sourceLabel }}</p>
         <div class="coupon-claim-recipient">
           <span>{{ copy.vouchers.claim.remaining(props.coupon.remainingClaims) }}</span>
           <strong>{{ copy.vouchers.claim.claimCount(props.coupon.claimedCount, props.coupon.claimLimit) }}</strong>
@@ -75,6 +76,7 @@ const emit = defineEmits<{
 .coupon-claim-recipient { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--pb-line); border-bottom: 1px solid var(--pb-line); padding: 11px 0; color: var(--pb-text-3); font-size: var(--pb-font-sm); }
 .coupon-claim-recipient strong { color: var(--pb-text-1); font-weight: var(--pb-weight-semibold); }
 .coupon-claim-note, .coupon-claim-login-note { margin: 0; color: var(--pb-text-2); font-size: var(--pb-font-sm); line-height: 1.5; }
+.coupon-claim-source { margin: -3px 0 0; color: var(--pb-text-3); font-size: var(--pb-font-xs); }
 .coupon-claim-note { border-radius: var(--pb-radius-md); background: var(--pb-fill-soft); padding: 9px; text-align: left; }
 .coupon-claim-state { display: grid; gap: 13px; justify-items: center; color: var(--pb-text-2); font-size: var(--pb-font-md); text-align: center; }
 .coupon-claim-state p { margin: 0; }

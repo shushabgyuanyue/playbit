@@ -8,7 +8,10 @@ import BaseButton from "./ui/BaseButton.vue";
 import BaseField from "./ui/BaseField.vue";
 import LifeActionBar from "./ui/LifeActionBar.vue";
 import LifeServiceHero from "./ui/LifeServiceHero.vue";
+import SignaturePad from "./ui/SignaturePad.vue";
 import StakePicker from "./StakePicker.vue";
+
+type IssueSourceMode = "manual" | "game" | "promise" | "custom";
 
 const props = defineProps<{
   loading: boolean;
@@ -18,13 +21,15 @@ const props = defineProps<{
 const emit = defineEmits<{
   back: [];
   home: [];
-  submit: [{ stake: Stake; claimLimit: number; transferNote: string | null }];
-  viewIssued: [];
+  submit: [{ stake: Stake; claimLimit: number; sourceLabel: string; signatureDataUrl: string; transferNote: string | null }];
 }>();
 
 const form = reactive({
   stake: { type: "coupon", label: "洗碗一次", fulfilled: false, additions: [] } as Stake,
   claimLimit: 1,
+  sourceMode: "manual" as IssueSourceMode,
+  customSource: "",
+  signatureDataUrl: "",
   transferNote: ""
 });
 const attempted = ref(false);
@@ -32,8 +37,14 @@ const copied = ref(false);
 const sharing = ref(false);
 
 const errors = computed(() => ({
-  stake: attempted.value && !form.stake.label.trim() ? copy.vouchers.issue.equityRequired : ""
+  stake: attempted.value && !form.stake.label.trim() ? copy.vouchers.issue.equityRequired : "",
+  source: attempted.value && form.sourceMode === "custom" && !form.customSource.trim() ? copy.vouchers.issue.sourceRequired : "",
+  signature: attempted.value && !form.signatureDataUrl ? copy.vouchers.issue.signatureRequired : ""
 }));
+
+const sourceLabel = computed(() => form.sourceMode === "custom"
+  ? form.customSource.trim()
+  : copy.vouchers.issueSourceOptions[form.sourceMode]);
 
 const shareLink = computed(() => {
   const token = props.createdCoupon?.claimToken;
@@ -42,10 +53,12 @@ const shareLink = computed(() => {
 
 function submit() {
   attempted.value = true;
-  if (errors.value.stake || props.loading) return;
+  if (errors.value.stake || errors.value.source || errors.value.signature || props.loading) return;
   emit("submit", {
     stake: form.stake,
     claimLimit: form.claimLimit,
+    sourceLabel: sourceLabel.value,
+    signatureDataUrl: form.signatureDataUrl,
     transferNote: form.transferNote.trim() || null
   });
 }
@@ -123,7 +136,6 @@ async function shareLinkToSystem() {
             </BaseButton>
           </div>
         </section>
-        <BaseButton variant="ghost" @click="emit('viewIssued')">{{ copy.vouchers.issue.viewIssued }}</BaseButton>
       </template>
 
       <template v-else>
@@ -143,6 +155,21 @@ async function shareLinkToSystem() {
               equity-only
               @change="form.stake = $event"
             />
+            <label class="issue-source-field">
+              <span class="life-field-label">{{ copy.vouchers.sourceLabel }}</span>
+              <select v-model="form.sourceMode" class="life-input">
+                <option v-for="(label, key) in copy.vouchers.issueSourceOptions" :key="key" :value="key">{{ label }}</option>
+              </select>
+              <small v-if="form.sourceMode === 'custom'">{{ copy.vouchers.issue.customSourceHint }}</small>
+              <span v-if="errors.source" class="life-field-error">{{ errors.source }}</span>
+            </label>
+            <BaseField
+              v-if="form.sourceMode === 'custom'"
+              v-model="form.customSource"
+              :label="copy.vouchers.issue.customSourceLabel"
+              :placeholder="copy.vouchers.issue.customSourcePlaceholder"
+              :maxlength="80"
+            />
             <div class="issue-voucher-limit-row">
               <div>
                 <span class="life-field-label">{{ copy.vouchers.issue.claimLimitLabel }}</span>
@@ -159,6 +186,14 @@ async function shareLinkToSystem() {
               </div>
             </div>
             <BaseField v-model="form.transferNote" :label="copy.vouchers.issue.noteLabel" :placeholder="copy.vouchers.issue.notePlaceholder" :maxlength="50" :multiline="true" />
+            <div class="issue-signature-field">
+              <SignaturePad
+                :label="copy.vouchers.issue.signatureLabel"
+                :model-value="form.signatureDataUrl"
+                @change="form.signatureDataUrl = $event"
+              />
+              <span v-if="errors.signature" class="life-field-error">{{ errors.signature }}</span>
+            </div>
           </div>
         </section>
       </template>
@@ -182,6 +217,10 @@ async function shareLinkToSystem() {
 .issue-voucher-intro p { margin: 0; color: var(--pb-text-2); font-size: var(--pb-font-sm); line-height: 1.55; }
 .issue-voucher-form-panel { padding: 15px; }
 .issue-voucher-form { display: grid; gap: 15px; }
+.issue-source-field { display: grid; gap: 6px; }
+.issue-source-field small { color: var(--pb-text-3); font-size: var(--pb-font-xs); line-height: 1.45; }
+.issue-source-field .life-input { width: 100%; box-sizing: border-box; }
+.issue-signature-field { display: grid; gap: 5px; }
 .issue-voucher-limit-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid var(--pb-line-soft); border-bottom: 1px solid var(--pb-line-soft); padding: 13px 0; }
 .issue-voucher-limit-row > div:first-child { display: grid; gap: 4px; min-width: 0; }
 .issue-voucher-limit-row small { color: var(--pb-text-3); font-size: var(--pb-font-xs); line-height: 1.45; }

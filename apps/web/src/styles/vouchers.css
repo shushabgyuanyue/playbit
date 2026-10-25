@@ -8,38 +8,28 @@
   top: 0;
 }
 
-.voucher-overview-wrap {
-  padding: 10px var(--pb-page-x) 6px;
-}
-
-.voucher-overview-wrap .life-summary-card {
-  border-color: rgba(22, 119, 255, 0.14);
-  background: var(--pb-surface-ticket);
-  box-shadow: var(--pb-shadow-ticket);
-  padding: 10px 12px;
-}
-
-.voucher-overview-wrap .life-metric-row {
-  gap: 6px;
-  margin-top: 9px;
-}
-
-.voucher-overview-wrap .life-metric-row span {
-  color: var(--pb-text-2);
-  font-size: var(--pb-font-xs);
-}
-
-.voucher-overview-wrap .life-metric-row strong {
-  color: var(--pb-blue);
-  font-size: var(--pb-font-xl);
-  font-weight: var(--pb-weight-bold);
-}
-
 .voucher-list-shell {
   display: grid;
   gap: 8px;
   padding: 6px var(--pb-page-x) 22px;
 }
+
+.voucher-list-shell .voucher-ticket {
+  grid-template-columns: 78px minmax(0, 1fr);
+  min-height: 72px;
+}
+
+.voucher-list-shell .voucher-ticket::before,
+.voucher-list-shell .voucher-ticket::after { left: 72px; }
+.voucher-list-shell .voucher-ticket-value { padding: 8px 7px; }
+.voucher-list-shell .voucher-ticket-value strong { max-width: 66px; font-size: 16px; }
+.voucher-list-shell .voucher-ticket-value span { max-width: 68px; margin-top: 3px; font-size: var(--pb-font-xs); }
+.voucher-list-shell .voucher-ticket-main { grid-template-columns: minmax(0, 1fr) 58px; gap: 8px; padding: 8px 9px 8px 10px; }
+.voucher-list-shell .voucher-ticket-title-row strong { font-size: var(--pb-font-base); }
+.voucher-list-shell .voucher-ticket-time { margin-top: 3px; font-size: var(--pb-font-xs); }
+.voucher-list-shell .voucher-ticket-links { margin-top: 4px; }
+.voucher-list-shell .voucher-ticket-links button { font-size: var(--pb-font-xs); }
+.voucher-list-shell .voucher-ticket-action { min-width: 58px; min-height: 28px; padding: 0 8px; font-size: var(--pb-font-sm); }
 
 .voucher-section {
   position: relative;

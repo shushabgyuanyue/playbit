@@ -39,7 +39,7 @@ const loadingStatus = ref<Record<VoucherStatusFilter, boolean>>({
 });
 const loadTimers = new Map<VoucherStatusFilter, number>();
 
-const { statusCounts, totalCount, issuedCount, voucherSections } = useVoucherAssets(
+const { statusCounts, totalCount, voucherSections } = useVoucherAssets(
   () => props.agreements,
   () => props.coupons,
   activeView,
@@ -48,7 +48,6 @@ const { statusCounts, totalCount, issuedCount, voucherSections } = useVoucherAss
 
 const statusOptions = computed(() => [
   { key: "all" as const, label: copy.vouchers.statusTabs.all, count: totalCount.value },
-  { key: "issued" as const, label: copy.vouchers.statusTabs.issued, count: issuedCount.value },
   { key: "pending" as const, label: copy.vouchers.statusTabs.pending, count: statusCounts.value.pending },
   { key: "available" as const, label: copy.vouchers.statusTabs.available, count: statusCounts.value.available },
   { key: "used" as const, label: copy.vouchers.statusTabs.used, count: statusCounts.value.used }
@@ -121,28 +120,6 @@ onUnmounted(() => {
       @back="emit('back')"
       @home="emit('home')"
     />
-
-    <div class="voucher-overview-wrap">
-      <section class="life-summary-card">
-        <header>
-          <strong>{{ copy.vouchers.overviewTitle }}</strong>
-        </header>
-        <div class="life-metric-row">
-          <span>
-            <strong>{{ statusCounts.pending }}</strong>
-            {{ copy.vouchers.statusTabs.pending }}
-          </span>
-          <span>
-            <strong>{{ statusCounts.available }}</strong>
-            {{ copy.vouchers.statusTabs.available }}
-          </span>
-          <span>
-            <strong>{{ statusCounts.used }}</strong>
-            {{ copy.vouchers.statusTabs.used }}
-          </span>
-        </div>
-      </section>
-    </div>
 
     <section class="grace-ticket-section" aria-labelledby="grace-ticket-heading">
       <div class="grace-ticket-heading">

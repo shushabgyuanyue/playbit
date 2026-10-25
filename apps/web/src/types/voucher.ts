@@ -1,9 +1,10 @@
 export type VoucherStatusFilter = "pending" | "available" | "used";
-export type VoucherViewFilter = "all" | "issued" | VoucherStatusFilter;
+export type VoucherViewFilter = "all" | VoucherStatusFilter;
 export type CouponClaimPreview = {
   id: string;
   name: string;
   description: string;
+  sourceLabel: string;
   issuerNickname: string;
   transferNote: string | null;
   status: "available" | "reserved" | "used" | "waived";
@@ -22,12 +23,17 @@ export type VoucherItem = {
   agreementId: string | null;
   benefitTitle: string;
   benefitSubtitle: string;
+  sourceLabel: string;
+  signatureDataUrl: string | null;
   agreementTitle: string;
   agreementCode: string;
+  voucherNumber: string;
   ruleText: string;
   issuerName: string;
   holderName: string;
   timeText: string;
+  issuedAt: string;
+  redeemedAt: string | null;
   status: VoucherUiStatus;
   sourceStatus: "available" | "reserved" | "used" | "waived" | null;
   kind: VoucherKind;

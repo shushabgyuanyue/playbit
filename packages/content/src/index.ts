@@ -67,7 +67,7 @@ export const copy = {
     overview: {
       pending: "待确认",
       active: "进行中",
-      settling: "待兑现",
+      settling: "待核销",
       finished: "已结案"
     },
     viewAll: "全部记录",
@@ -517,7 +517,7 @@ export const copy = {
       all: "全部",
       pending: "待确认",
       active: "进行中",
-      result: "待兑现",
+      result: "待核销",
       finished: "已结案"
     },
     monthLabel: (year: string, month: string) => `${year}.${month}`,
@@ -590,10 +590,9 @@ export const copy = {
     },
     statusTabs: {
       all: "全部",
-      issued: "我的签发",
       pending: "待履约",
       available: "待核销",
-      used: "已完结"
+      used: "已核销"
     },
     issue: {
       title: "签发卡券",
@@ -603,6 +602,12 @@ export const copy = {
       claimLimitHint: "同一个分享链接，领取次数用完后自动失效。",
       remainingClaims: (count: number) => `还可领取 ${count} 次`,
       equityRequired: "请选择或填写一项权益",
+      sourceRequired: "请填写这份权益的来源",
+      customSourceLabel: "自定义来源",
+      customSourcePlaceholder: "例如：生日约定",
+      customSourceHint: "来源会显示在卡券正面，帮助之后想起这份权益从哪里来。",
+      signatureLabel: "签发方手写签名",
+      signatureRequired: "请先完成手写签名",
       noteLabel: "转让备注（可选）",
       notePlaceholder: "补充一句想说的话",
       submit: "签发这张卡券",
@@ -610,7 +615,6 @@ export const copy = {
       issuedDescription: "把链接发给需要的人，额度内都可以领取。",
       copyLink: "复制领取链接",
       shareLink: "分享领取链接",
-      viewIssued: "查看我的签发",
       copied: "领取链接已复制",
       copyFailed: "复制失败，请长按链接复制",
       createFailed: "签发失败，请稍后再试",
@@ -635,7 +639,7 @@ export const copy = {
     },
     rule: "规则",
     viewAgreement: "查看合约",
-    redeem: "去核销",
+    redeem: "核销",
     confirmRedeem: "确认核销",
     redeemed: "已核销",
     received: "已发放",
@@ -661,19 +665,32 @@ export const copy = {
     openFailed: "无法打开关联合约，请稍后重试",
     agreementNo: "协议编号",
     relatedAgreement: "关联合约",
+    sourceLabel: "来源",
+    voucherNumber: "卡券编号",
+    signature: "签发签名",
+    issuedAt: "签发时间",
+    redeemedAt: "核销时间",
+    flipHint: "点击卡面查看签发信息",
+    backHint: "点击返回卡面",
+    signatureMissing: "暂未留存手写签名",
     judgmentRule: "本局规则",
     issuer: "出券方",
     holder: "持有人",
     emptyTitle: "暂无卡券",
     emptyText: "合约登记结果后，关联卡券会显示在这里。",
     detail: {
-      credential: "权益卡券",
       agreement: "关联合约",
       rule: "履约规则",
       parties: "相关人员",
       issuer: "出券方",
       holder: "持有人",
       time: "时间状态"
+    },
+    issueSourceOptions: {
+      manual: "手动签发",
+      game: "游戏彩头",
+      promise: "赌约权益",
+      custom: "自定义来源"
     },
     sources: {
       signing: "待确认",

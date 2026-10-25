@@ -73,6 +73,8 @@ const flipCoupon: Coupon = {
   sourceFlipId: null,
   name: "洗碗一次",
   description: signed.title,
+  sourceLabel: "赌约权益",
+  signatureDataUrl: null,
   issuerUserId: "user_a",
   issuerNickname: "甲方",
   holderUserId: "user_b",
