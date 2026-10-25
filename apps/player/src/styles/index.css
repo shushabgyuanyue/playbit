@@ -554,3 +554,37 @@ a { color: inherit; text-decoration: none; }
 .dark-coupon .issue-pending-ticket-mark { color: var(--player-lime); }
 @media (prefers-reduced-motion: reduce) { .coupon-flip { transition: none; } }
 @keyframes stakeNudgeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Remote benefits keep the prototype surface while adding real account states. */
+.remote-list-note { margin: 8px 0 0; color: #9b5d4f; font-size: 9px; line-height: 1.4; }
+.benefits-load-sentinel { min-height: 18px; display: grid; place-items: center; }
+.list-loading-dot { width: 15px; height: 15px; display: inline-block; border: 2px solid rgba(125, 84, 255, .22); border-top-color: var(--player-violet); border-radius: 50%; animation: listSpin .7s linear infinite; }
+.signature-image { width: 100%; height: 30px; display: block; object-fit: contain; object-position: right bottom; mix-blend-mode: multiply; }
+.auth-form { gap: 12px; }
+.auth-form label { gap: 5px; }
+.auth-form label > span { color: #7d7680; font-size: 10px; font-weight: 800; }
+.auth-form input { min-height: 43px; padding: 0 12px; border: 1px solid #ddd9d4; border-radius: 11px; color: var(--player-ink); background: #fff; outline: none; font-size: 13px; }
+.auth-form input:focus { border-color: var(--player-violet); box-shadow: 0 0 0 3px rgba(125, 84, 255, .11); }
+.auth-form .primary-button { width: 100%; margin-top: 2px; }
+.auth-switch { align-self: center; font-size: 10px; }
+.auth-error { min-height: 18px; margin: 0; display: flex; align-items: center; gap: 5px; color: #bb4d41; font-size: 10px; }
+.claim-page { min-height: 0; flex: 1; overflow: auto; padding: 30px 24px 30px; }
+.claim-ticket-wrap { min-height: 100%; display: flex; flex-direction: column; align-items: stretch; }
+.claim-heading { margin: 20px 0 24px; }
+.claim-heading h1 { max-width: 290px; margin: 0; color: var(--player-ink); font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -.05em; }
+.claim-heading p { margin: 10px 0 0; color: #817a84; font-size: 11px; }
+.claim-ticket { position: relative; overflow: hidden; min-height: 205px; padding: 20px 18px 16px; display: flex; flex-direction: column; border-radius: 22px; color: var(--player-ink); background: linear-gradient(145deg, #ff795f, #f34e58); box-shadow: 0 18px 34px rgba(100, 43, 50, .17), inset 0 1px 0 rgba(255, 255, 255, .42); }
+.claim-ticket::after { content: ""; position: absolute; width: 150px; height: 150px; right: -54px; bottom: -72px; border: 1px solid rgba(255, 255, 255, .25); border-radius: 50%; box-shadow: 0 0 0 13px rgba(255, 255, 255, .07), 0 0 0 26px rgba(255, 255, 255, .05); }
+.claim-ticket-top { display: flex; align-items: center; justify-content: space-between; color: rgba(24, 21, 29, .62); }
+.claim-ticket-top small { font-size: 8px; font-weight: 900; letter-spacing: .13em; }
+.claim-ticket > strong { max-width: 84%; margin-top: 34px; font-size: 25px; line-height: 1.15; }
+.claim-ticket > p { max-width: 84%; margin: 10px 0 0; font-size: 11px; line-height: 1.5; }
+.claim-ticket-meta { position: relative; z-index: 1; margin-top: auto; display: flex; justify-content: space-between; gap: 10px; color: rgba(24, 21, 29, .64); font-size: 9px; font-weight: 700; }
+.claim-ticket-note { position: relative; z-index: 1; margin-top: 10px; color: rgba(24, 21, 29, .58); font-size: 8px; }
+.claim-action { width: 100%; margin-top: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.claim-page > .text-button, .claim-ticket-wrap > .text-button { align-self: center; margin-top: 10px; font-size: 10px; }
+.claim-state { min-height: 70%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #8a828d; text-align: center; }
+.claim-state p { margin: 0; font-size: 11px; }
+.claim-error { color: #a15b52; }
+.claim-error strong { max-width: 250px; color: #6f626b; font-size: 13px; line-height: 1.5; }
+@keyframes listSpin { to { transform: rotate(360deg); } }

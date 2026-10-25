@@ -31,6 +31,8 @@ export interface BenefitIssuance {
   status: "pending_claim" | "claimed";
   claimedBy?: string;
   claimedAt?: string;
+  claimToken?: string;
+  remoteId?: string;
 }
 
 export interface GameStakeIssuance extends BenefitIssuance {

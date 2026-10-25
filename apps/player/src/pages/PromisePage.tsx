@@ -5,19 +5,23 @@ import { Icon } from "../components/ui/Icon";
 import { emptyDraft } from "../data/demo";
 import type { Party, Signature } from "../data/types";
 import { IssueStakeSheet } from "../features/cards/IssueStakeSheet";
+import { AuthSheet } from "../features/player/AuthSheet";
 import { PromiseForm } from "../features/promise/PromiseForm";
 import { SigningStep } from "../features/promise/SigningStep";
 import { claimDirectBenefit, issueDirectBenefit } from "../features/player/transitions";
 import { usePlayer } from "../features/player/PlayerProvider";
 import { usePageMemory } from "../services/pageMemory";
+import { isPlayerApiConfigured, PlayerApiError, playerApi, signatureToDataUrl } from "../services/playerApi";
 
 export function PromisePage() {
-  const { state, update, notify } = usePlayer();
+  const { state, update, notify, auth } = usePlayer();
   const draft = state.draft;
   const { memory, remember } = usePageMemory();
   const navigate = useNavigate();
   const [stamping, setStamping] = useState(false);
   const [issueOpen, setIssueOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [pendingSignature, setPendingSignature] = useState<Signature | null>(null);
   const section = useRef<HTMLElement>(null);
   const initialScrollTop = useRef(memory.scrollTop.promise ?? 0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -62,15 +66,63 @@ export function PromisePage() {
     }, 900);
   }
 
+  async function persistBenefit(signature: Signature, authReady = false) {
+    if (!agreement || issuance || (!auth.user && !authReady)) return;
+    const localIssuanceId = `promise-${agreement.id}`;
+    if (isPlayerApiConfigured()) {
+      try {
+        const result = await playerApi.createIndependentCoupon({
+          name: agreement.benefit,
+          description: agreement.text,
+          sourceLabel: copy.wallet.issueSourceOptions.promise,
+          signatureDataUrl: signatureToDataUrl(signature),
+          claimLimit: 1
+        });
+        const remoteIssuance = result.coupon;
+        update(current => ({
+          ...current,
+          issuedBenefits: {
+            ...current.issuedBenefits,
+            [localIssuanceId]: {
+              id: localIssuanceId,
+              remoteId: remoteIssuance.id,
+              claimToken: remoteIssuance.claimToken ?? undefined,
+              title: remoteIssuance.name,
+              issuerName: remoteIssuance.issuerNickname,
+              signature,
+              issuedAt: remoteIssuance.createdAt,
+              source: "promise",
+              sourceNote: agreement.text,
+              status: "pending_claim"
+            }
+          }
+        }));
+        notify(copy.promise.issueBenefitSigned);
+        return;
+      } catch (error) {
+        notify(error instanceof PlayerApiError && error.status === 0 ? copy.auth.network : copy.promise.issueBenefit);
+        return;
+      }
+    }
+    update(current => issueDirectBenefit(current, current.draft.benefit, current.profileName, signature, current.draft.text, new Date().toISOString(), localIssuanceId, "promise"));
+    notify(copy.promise.issueBenefitSigned);
+  }
+
   function signBenefit(signature: Signature) {
     if (!agreement || issuance) return;
-    update(current => issueDirectBenefit(current, current.draft.benefit, current.profileName, signature, current.draft.text, new Date().toISOString(), `promise-${agreement.id}`, "promise"));
-    notify(copy.promise.issueBenefitSigned);
+    if (isPlayerApiConfigured() && !auth.user) {
+      setPendingSignature(signature);
+      setAuthOpen(true);
+      return;
+    }
+    void persistBenefit(signature);
   }
 
   async function shareBenefit() {
     if (!issuance) return;
-    const url = `${window.location.href.split("#")[0]}#benefit=${issuance.id}`;
+    const url = issuance.claimToken
+      ? `${window.location.origin}/claim/${encodeURIComponent(issuance.claimToken)}`
+      : `${window.location.href.split("#")[0]}#benefit=${issuance.id}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: issuance.title, text: `${draft.text} · ${issuance.title}`, url });
@@ -109,6 +161,7 @@ export function PromisePage() {
       <Link className="view-contract-btn" to={`/agreements/${draft.agreementId}`}><Icon name="file" size={17} /><span><b>{copy.promise.viewDocument}</b><small>{copy.promise.detailHint}</small></span><Icon name="arrow" size={16} /></Link>
       <button className="contract-cta" onClick={() => { update(current => ({ ...current, draft: emptyDraft() })); }}>{copy.promise.another}<Icon name="arrow" /></button>
     </div>}
-    {agreement && <IssueStakeSheet open={issueOpen} onClose={() => setIssueOpen(false)} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} issuance={issuance} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={selfClaimBenefit} labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.issueBenefit, pending: copy.promise.issueBenefitPending, sign: copy.play.issueStakeSign, signHint: copy.play.issueStakeSignHint, action: copy.play.issueStakeAction, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
+    {agreement && <IssueStakeSheet open={issueOpen} onClose={() => setIssueOpen(false)} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} issuance={issuance} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={selfClaimBenefit} canSelfClaim={!issuance?.claimToken} labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.issueBenefit, pending: copy.promise.issueBenefitPending, sign: copy.play.issueStakeSign, signHint: copy.play.issueStakeSignHint, action: copy.play.issueStakeAction, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
+    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSignature(null); }} onSuccess={() => { const signature = pendingSignature; setPendingSignature(null); if (signature) void persistBenefit(signature, true); }} />
   </section>;
 }

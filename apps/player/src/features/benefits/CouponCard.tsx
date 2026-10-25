@@ -11,7 +11,7 @@ function formatDate(value?: string) {
   return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date).replace(/\//g, ".");
 }
 
-export function CouponCard({ coupon, index, onRedeem }: { coupon: Coupon; index: number; onRedeem: () => void }) {
+export function CouponCard({ coupon, index, onRedeem, signatureDataUrl }: { coupon: Coupon; index: number; onRedeem: () => void; signatureDataUrl?: string | null }) {
   const [flipped, setFlipped] = useState(false);
   const number = coupon.displayNo ?? coupon.id.slice(-8).toUpperCase();
   const toggle = () => setFlipped(value => !value);
@@ -30,7 +30,7 @@ export function CouponCard({ coupon, index, onRedeem }: { coupon: Coupon; index:
         <div className="coupon-back-number">PLAYBIT ID · {number}</div>
         <div className="coupon-signature-line">
           <div className="coupon-signature">
-            {coupon.signature?.length ? <SignatureMark value={coupon.signature} /> : <b className="signature-placeholder">{copy.wallet.signatureMissing}</b>}
+            {signatureDataUrl ? <img className="signature-image" src={signatureDataUrl} alt="" /> : coupon.signature?.length ? <SignatureMark value={coupon.signature} /> : <b className="signature-placeholder">{copy.wallet.signatureMissing}</b>}
           </div>
           <time className="coupon-back-date">{formatDate(coupon.issuedAt)}</time>
         </div>

@@ -31,7 +31,8 @@ export function IssueStakeSheet({
   onIssue,
   onShare,
   onSelfClaim,
-  labels
+  labels,
+  canSelfClaim = true
 }: {
   open: boolean;
   onClose: () => void;
@@ -43,6 +44,7 @@ export function IssueStakeSheet({
   onShare: () => void;
   onSelfClaim: () => void;
   labels?: Partial<IssueShareLabels>;
+  canSelfClaim?: boolean;
 }) {
   const [signature, setSignature] = useState<Signature>([]);
   const text: IssueShareLabels = {
@@ -83,7 +85,7 @@ export function IssueStakeSheet({
       </div>
       {issuance.status !== "claimed" && <div className="issue-stake-actions">
         <button className="primary-button" type="button" onClick={onShare}><Icon name="send" size={17} />{text.share}</button>
-        <button className="text-button" type="button" onClick={onSelfClaim}>{text.selfClaim}</button>
+        {canSelfClaim && <button className="text-button" type="button" onClick={onSelfClaim}>{text.selfClaim}</button>}
       </div>}
     </>}
   </Sheet>;

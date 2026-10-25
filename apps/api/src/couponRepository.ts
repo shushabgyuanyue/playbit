@@ -1,7 +1,7 @@
 import { agreements, couponClaims, coupons } from "./db/schema.js";
 import type { Agreement, Coupon, Participant } from "@playbit/shared";
 import { getEffectiveStakeLabel, hasCouponEquity } from "@playbit/game-core";
-import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { randomBytes } from "node:crypto";
 import { agreementFromRow, agreementToRow, AgreementRevisionConflict, type AgreementRepository } from "./agreementRepository.js";
@@ -18,6 +18,61 @@ export type IndependentCouponInput = {
   issuerNickname: string;
   claimLimit?: number;
 };
+
+export type CouponListPage = {
+  items: Coupon[];
+  nextCursor: string | null;
+};
+
+export type CouponListOptions = {
+  limit?: number;
+  cursor?: string | null;
+  ownedOnly?: boolean;
+};
+
+type CouponCursor = { createdAt: string; id: string };
+
+const DEFAULT_LIST_LIMIT = 10;
+const MAX_LIST_LIMIT = 50;
+
+function normalizeListLimit(value?: number): number {
+  return Math.max(1, Math.min(MAX_LIST_LIMIT, Math.floor(value ?? DEFAULT_LIST_LIMIT)));
+}
+
+function encodeCursor(cursor: CouponCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+function decodeCursor(value?: string | null): CouponCursor | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Partial<CouponCursor>;
+    if (typeof parsed.createdAt !== "string" || typeof parsed.id !== "string" || !parsed.id) return null;
+    if (!Number.isFinite(Date.parse(parsed.createdAt))) return null;
+    return { createdAt: parsed.createdAt, id: parsed.id };
+  } catch {
+    return null;
+  }
+}
+
+function isAfterCursor<T extends { createdAt: string; id: string }>(item: T, cursor: CouponCursor | null): boolean {
+  if (!cursor) return true;
+  return item.createdAt < cursor.createdAt || (item.createdAt === cursor.createdAt && item.id < cursor.id);
+}
+
+function pageFromItems(items: Coupon[], options: CouponListOptions = {}): CouponListPage {
+  const limit = normalizeListLimit(options.limit);
+  const cursor = decodeCursor(options.cursor);
+  const filtered = items
+    .filter(item => isAfterCursor(item, cursor))
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id));
+  const page = filtered.slice(0, limit);
+  const last = page.at(-1);
+  return {
+    items: page,
+    nextCursor: filtered.length > limit && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null
+  };
+}
 
 type CouponRow = typeof coupons.$inferSelect;
 type CouponClaimRow = typeof couponClaims.$inferSelect;
@@ -247,6 +302,10 @@ class MemoryCouponRepository {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  async listPageByUser(userId: string, options: CouponListOptions = {}): Promise<CouponListPage> {
+    return pageFromItems(await this.listByUser(userId), options);
+  }
+
   async findById(id: string): Promise<Coupon | null> {
     const coupon = this.coupons.get(id);
     if (coupon) return coupon;
@@ -469,6 +528,48 @@ class PostgresCouponRepository {
       .orderBy(desc(couponClaims.createdAt));
     return [...rows.map(fromRow), ...claims.map(({ coupon, claim }) => fromClaimRow(coupon, claim))]
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }
+
+  async listPageByUser(userId: string, options: CouponListOptions = {}): Promise<CouponListPage> {
+    const limit = normalizeListLimit(options.limit);
+    const cursor = decodeCursor(options.cursor);
+    const parentCursor = cursor
+      ? or(
+        lt(coupons.createdAt, new Date(cursor.createdAt)),
+        and(eq(coupons.createdAt, new Date(cursor.createdAt)), lt(coupons.id, cursor.id))
+      )
+      : undefined;
+    const claimCursor = cursor
+      ? or(
+        lt(couponClaims.createdAt, new Date(cursor.createdAt)),
+        and(eq(couponClaims.createdAt, new Date(cursor.createdAt)), lt(couponClaims.id, cursor.id))
+      )
+      : undefined;
+
+    const [rows, claims] = await Promise.all([
+      this.db
+        .select()
+        .from(coupons)
+        .where(and(options.ownedOnly ? eq(coupons.holderUserId, userId) : or(eq(coupons.holderUserId, userId), eq(coupons.issuerUserId, userId)), parentCursor))
+        .orderBy(desc(coupons.createdAt), desc(coupons.id))
+        .limit(limit + 1),
+      this.db
+        .select({ coupon: coupons, claim: couponClaims })
+        .from(couponClaims)
+        .innerJoin(coupons, eq(couponClaims.couponId, coupons.id))
+        .where(and(eq(couponClaims.holderUserId, userId), claimCursor))
+        .orderBy(desc(couponClaims.createdAt), desc(couponClaims.id))
+        .limit(limit + 1)
+    ]);
+
+    const items = [...rows.map(fromRow), ...claims.map(({ coupon, claim }) => fromClaimRow(coupon, claim))]
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id));
+    const page = items.slice(0, limit);
+    const last = page.at(-1);
+    return {
+      items: page,
+      nextCursor: items.length > limit && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null
+    };
   }
 
   async findById(id: string): Promise<Coupon | null> {

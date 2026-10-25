@@ -12,7 +12,8 @@ export function IssueBenefitSheet({
   issuance,
   onIssue,
   onShare,
-  onSelfClaim
+  onSelfClaim,
+  canSelfClaim = true
 }: {
   open: boolean;
   onClose: () => void;
@@ -21,6 +22,7 @@ export function IssueBenefitSheet({
   onIssue: (title: string, source: CouponSource, sourceNote: string, signature: Signature) => void;
   onShare: () => void;
   onSelfClaim: () => void;
+  canSelfClaim?: boolean;
 }) {
   const [title, setTitle] = useState("");
   const [sourceMode, setSourceMode] = useState<"manual" | "game" | "promise" | "custom">("manual");
@@ -90,7 +92,7 @@ export function IssueBenefitSheet({
       </div>
       <div className="issue-stake-actions">
         <button className="primary-button" type="button" onClick={onShare}><Icon name="send" size={17} />{copy.wallet.issueShare}</button>
-        <button className="text-button" type="button" onClick={onSelfClaim}>{copy.wallet.issueSelfClaim}</button>
+        {canSelfClaim && <button className="text-button" type="button" onClick={onSelfClaim}>{copy.wallet.issueSelfClaim}</button>}
       </div>
     </>}
   </Sheet>;

@@ -7,16 +7,18 @@ import { Sheet } from "../components/ui/Sheet";
 import { AiSheet, CollectionSheet, CreateDeckSheet, SceneDrawer } from "../features/cards/DeckSheets";
 import { GameCard } from "../features/cards/GameCard";
 import { IssueStakeSheet } from "../features/cards/IssueStakeSheet";
+import { AuthSheet } from "../features/player/AuthSheet";
 import { useCardDeck } from "../features/cards/useCardDeck";
 import { usePlayer } from "../features/player/PlayerProvider";
 import { claimGameStake, issueGameStake } from "../features/player/transitions";
 import type { Signature } from "../data/types";
 import { usePageMemory } from "../services/pageMemory";
+import { isPlayerApiConfigured, PlayerApiError, playerApi, signatureToDataUrl } from "../services/playerApi";
 
 type Panel = "scene" | "ai" | "save" | "stake" | "issue" | "new" | "new-and-save" | null;
 
 export function PlayPage() {
-  const { state, update, notify } = usePlayer();
+  const { state, update, notify, auth } = usePlayer();
   const { memory, remember } = usePageMemory();
   const { card, pool, flipped, setFlipped, slide, go } = useCardDeck(memory.playFlippedCardId);
   const navigate = useNavigate();
@@ -24,6 +26,8 @@ export function PlayPage() {
   const [stakeInput, setStakeInput] = useState("");
   const [pendingSaveCardId, setPendingSaveCardId] = useState<string | null>(null);
   const [issueNudge, setIssueNudge] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [pendingSignature, setPendingSignature] = useState<Signature | null>(null);
   const pendingMove = useRef<number | null>(null);
   const ignoredIssueNudges = useRef(new Set<string>());
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -87,15 +91,65 @@ export function PlayPage() {
     pendingMove.current = null;
     go(direction);
   }
-  function signStake(signature: Signature) {
-    if (!stake || issuance) return;
+  async function persistGameStake(signature: Signature, authReady = false) {
+    if (!stake || issuance || (!auth.user && !authReady)) return;
+    if (isPlayerApiConfigured()) {
+      try {
+        const result = await playerApi.createIndependentCoupon({
+          name: stake,
+          description: `来自「${card.label}」的游戏彩头`,
+          sourceLabel: copy.wallet.issueSourceOptions.game,
+          gameResultId: null,
+          signatureDataUrl: signatureToDataUrl(signature),
+          claimLimit: 1
+        });
+        const remoteIssuance = result.coupon;
+        update(current => ({
+          ...current,
+          issuedStakes: {
+            ...current.issuedStakes,
+            [card.id]: {
+              id: remoteIssuance.id,
+              remoteId: remoteIssuance.id,
+              claimToken: remoteIssuance.claimToken ?? undefined,
+              cardId: card.id,
+              cardTitle: card.label,
+              title: remoteIssuance.name,
+              issuerName: remoteIssuance.issuerNickname,
+              signature,
+              issuedAt: remoteIssuance.createdAt,
+              source: "game",
+              status: "pending_claim"
+            }
+          }
+        }));
+        setPanel("issue");
+        notify(copy.play.issueStakeSigned);
+        return;
+      } catch (error) {
+        notify(error instanceof PlayerApiError && error.status === 0 ? copy.auth.network : copy.play.issueStake);
+        return;
+      }
+    }
     update(current => issueGameStake(current, card.id, card.label, stake, current.profileName, signature));
     setPanel("issue");
     notify(copy.play.issueStakeSigned);
   }
+
+  function signStake(signature: Signature) {
+    if (!stake || issuance) return;
+    if (isPlayerApiConfigured() && !auth.user) {
+      setPendingSignature(signature);
+      setAuthOpen(true);
+      return;
+    }
+    void persistGameStake(signature);
+  }
   async function shareStake() {
     if (!issuance) return;
-    const url = `${window.location.href.split("#")[0]}#stake=${issuance.id}`;
+    const url = issuance.claimToken
+      ? `${window.location.origin}/claim/${encodeURIComponent(issuance.claimToken)}`
+      : `${window.location.href.split("#")[0]}#stake=${issuance.id}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: issuance.title, text: `${issuance.cardTitle} · ${issuance.title}`, url });
@@ -136,6 +190,7 @@ export function PlayPage() {
     <Sheet open={panel === "stake"} onClose={close} title={copy.play.stakeTitle} description={copy.play.stakeHint}>
       <form className="sheet-form" onSubmit={e => { e.preventDefault(); saveStake(); }}><label>{copy.play.stake}<input value={stakeInput} onChange={e => setStakeInput(e.target.value)} placeholder={copy.play.stakePlaceholder} maxLength={80} required /></label><button className="primary-button" disabled={!stakeInput.trim()}>{copy.play.stakeConfirm}</button>{stake && <button type="button" className="text-button" onClick={() => saveStake(true)}>{copy.play.removeStake}</button>}</form>
     </Sheet>
-    <IssueStakeSheet open={panel === "issue"} onClose={close} cardTitle={card.label} stake={stake ?? ""} issuerName={state.profileName} issuance={issuance} onIssue={signStake} onShare={() => void shareStake()} onSelfClaim={selfClaimStake} />
+    <IssueStakeSheet open={panel === "issue"} onClose={close} cardTitle={card.label} stake={stake ?? ""} issuerName={state.profileName} issuance={issuance} onIssue={signStake} onShare={() => void shareStake()} onSelfClaim={selfClaimStake} canSelfClaim={!issuance?.claimToken} />
+    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSignature(null); }} onSuccess={() => { const signature = pendingSignature; setPendingSignature(null); if (signature) void persistGameStake(signature, true); }} />
   </>;
 }

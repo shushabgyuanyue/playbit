@@ -48,8 +48,25 @@ export function registerCouponRoutes(
       return currentUser;
     }
 
-    const items = await coupons.listByUser(currentUser.id);
-    return context.json({ coupons: items.map((coupon) => couponSchema.parse(coupon)) });
+    const rawLimitValue = context.req.query("limit");
+    const cursor = context.req.query("cursor");
+    if (rawLimitValue === undefined && cursor === undefined) {
+      const items = await coupons.listByUser(currentUser.id);
+      return context.json({ coupons: items.map((coupon) => couponSchema.parse(coupon)) });
+    }
+
+    const rawLimit = Number(rawLimitValue ?? 10);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(50, Math.floor(rawLimit))) : 10;
+    const page = await coupons.listPageByUser(currentUser.id, {
+      limit,
+      cursor,
+      ownedOnly: context.req.query("owned") === "1"
+    });
+    return context.json({
+      coupons: page.items.map((coupon) => couponSchema.parse(coupon)),
+      nextCursor: page.nextCursor,
+      hasMore: page.nextCursor !== null
+    });
   });
 
   app.post("/coupons/independent", async (context) => {
