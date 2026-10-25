@@ -214,6 +214,11 @@ export const createAgreementSchema = z.object({
 // Draft edits keep the same validated shape as creation, but have a separate
 // contract so callers cannot accidentally treat an update as a new record.
 export const createAgreementRequestSchema = createAgreementSchema.extend({ requestId: z.string().uuid() });
+export const createOfflineAgreementRequestSchema = createAgreementSchema.extend({
+  requestId: z.string().uuid(),
+  counterpartyNickname: z.string().trim().min(1).max(inputLimits.nickname),
+  counterpartySignatureDataUrl: z.string().min(1).max(50000)
+});
 export const updateAgreementSchema = createAgreementSchema.extend({ revision: z.number().int().positive() });
 
 export const createGameSchema = z.object({
@@ -275,6 +280,7 @@ export type Card = z.infer<typeof cardSchema>;
 export type AgreementStatus = z.infer<typeof agreementStatusSchema>;
 export type Agreement = z.infer<typeof agreementSchema>;
 export type CreateAgreementInput = z.infer<typeof createAgreementSchema>;
+export type CreateOfflineAgreementInput = z.infer<typeof createOfflineAgreementRequestSchema>;
 export type UpdateAgreementInput = z.infer<typeof updateAgreementSchema>;
 export type SignAgreementInput = z.infer<typeof signAgreementSchema>;
 export type CreateBoostInput = z.infer<typeof createBoostSchema>;

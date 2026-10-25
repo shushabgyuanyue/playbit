@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import type { Agreement as ApiAgreement } from "@playbit/shared";
 import { playerCopy as copy } from "@playbit/content/player";
 import { Icon } from "../components/ui/Icon";
 import { emptyDraft } from "../data/demo";
@@ -13,6 +14,17 @@ import { usePlayer } from "../features/player/PlayerProvider";
 import { usePageMemory } from "../services/pageMemory";
 import { isPlayerApiConfigured, PlayerApiError, playerApi, signatureToDataUrl } from "../services/playerApi";
 
+function toLocalAgreement(agreement: ApiAgreement, signatures: Record<Party, Signature>) {
+  return {
+    id: agreement.id,
+    text: agreement.challenge || agreement.title,
+    benefit: agreement.stake.label,
+    signatures,
+    createdAt: agreement.createdAt,
+    winner: null as Party | null
+  };
+}
+
 export function PromisePage() {
   const { state, update, notify, auth } = usePlayer();
   const draft = state.draft;
@@ -22,10 +34,12 @@ export function PromisePage() {
   const [issueOpen, setIssueOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingSignature, setPendingSignature] = useState<Signature | null>(null);
+  const [pendingSeal, setPendingSeal] = useState(false);
   const section = useRef<HTMLElement>(null);
   const initialScrollTop = useRef(memory.scrollTop.promise ?? 0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sealing = useRef(false);
+  const sealRequestId = useRef<string | null>(null);
   const agreement = draft.agreementId ? state.agreements.find(item => item.id === draft.agreementId) : null;
   const issuanceId = agreement ? `promise-${agreement.id}` : null;
   const issuance = issuanceId ? state.issuedBenefits[issuanceId] ?? null : null;
@@ -42,6 +56,7 @@ export function PromisePage() {
   }, [remember]);
 
   function change(text: string, benefit: string) {
+    sealRequestId.current = null;
     update(current => ({ ...current, draft: { ...current.draft, text, benefit, signatures: { a: [], b: [] } } }));
   }
 
@@ -49,21 +64,59 @@ export function PromisePage() {
     update(current => ({ ...current, draft: { ...current.draft, signatures: { ...current.draft.signatures, [party]: value } } }));
   }
 
-  function seal() {
+  async function sealAfterAuth(authReady = false) {
     if (sealing.current || !draft.signatures.a.length || !draft.signatures.b.length) return;
+    if (isPlayerApiConfigured() && !auth.user && !authReady) {
+      setPendingSeal(true);
+      setAuthOpen(true);
+      return;
+    }
     sealing.current = true;
     setStamping(true);
-    timer.current = setTimeout(() => {
-      const id = crypto.randomUUID();
-      const createdAt = new Date().toISOString();
-      update(current => {
-        if (current.draft.step !== 1) return current;
-        return { ...current, agreements: [{ id, text: current.draft.text.trim(), benefit: current.draft.benefit.trim(), signatures: current.draft.signatures, createdAt, winner: null }, ...current.agreements], draft: { ...current.draft, step: 2, agreementId: id, winner: null } };
-      });
+    const signatures = draft.signatures;
+    const requestId = sealRequestId.current ?? crypto.randomUUID();
+    sealRequestId.current = requestId;
+    try {
+      await new Promise<void>(resolve => { timer.current = setTimeout(resolve, 900); });
+      if (isPlayerApiConfigured()) {
+        const result = await playerApi.createOfflineAgreement({
+          requestId,
+          source: "custom",
+          creatorSignatureDataUrl: signatureToDataUrl(signatures.a) ?? "",
+          counterpartyNickname: "乙方",
+          counterpartySignatureDataUrl: signatureToDataUrl(signatures.b) ?? "",
+          title: draft.text.trim(),
+          challenge: draft.text.trim(),
+          stake: { type: copy.promise.options.some(option => option === draft.benefit) ? "coupon" : "custom", label: draft.benefit.trim(), fulfilled: false, additions: [] }
+        });
+        update(current => {
+          if (current.draft.step !== 1) return current;
+          return {
+            ...current,
+            agreements: [toLocalAgreement(result.agreement, signatures), ...current.agreements.filter(item => item.id !== result.agreement.id)],
+            draft: { ...current.draft, step: 2, agreementId: result.agreement.id, winner: null }
+          };
+        });
+      } else {
+        const id = crypto.randomUUID();
+        const createdAt = new Date().toISOString();
+        update(current => {
+          if (current.draft.step !== 1) return current;
+          return { ...current, agreements: [{ id, text: current.draft.text.trim(), benefit: current.draft.benefit.trim(), signatures: current.draft.signatures, createdAt, winner: null }, ...current.agreements], draft: { ...current.draft, step: 2, agreementId: id, winner: null } };
+        });
+      }
+      sealRequestId.current = null;
+      notify(copy.promise.sealed);
+    } catch {
+      notify(copy.auth.network);
+    } finally {
       sealing.current = false;
       setStamping(false);
-      notify(copy.promise.sealed);
-    }, 900);
+    }
+  }
+
+  function seal() {
+    void sealAfterAuth();
   }
 
   async function persistBenefit(signature: Signature, authReady = false) {
@@ -162,6 +215,6 @@ export function PromisePage() {
       <button className="contract-cta" onClick={() => { update(current => ({ ...current, draft: emptyDraft() })); }}>{copy.promise.another}<Icon name="arrow" /></button>
     </div>}
     {agreement && <IssueStakeSheet open={issueOpen} onClose={() => setIssueOpen(false)} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} issuance={issuance} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={selfClaimBenefit} canSelfClaim={!issuance?.claimToken} labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.issueBenefit, pending: copy.promise.issueBenefitPending, sign: copy.play.issueStakeSign, signHint: copy.play.issueStakeSignHint, action: copy.play.issueStakeAction, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
-    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSignature(null); }} onSuccess={() => { const signature = pendingSignature; setPendingSignature(null); if (signature) void persistBenefit(signature, true); }} />
+    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSignature(null); setPendingSeal(false); }} onSuccess={() => { const signature = pendingSignature; const shouldSeal = pendingSeal; setPendingSignature(null); setPendingSeal(false); if (signature) void persistBenefit(signature, true); else if (shouldSeal) void sealAfterAuth(true); }} />
   </section>;
 }

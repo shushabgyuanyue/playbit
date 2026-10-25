@@ -54,3 +54,5 @@ export const playerCopy = {
   error: { title: "页面暂时没有打开", hint: "先返回游戏，已保存的记录会保留。", retry: "重新打开", storage: "无法保存到浏览器，当前内容可继续使用，但刷新后可能丢失。" }
 } as const;
 
+export const offlinePromiseTerms = (benefit: string) => `本协议记录双方约定的权益：${benefit}。结果由现场确认，签发方将权益交给实际获得方。`;
+

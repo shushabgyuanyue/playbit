@@ -1,4 +1,4 @@
-import type { Agreement, Boost, Card, Coupon, CreateAgreementInput, CreateGameInput, Flip, Participant, StakeAddition } from "@playbit/shared";
+import type { Agreement, Boost, Card, Coupon, CreateAgreementInput, CreateGameInput, CreateOfflineAgreementInput, Flip, Participant, StakeAddition } from "@playbit/shared";
 
 function makeId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -47,6 +47,25 @@ export function createAgreement(input: CreateAgreementInput, creatorUserId: stri
     updatedAt: new Date().toISOString(),
     resultRecordedAt: null,
     shareCode: makeId("share")
+  };
+}
+
+export function createOfflineAgreement(input: CreateOfflineAgreementInput, creatorUserId: string): Agreement {
+  const agreement = createAgreement(input, creatorUserId);
+  return {
+    ...agreement,
+    participants: [
+      ...agreement.participants,
+      {
+        id: makeId("p"),
+        nickname: input.counterpartyNickname,
+        role: "counterparty",
+        userId: null,
+        confirmed: true,
+        signatureDataUrl: input.counterpartySignatureDataUrl
+      }
+    ],
+    status: "active"
   };
 }
 

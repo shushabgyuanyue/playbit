@@ -55,13 +55,14 @@ const drawSignature = async index => {
 const capture = async path => fs.writeFileSync(path, Buffer.from((await call("Page.captureScreenshot", { format: "png" })).result.data, "base64"));
 
 async function createUser(name) {
+  const email = `${name}-${Date.now()}@playbit.test`;
   const response = await fetch(`${apiUrl}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nickname: name, email: `${name}-${Date.now()}@playbit.test`, password: "password123" })
+    body: JSON.stringify({ nickname: name, email, password: "password123" })
   });
   assert(response.ok, `Could not create test user: ${response.status}`);
-  return response.json();
+  return { ...(await response.json()), email, password: "password123" };
 }
 
 const issuer = await createUser("issuer");
@@ -104,7 +105,7 @@ await click("确认核销"); await wait(180); await click("确认核销"); await
 const gameOwned = await (await fetch(`${apiUrl}/coupons?limit=10&owned=1`, { headers: { Authorization: `Bearer ${holder.token}` } })).json();
 assert(gameOwned.coupons.some(item => item.name === "输的人请喝一杯" && item.status === "used"), "Game coupon was not redeemed through the API");
 
-await evaluate(`localStorage.setItem('playbit.authToken', ${JSON.stringify(issuer.token)})`);
+await evaluate("localStorage.removeItem('playbit.authToken')");
 await reload();
 await navigate("/promise");
 assert(await evaluate("document.body.innerText.includes('建立一份')"), "Offline agreement page did not load");
@@ -113,7 +114,12 @@ await click("周末早餐");
 await click("生成协议并进入签署"); await wait(250);
 assert(await drawSignature(0) && await drawSignature(1), "Offline agreement signatures are missing");
 await click("签字完成，盖章生效"); await wait(1100);
+assert(await evaluate("Boolean(document.querySelector('input[type=email]'))"), "Offline signing should request login before API persistence");
+assert(await fill("input[type=email]", issuer.email) && await fill("input[type=password]", issuer.password), "Offline agreement login fields are missing");
+assert(await click("登录"), "Offline agreement login action is missing"); await wait(1600);
 assert(await evaluate("document.body.innerText.includes('把约定交给赢家') && !document.body.innerText.includes('确认权益获得方')"), "Offline agreement should settle without selecting a winner");
+const remoteAgreements = await evaluate(`(async()=>{const token=localStorage.getItem('playbit.authToken'); const response=await fetch(${JSON.stringify(`${apiUrl}/agreements`)},{headers:{Authorization:'Bearer '+token}}); return response.ok ? await response.json() : null})()`);
+assert(remoteAgreements?.agreements?.some(item => item.status === "active" && item.winnerId === null && item.participants?.length === 2), "Offline agreement was not persisted through the API");
 await click("签发给赢家"); await wait(220);
 assert(await drawSignature(0), "Offline benefit signature pad is missing");
 await click("签发并生成权益卡"); await wait(450);

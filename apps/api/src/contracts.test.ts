@@ -22,9 +22,23 @@ const [owner, visitor, outsider] = await Promise.all([register("owner"), registe
 const input = { requestId: randomUUID(), source: "custom", title: "A small promise", challenge: "First to laugh buys tea",
   creatorSignatureDataUrl: "data:image/png;base64,owner", stake: { type: "coupon", label: "x".repeat(80), fulfilled: false, additions: [] } };
 
+const offlineInput = {
+  requestId: randomUUID(), source: "custom", title: "Offline promise", challenge: "First to laugh buys tea",
+  creatorSignatureDataUrl: "data:image/png;base64,offline-owner", counterpartyNickname: "乙方",
+  counterpartySignatureDataUrl: "data:image/png;base64,offline-counterparty",
+  stake: { type: "custom", label: "周末早餐", fulfilled: false, additions: [] }
+};
+const offlineCreates = await Promise.all([1, 2].map(() => json<{ agreement: Agreement }>("/agreements/offline", "POST", owner.token, offlineInput)));
+assert.equal(offlineCreates[0].agreement.id, offlineCreates[1].agreement.id, "offline creation retries must not duplicate agreements");
+assert.equal(offlineCreates[0].agreement.status, "active");
+assert.equal(offlineCreates[0].agreement.winnerId, null);
+assert.equal(offlineCreates[0].agreement.participants.length, 2);
+assert.equal(offlineCreates[0].agreement.participants[1].userId, null);
+assert.equal((await json<{ agreements: Agreement[] }>("/agreements", "GET", owner.token)).agreements.some(item => item.id === offlineCreates[0].agreement.id), true);
+
 const creates = await Promise.all([1, 2].map(() => json<{ agreement: Agreement }>("/agreements", "POST", owner.token, input)));
 assert.equal(creates[0].agreement.id, creates[1].agreement.id, "creation retries must not duplicate agreements");
-assert.equal((await json<{ agreements: Agreement[] }>("/agreements", "GET", owner.token)).agreements.length, 1);
+assert.equal((await json<{ agreements: Agreement[] }>("/agreements", "GET", owner.token)).agreements.length, 2);
 assert.equal((await request("/agreements", "POST", owner.token, { ...input, title: "Changed payload" })).status, 409);
 for (const invalid of [
   { ...input, requestId: randomUUID(), title: " " },

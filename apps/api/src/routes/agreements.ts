@@ -10,6 +10,7 @@ import {
   canDeleteAgreement,
   confirmBoost,
   createAgreement,
+  createOfflineAgreement,
   recordAgreementResult,
   signCounterparty,
   updateAgreementDraft
@@ -18,6 +19,7 @@ import {
   agreementSchema,
   createBoostSchema,
   createAgreementRequestSchema,
+  createOfflineAgreementRequestSchema,
   signAgreementSchema,
   recordResultSchema,
   updateAgreementSchema
@@ -61,6 +63,36 @@ export function registerAgreementRoutes(
       },
       currentUser.id
     );
+    try {
+      const created = await agreements.create({ ...agreement, id });
+      await auth.updateSignature(currentUser.id, payload.creatorSignatureDataUrl);
+      return context.json({ agreement: agreementSchema.parse(created) }, 201);
+    } catch (error) {
+      const saved = await agreements.findById(id);
+      if (matches(saved)) return context.json({ agreement: saved });
+      if (saved) return context.json({ message: "Request already used for another agreement" }, 409);
+      throw error;
+    }
+  });
+
+  app.post("/agreements/offline", async (context) => {
+    const currentUser = await requireCurrentUser(context, auth);
+    if (currentUser instanceof Response) return currentUser;
+    const parsed = createOfflineAgreementRequestSchema.safeParse(await context.req.json());
+    if (!parsed.success) return context.json({ message: "Invalid offline agreement" }, 422);
+    const payload = parsed.data;
+    if (payload.source !== "custom") return context.json({ message: "Offline agreements must use custom source" }, 422);
+    const id = `bet_${createHash("sha256").update(`${currentUser.id}:${payload.requestId}`).digest("hex").slice(0, 32)}`;
+    const matches = (saved: Awaited<ReturnType<AgreementRepository["findById"]>>) => saved &&
+      saved.title === payload.title && saved.challenge === (payload.challenge ?? payload.title) &&
+      saved.stake.type === payload.stake.type && saved.stake.label === payload.stake.label &&
+      saved.status === "active";
+    const existing = await agreements.findById(id);
+    if (existing) {
+      return matches(existing) ? context.json({ agreement: existing })
+        : context.json({ message: "Request already used for another agreement" }, 409);
+    }
+    const agreement = createOfflineAgreement({ ...payload, creatorNickname: currentUser.nickname }, currentUser.id);
     try {
       const created = await agreements.create({ ...agreement, id });
       await auth.updateSignature(currentUser.id, payload.creatorSignatureDataUrl);
