@@ -51,7 +51,6 @@ export function BenefitsPage() {
   const [issuing, setIssuing] = useState(false);
   const [issuanceId, setIssuanceId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
-  const [authIntent, setAuthIntent] = useState<"issue" | null>(null);
   const [remote, setRemote] = useState<RemotePage>({ items: [], nextCursor: null, hasMore: false });
   const [remoteMode, setRemoteMode] = useState(false);
   const [remoteLoading, setRemoteLoading] = useState(false);
@@ -116,31 +115,30 @@ export function BenefitsPage() {
 
   const issuance = issuanceId ? state.issuedBenefits[issuanceId] ?? null : null;
   const hasRemoteSession = Boolean(auth.user && isPlayerApiConfigured());
-  const displayedCoupons = remoteMode || hasRemoteSession ? remote.items.map(toPlayerCoupon) : state.coupons;
+  const displayedCoupons = auth.user
+    ? (remoteMode || hasRemoteSession ? remote.items.map(toPlayerCoupon) : state.coupons)
+    : [];
   const remoteById = new Map(remote.items.map(item => [item.id, item]));
 
   function openIssuance() {
     notify("");
     setIssuanceId(null);
-    if (!auth.user) {
-      setAuthIntent("issue");
-      setAuthOpen(true);
-      return;
-    }
     setIssuing(true);
   }
 
   async function issue(title: string, source: CouponSource, sourceNote: string, signature: Signature) {
-    if (!auth.user) return;
     if (isPlayerApiConfigured()) {
       try {
-        const result = await playerApi.createIndependentCoupon({
+        const payload = {
           name: title,
           description: sourceNote.trim() || "由签发方提供的 Playbit 权益",
           sourceLabel: source === "game" ? copy.wallet.issueSourceOptions.game : source === "promise" ? copy.wallet.issueSourceOptions.promise : copy.wallet.issueSourceOptions.manual,
           signatureDataUrl: signatureToDataUrl(signature),
           claimLimit: 1
-        });
+        };
+        const result = await (auth.user
+          ? playerApi.createIndependentCoupon(payload)
+          : playerApi.createPublicCoupon({ ...payload, issuerNickname: state.profileName }));
         const remoteIssuance = result.coupon;
         update(current => ({
           ...current,
@@ -219,16 +217,18 @@ export function BenefitsPage() {
   return <section className="benefits" ref={section}>
     <div className="module-tag">{copy.wallet.eyebrow}</div><div className="benefit-title"><h1>{copy.wallet.title[0]}<br />{copy.wallet.title[1]}</h1></div>
     {remoteError && <p className="remote-list-note" role="status">{copy.auth.network}</p>}
-    <div className="ticket-list ticket-list-won">
+    {auth.user && <div className="ticket-list ticket-list-won">
       {displayedCoupons.map((coupon, i) => <CouponCard coupon={coupon} index={i} signatureDataUrl={remoteById.get(coupon.id)?.signatureDataUrl} onRedeem={() => { setRedeeming(coupon.id); }} key={coupon.id} />)}
       {!displayedCoupons.length && !remoteLoading && <p className="empty-state">{copy.wallet.empty}</p>}
       <div className="benefits-load-sentinel" ref={loadMoreRef} aria-hidden="true">{remoteMode && remoteLoading && <span className="list-loading-dot" />}</div>
-    </div>
+    </div>}
+    {!auth.loading && !auth.user && <div className="benefits-guest-state"><span className="benefits-guest-mark"><Icon name="shield" size={19} /></span><strong>{copy.auth.requiredTitle}</strong><p>{copy.auth.requiredHint}</p><button className="text-button" type="button" onClick={() => setAuthOpen(true)}>{copy.auth.login}<Icon name="arrow" size={14} /></button></div>}
+    {auth.loading && <div className="benefits-guest-state benefits-loading-state"><span className="list-loading-dot" /><p>{copy.wallet.claimLoading}</p></div>}
     <button className="benefit-issue-fab" type="button" onClick={openIssuance} aria-label={copy.wallet.issueTitle} title={copy.wallet.issueTitle}><Icon name="sign" size={19} /><span className="sr-only">{copy.wallet.issueTitle}</span></button>
     <Sheet open={!!redeeming} onClose={() => { if (!redeemLoading) setRedeeming(null); }} title={copy.wallet.redeemTitle} description={copy.wallet.redeemHint}>
       <div className="sheet-actions"><button className="text-button" onClick={() => setRedeeming(null)} disabled={redeemLoading}>{copy.cancel}</button><button className="primary-button" onClick={() => void redeem()} disabled={redeemLoading}>{redeemLoading ? "正在核销…" : copy.wallet.redeemConfirm}</button></div>
     </Sheet>
     <IssueBenefitSheet open={issuing} onClose={() => { setIssuing(false); setIssuanceId(null); }} issuerName={state.profileName} issuance={issuance} onIssue={(title, source, sourceNote, signature) => void issue(title, source, sourceNote, signature)} onShare={() => void shareIssuance()} onSelfClaim={selfClaimIssuance} canSelfClaim={!issuance?.claimToken} />
-    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setAuthIntent(null); }} onSuccess={() => { if (authIntent === "issue") setIssuing(true); setAuthIntent(null); }} />
+    <AuthSheet open={authOpen} onClose={() => setAuthOpen(false)} onSuccess={() => setAuthOpen(false)} />
   </section>;
 }

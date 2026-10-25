@@ -489,6 +489,13 @@ a { color: inherit; text-decoration: none; }
 .stake-issue-nudge button + button { color: rgba(255, 255, 255, .72); background: transparent; }
 .benefit-issue-fab { position: absolute; left: 18px; bottom: 91px; z-index: 10; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, .62); border-radius: 50%; color: #fff; background: linear-gradient(135deg, var(--player-violet), #6b45d9); box-shadow: 0 10px 24px rgba(81, 52, 169, .28), inset 0 1px 0 rgba(255, 255, 255, .3); transform: translateZ(0); transition: transform .18s ease, box-shadow .18s ease; will-change: transform; }
 .benefit-issue-fab:active { transform: translate3d(0, 1px, 0); box-shadow: 0 6px 15px rgba(81, 52, 169, .22), inset 0 1px 0 rgba(255, 255, 255, .3); }
+.benefits-guest-state { min-height: 230px; margin-top: 18px; padding: 28px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #ddd8d1; border-radius: 18px; color: #817985; background: rgba(248, 247, 244, .72); text-align: center; }
+.benefits-guest-mark { width: 42px; height: 42px; margin-bottom: 13px; display: grid; place-items: center; border-radius: 14px; color: var(--player-violet); background: #e4ddf8; }
+.benefits-guest-state strong { color: var(--player-ink); font-size: 14px; }
+.benefits-guest-state p { max-width: 230px; margin: 7px 0 13px; color: #8d8690; font-size: 10px; line-height: 1.6; }
+.benefits-guest-state .text-button { display: inline-flex; align-items: center; gap: 5px; color: var(--player-violet); font-size: 10px; font-weight: 900; }
+.benefits-loading-state { border-style: dashed; }
+.benefits-loading-state p { margin: 0; }
 .issue-benefit-picker { margin-top: 0; }
 .issue-source-field { margin-top: 11px; color: #495461; font-size: 10px; font-weight: 800; }
 .issue-source-summary { min-height: 39px; padding: 0 8px 0 12px; display: flex; align-items: center; gap: 9px; border: 1px solid #d7dade; border-radius: 11px; background: #fff; }
@@ -590,10 +597,9 @@ a { color: inherit; text-decoration: none; }
 @keyframes listSpin { to { transform: rotate(360deg); } }
 
 /* Profile sub-pages keep the same quiet paper surface as the reference screen. */
-.topbar-subpage { gap: 8px; }
-.shell-back { width: 34px; height: 34px; display: grid; place-items: center; flex: none; border-radius: 11px; color: #6e6871; background: #e7e4df; transition: transform .2s, background-color .2s, color .2s; }
-.shell-back svg { transform: rotate(180deg); }
-.shell-back:hover, .shell-back:focus-visible { color: var(--player-ink); background: #dcd8d2; transform: translateX(-2px); }
+.page-back { width: fit-content; min-height: 30px; margin: 0 0 2px; padding: 0 9px 0 2px; display: inline-flex; align-items: center; gap: 5px; border-radius: 9px; color: #817985; background: transparent; font-size: 9px; font-weight: 800; }
+.page-back svg { transform: rotate(180deg); }
+.page-back:hover, .page-back:focus-visible { color: var(--player-ink); background: #e4e1dc; }
 .profile-info-page { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px 28px; background: #efefed; }
 .profile-info-page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 7px 2px 20px; }
 .profile-info-page-heading small { color: var(--player-violet); font-size: 7px; font-weight: 900; letter-spacing: .16em; }

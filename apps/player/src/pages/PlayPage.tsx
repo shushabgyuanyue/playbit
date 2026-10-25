@@ -7,7 +7,6 @@ import { Sheet } from "../components/ui/Sheet";
 import { AiSheet, CollectionSheet, CreateDeckSheet, SceneDrawer } from "../features/cards/DeckSheets";
 import { GameCard } from "../features/cards/GameCard";
 import { IssueStakeSheet } from "../features/cards/IssueStakeSheet";
-import { AuthSheet } from "../features/player/AuthSheet";
 import { useCardDeck } from "../features/cards/useCardDeck";
 import { usePlayer } from "../features/player/PlayerProvider";
 import { claimGameStake, issueGameStake } from "../features/player/transitions";
@@ -18,7 +17,7 @@ import { isPlayerApiConfigured, PlayerApiError, playerApi, signatureToDataUrl } 
 type Panel = "scene" | "ai" | "save" | "stake" | "issue" | "new" | "new-and-save" | null;
 
 export function PlayPage() {
-  const { state, update, notify, auth } = usePlayer();
+  const { state, update, notify } = usePlayer();
   const { memory, remember } = usePageMemory();
   const { card, pool, flipped, setFlipped, slide, go } = useCardDeck(memory.playFlippedCardId);
   const navigate = useNavigate();
@@ -26,8 +25,6 @@ export function PlayPage() {
   const [stakeInput, setStakeInput] = useState("");
   const [pendingSaveCardId, setPendingSaveCardId] = useState<string | null>(null);
   const [issueNudge, setIssueNudge] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
-  const [pendingSignature, setPendingSignature] = useState<Signature | null>(null);
   const pendingMove = useRef<number | null>(null);
   const ignoredIssueNudges = useRef(new Set<string>());
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -91,11 +88,11 @@ export function PlayPage() {
     pendingMove.current = null;
     go(direction);
   }
-  async function persistGameStake(signature: Signature, authReady = false) {
-    if (!stake || issuance || (!auth.user && !authReady)) return;
+  async function persistGameStake(signature: Signature) {
+    if (!stake || issuance) return;
     if (isPlayerApiConfigured()) {
       try {
-        const result = await playerApi.createIndependentCoupon({
+        const result = await playerApi.createPublicCoupon({
           name: stake,
           description: `来自「${card.label}」的游戏彩头`,
           sourceLabel: copy.wallet.issueSourceOptions.game,
@@ -138,11 +135,6 @@ export function PlayPage() {
 
   function signStake(signature: Signature) {
     if (!stake || issuance) return;
-    if (isPlayerApiConfigured() && !auth.user) {
-      setPendingSignature(signature);
-      setAuthOpen(true);
-      return;
-    }
     void persistGameStake(signature);
   }
   async function shareStake() {
@@ -191,6 +183,5 @@ export function PlayPage() {
       <form className="sheet-form" onSubmit={e => { e.preventDefault(); saveStake(); }}><label>{copy.play.stake}<input value={stakeInput} onChange={e => setStakeInput(e.target.value)} placeholder={copy.play.stakePlaceholder} maxLength={80} required /></label><button className="primary-button" disabled={!stakeInput.trim()}>{copy.play.stakeConfirm}</button>{stake && <button type="button" className="text-button" onClick={() => saveStake(true)}>{copy.play.removeStake}</button>}</form>
     </Sheet>
     <IssueStakeSheet open={panel === "issue"} onClose={close} cardTitle={card.label} stake={stake ?? ""} issuerName={state.profileName} issuance={issuance} onIssue={signStake} onShare={() => void shareStake()} onSelfClaim={selfClaimStake} canSelfClaim={!issuance?.claimToken} />
-    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSignature(null); }} onSuccess={() => { const signature = pendingSignature; setPendingSignature(null); if (signature) void persistGameStake(signature, true); }} />
   </>;
 }

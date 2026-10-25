@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { playerCopy as copy } from "@playbit/content/player";
 import { Icon } from "../components/ui/Icon";
+import { PageBack } from "../components/ui/PageBack";
 import { usePlayer } from "../features/player/PlayerProvider";
 import { usePageMemory } from "../services/pageMemory";
 
@@ -27,6 +28,7 @@ export function AgreementListPage() {
   }, [remember]);
 
   return <section className="agreement-list-page" ref={section}>
+    <PageBack fallback="/me" />
     <header className="agreement-list-heading"><div><small>PLAYBIT RECORDS</small><h1>{copy.promise.records}</h1><p>{copy.promise.recordEmpty}</p></div><span className="agreement-list-count">{agreements.length}</span></header>
     {agreements.length > 0 ? <div className="agreement-records">{agreements.map((agreement, index) => {
       const issuance = state.issuedBenefits[`promise-${agreement.id}`];

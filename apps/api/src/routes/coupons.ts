@@ -15,6 +15,7 @@ const independentCouponSchema = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().min(1).max(inputLimits.customEquity),
   sourceLabel: z.string().trim().min(1).max(80).default("手动签发"),
+  issuerNickname: z.string().trim().min(1).max(40).optional(),
   signatureDataUrl: z.string().max(2_000_000).nullable().optional(),
   transferNote: z.string().trim().max(180).nullable().optional(),
   claimLimit: z.number().int().min(1).max(999).default(1)
@@ -78,6 +79,21 @@ export function registerCouponRoutes(
       ...parsed.data,
       issuerUserId: currentUser.id,
       issuerNickname: currentUser.nickname,
+      claimLimit: parsed.data.claimLimit,
+      sourceLabel: parsed.data.sourceLabel,
+      signatureDataUrl: parsed.data.signatureDataUrl ?? null,
+      transferNote: parsed.data.transferNote?.trim() || null
+    });
+    return context.json({ coupon: couponSchema.parse(coupon) }, 201);
+  });
+
+  app.post("/coupons/public", async (context) => {
+    const parsed = independentCouponSchema.safeParse(await context.req.json().catch(() => ({})));
+    if (!parsed.success) return context.json({ message: "Invalid public equity" }, 422);
+    const coupon = await coupons.createIndependent({
+      ...parsed.data,
+      issuerUserId: null,
+      issuerNickname: parsed.data.issuerNickname?.trim() || "Playbit 主持人",
       claimLimit: parsed.data.claimLimit,
       sourceLabel: parsed.data.sourceLabel,
       signatureDataUrl: parsed.data.signatureDataUrl ?? null,

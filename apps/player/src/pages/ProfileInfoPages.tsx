@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { playerCopy as copy, profileInfoLabels } from "@playbit/content/player";
 import { Icon } from "../components/ui/Icon";
+import { PageBack } from "../components/ui/PageBack";
 import { usePageMemory } from "../services/pageMemory";
 
 type ProfileInfoKind = "notifications" | "announcements";
@@ -25,6 +26,7 @@ export function ProfileInfoPage({ kind }: { kind: ProfileInfoKind }) {
   }, [remember, scrollKey]);
 
   return <section className="profile-info-page" ref={section}>
+    <PageBack fallback="/me" />
     <header className="profile-info-page-heading">
       <div>
         <small>{content.eyebrow}</small>

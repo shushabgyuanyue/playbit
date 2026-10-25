@@ -33,7 +33,6 @@ export function PromisePage() {
   const [stamping, setStamping] = useState(false);
   const [issueOpen, setIssueOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [pendingSignature, setPendingSignature] = useState<Signature | null>(null);
   const [pendingSeal, setPendingSeal] = useState(false);
   const section = useRef<HTMLElement>(null);
   const initialScrollTop = useRef(memory.scrollTop.promise ?? 0);
@@ -119,12 +118,12 @@ export function PromisePage() {
     void sealAfterAuth();
   }
 
-  async function persistBenefit(signature: Signature, authReady = false) {
-    if (!agreement || issuance || (!auth.user && !authReady)) return;
+  async function persistBenefit(signature: Signature) {
+    if (!agreement || issuance) return;
     const localIssuanceId = `promise-${agreement.id}`;
     if (isPlayerApiConfigured()) {
       try {
-        const result = await playerApi.createIndependentCoupon({
+        const result = await playerApi.createPublicCoupon({
           name: agreement.benefit,
           description: agreement.text,
           sourceLabel: copy.wallet.issueSourceOptions.promise,
@@ -163,11 +162,6 @@ export function PromisePage() {
 
   function signBenefit(signature: Signature) {
     if (!agreement || issuance) return;
-    if (isPlayerApiConfigured() && !auth.user) {
-      setPendingSignature(signature);
-      setAuthOpen(true);
-      return;
-    }
     void persistBenefit(signature);
   }
 
@@ -215,6 +209,6 @@ export function PromisePage() {
       <button className="contract-cta" onClick={() => { update(current => ({ ...current, draft: emptyDraft() })); }}>{copy.promise.another}<Icon name="arrow" /></button>
     </div>}
     {agreement && <IssueStakeSheet open={issueOpen} onClose={() => setIssueOpen(false)} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} issuance={issuance} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={selfClaimBenefit} canSelfClaim={!issuance?.claimToken} labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.issueBenefit, pending: copy.promise.issueBenefitPending, sign: copy.play.issueStakeSign, signHint: copy.play.issueStakeSignHint, action: copy.play.issueStakeAction, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
-    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSignature(null); setPendingSeal(false); }} onSuccess={() => { const signature = pendingSignature; const shouldSeal = pendingSeal; setPendingSignature(null); setPendingSeal(false); if (signature) void persistBenefit(signature, true); else if (shouldSeal) void sealAfterAuth(true); }} />
+    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSeal(false); }} onSuccess={() => { const shouldSeal = pendingSeal; setPendingSeal(false); if (shouldSeal) void sealAfterAuth(true); }} />
   </section>;
 }

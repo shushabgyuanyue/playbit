@@ -105,6 +105,22 @@ export const playerApi = {
       body: JSON.stringify(payload)
     });
   },
+  createPublicCoupon(payload: {
+    gameResultId?: string | null;
+    certificateId?: string | null;
+    name: string;
+    description: string;
+    sourceLabel?: string | null;
+    issuerNickname?: string | null;
+    signatureDataUrl?: string | null;
+    transferNote?: string | null;
+    claimLimit?: number;
+  }) {
+    return request<{ coupon: Coupon }>("/coupons/public", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  },
   createOfflineAgreement(payload: {
     requestId: string;
     source: "custom";

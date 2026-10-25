@@ -26,6 +26,26 @@ const issuer = await register(`issuer-${Date.now()}`);
 const holder = await register(`holder-${Date.now()}`);
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
+const publicIssued = await json<{ coupon: Coupon }>("/coupons/public", {
+  method: "POST",
+  body: JSON.stringify({
+    name: "现场主持人的彩头",
+    description: "赢家领取后生效",
+    issuerNickname: "现场主持人",
+    sourceLabel: "游戏彩头",
+    claimLimit: 1
+  })
+});
+assert.equal(publicIssued.coupon.issuerUserId, null);
+assert.equal(publicIssued.coupon.issuerNickname, "现场主持人");
+assert.ok(publicIssued.coupon.claimToken);
+assert.equal((await app.request(`/coupons/share/${publicIssued.coupon.claimToken}/claim`, { method: "POST" })).status, 401);
+const publicClaimed = await json<{ coupon: Coupon }>(`/coupons/share/${publicIssued.coupon.claimToken}/claim`, {
+  method: "POST",
+  headers: auth(holder.token)
+});
+assert.equal(publicClaimed.coupon.holderUserId, holder.user.id);
+
 for (let index = 0; index < 3; index += 1) {
   await json<{ coupon: Coupon }>("/coupons/independent", {
     method: "POST",
@@ -65,7 +85,7 @@ assert.equal(claimed.coupon.holderUserId, holder.user.id);
 const holderPage = await json<{ coupons: Coupon[]; nextCursor: string | null }>("/coupons?limit=10", {
   headers: auth(holder.token)
 });
-assert.equal(holderPage.coupons.length, 1);
-assert.equal(holderPage.coupons[0]?.claimId, claimed.coupon.claimId);
+assert.equal(holderPage.coupons.length, 2);
+assert.equal(holderPage.coupons.some(item => item.claimId === claimed.coupon.claimId), true);
 
 console.log("Coupon pagination passed: cursor ordering, share claim and holder visibility.");

@@ -40,6 +40,8 @@ export const playerCopy = {
     register: "创建账户",
     switchToRegister: "还没有账户？创建一个",
     switchToLogin: "已有账户？直接登录",
+    requiredTitle: "登录后查看你的权益",
+    requiredHint: "签发可以直接完成；登录后，领取的权益才会保存到你的权益夹。",
     required: "这一步需要登录，权益才能归属到你。",
     failed: "登录信息不正确，请再试一次。",
     network: "暂时连不上权益服务，请稍后再试。"

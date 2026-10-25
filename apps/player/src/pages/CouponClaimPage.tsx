@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import type { Coupon } from "@playbit/shared";
 import { playerCopy as copy } from "@playbit/content/player";
 import { Icon } from "../components/ui/Icon";
+import { PageBack } from "../components/ui/PageBack";
 import { AuthSheet } from "../features/player/AuthSheet";
 import { usePlayer } from "../features/player/PlayerProvider";
 import { PlayerApiError, playerApi } from "../services/playerApi";
@@ -58,6 +59,7 @@ export function CouponClaimPage() {
   }, [auth.user, claimAfterAuth]);
 
   return <section className="claim-page">
+    <PageBack fallback="/" />
     {loading && <div className="claim-state"><span className="list-loading-dot" /><p>{copy.wallet.claimLoading}</p></div>}
     {!loading && coupon && !error && <div className="claim-ticket-wrap">
       <div className="module-tag">{copy.wallet.claimEyebrow}</div>

@@ -36,13 +36,12 @@ export function ProfilePage() {
     notify(copy.profile.saved);
   }
 
-  function openDeck(deckId: string | null) {
-    if (deckId) {
-      const deck = state.decks.find(item => item.id === deckId);
-      const firstCardId = deck?.cardIds[0];
-      if (deck && firstCardId) update(current => ({ ...current, deckId, cardId: firstCardId }));
-    }
-    setSceneDrawerOpen(true);
+  function openDeck(deckId: string) {
+    const deck = state.decks.find(item => item.id === deckId);
+    const firstCardId = deck?.cardIds[0];
+    if (!deck || !firstCardId) return;
+    update(current => ({ ...current, deckId, cardId: firstCardId }));
+    navigate("/");
   }
 
   function editProfile() {
@@ -58,7 +57,7 @@ export function ProfilePage() {
       <button className="profile-edit" onClick={() => { setName(state.profileName); setEditing(true); }}>{copy.profile.edit}</button>
     </div>
 
-    <div className="profile-section-head"><span>{copy.profile.decks}</span><button type="button" onClick={() => openDeck(null)} aria-label={copy.profile.all}>{copy.profile.all}<Icon name="arrow" size={12} /></button></div>
+    <div className="profile-section-head"><span>{copy.profile.decks}</span><button type="button" onClick={() => setSceneDrawerOpen(true)} aria-label={copy.profile.all}>{copy.profile.all}<Icon name="arrow" size={12} /></button></div>
     <div className="profile-decks">
       {state.decks.slice(0, 3).map((deck, i) => <button className={`profile-deck ${i % 2 ? "friend-deck" : "date-deck"}`} key={deck.id} onClick={() => openDeck(deck.id)}><span><Icon name={i % 2 ? "friends" : "date"} size={18} /></span><b>{deck.name}</b><small>{copy.scenes.count(deck.cardIds.length)}</small></button>)}
       {state.decks.length < 3 && <button className="profile-deck add-deck" onClick={() => setCreateDeckOpen(true)}><span>＋</span><b>{copy.scenes.add}</b><small>{copy.scenes.custom}</small></button>}
