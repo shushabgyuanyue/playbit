@@ -3,7 +3,7 @@ import type { Party } from "../data/types";
 
 const STORAGE_KEY = "playbit:player:page-memory:v1";
 
-export type PageScrollKey = "benefits" | "profile" | "promise" | "agreements" | "agreement";
+export type PageScrollKey = "benefits" | "profile" | "promise" | "agreements" | "agreement" | "notifications" | "announcements";
 
 export interface PageMemory {
   playFlippedCardId: string | null;

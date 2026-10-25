@@ -49,9 +49,15 @@ export const playerCopy = {
     claimEyebrow: "A BENEFIT FOR YOU", claimTitle: "有人把一份权益交给你。", claimHint: "登录后，这份权益会进入你的权益夹。", claimIssuer: (name: string) => `${name}签发`, claimRemaining: (count: number) => `还可以领取 ${count} 次`, claimAction: "领取到我的权益", claimLogin: "登录后领取", claimLoading: "正在打开这份权益…", claimUnavailable: "这份权益已经被领取完了。", claimError: "这份权益暂时无法打开，请稍后再试。", claimSuccess: "权益已领取，已放进你的权益夹"
   },
   profile: {
-    eyebrow: "PLAYBIT ID · 0826", defaultName: "今晚也要好好玩", tagline: "和喜欢的人，留下一点有意思的时刻", edit: "编辑", editTitle: "想怎么称呼你？", name: "昵称", decks: "我的场景卡组", decksHint: "把喜欢的内容收进自己的场景，下次直接打开。", all: "查看全部", services: "服务与设置", recordsHint: (n: number) => `${n} 份约定记录`, notificationTitle: "系统通知", notificationHint: "活动与状态更新", notifications: "暂时没有新的通知", notificationIntro: "这里会显示权益领取、彩头签发和约定状态的更新。", notificationEmpty: "暂时没有新的通知", accountTitle: "账户管理", accountHint: "资料与隐私", accountIntro: "管理你的 Playbit 名称和本机体验数据。", accountLocalTitle: "本机体验", accountLocalHint: "当前原型把卡组、彩头和约定保存在这台设备上。", announcementTitle: "公告及声明", announcementHint: "了解 Playbit 的记录边界", announcementIntro: "Playbit 让线下相处更好玩，也替你记下一些值得记住的结果。", announcementItems: ["游戏结果由现场参与者共同确认，Playbit 不判断现场输赢。", "权益卡是双方自行约定的履约记录，核销也由双方确认。", "卡组、彩头和约定会保存在当前设备，清除浏览器数据后将无法恢复。"], version: "PLAYBIT 1.0 · OPEN AND PLAY", resetTitle: "清除本机记录？", resetHint: "会清除新页面保存的卡组、彩头和演示约定，无法恢复。", reset: "清除本机记录", resetDone: "本机记录已清除", saved: "资料已保存", localHint: "收藏与约定保存在这台设备上。"
+    eyebrow: "PLAYBIT ID · 0826", defaultName: "今晚也要好好玩", tagline: "和喜欢的人，留下一点有意思的时刻", edit: "编辑", editTitle: "想怎么称呼你？", name: "昵称", decks: "我的场景卡组", decksHint: "把喜欢的内容收进自己的场景，下次直接打开。", all: "查看全部", services: "服务与设置", recordsHint: (n: number) => `${n} 份约定记录`, notificationTitle: "系统通知", notificationHint: "活动与状态更新", notifications: "暂时没有新的通知", notificationIntro: "这里会显示权益领取、彩头签发和约定状态的更新。", notificationEmpty: "暂时没有新的通知", notificationItems: [{ title: "Playbit，随时开一局", body: "打开应用就能开始一张游戏卡，喜欢的内容可以收进自己的场景卡组。", meta: "PLAYBIT · 产品消息" }, { title: "权益会留在你的权益夹", body: "签发、领取和核销都会留下清楚的记录，双方按自己的约定完成履约。", meta: "PLAYBIT · 权益更新" }, { title: "现场结果由你们确认", body: "Playbit 不在现场裁判，只替你们记录已经确认的结果。", meta: "PLAYBIT · 使用提醒" }], accountTitle: "账户管理", accountHint: "资料与隐私", accountIntro: "管理你的 Playbit 名称和本机体验数据。", accountLocalTitle: "本机体验", accountLocalHint: "当前原型把卡组、彩头和约定保存在这台设备上。", announcementTitle: "公告及声明", announcementHint: "了解 Playbit 的记录边界", announcementIntro: "Playbit 让线下相处更好玩，也替你记下一些值得记住的结果。", announcementItems: [{ title: "关于约定的说明", body: "Playbit 用于记录双方自愿达成的娱乐性约定。页面中的签署与结案是产品仪式，不替代正式法律文书，也不提供强制履约服务。" }, { title: "关于隐私与分享", body: "待签署链接的持有者可以查看约定内容，请只分享给预期参与者。双方签署后，合约内容仅参与双方可查看。" }, { title: "关于结果登记", body: "至于现场发生了什么，我们没在现场。结果由参与者自行登记；Playbit 不核实事实，也不裁判争议。" }], announcementFooter: "请勿在约定、签名或分享内容中填写不希望对方看到的敏感信息。", version: "PLAYBIT 1.0 · OPEN AND PLAY", resetTitle: "清除本机记录？", resetHint: "会清除新页面保存的卡组、彩头和演示约定，无法恢复。", reset: "清除本机记录", resetDone: "本机记录已清除", saved: "资料已保存", localHint: "收藏与约定保存在这台设备上。"
   },
   error: { title: "页面暂时没有打开", hint: "先返回游戏，已保存的记录会保留。", retry: "重新打开", storage: "无法保存到浏览器，当前内容可继续使用，但刷新后可能丢失。" }
+} as const;
+
+export const profileInfoLabels = {
+  notificationsEyebrow: "PLAYBIT UPDATES",
+  announcementsEyebrow: "PLAYBIT NOTE",
+  announcementMeta: "PLAYBIT · 记录边界"
 } as const;
 
 export const offlinePromiseTerms = (benefit: string) => `本协议记录双方约定的权益：${benefit}。结果由现场确认，签发方将权益交给实际获得方。`;
