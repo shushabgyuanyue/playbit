@@ -9,7 +9,7 @@ describe("player transitions", () => {
     const settled = settleAgreement(state, "b");
     expect(settled.draft.step).toBe(3);
     expect(settled.agreements[0]?.winner).toBe("b");
-    expect(settled.coupons[0]).toMatchObject({ agreementId: "agreement-1", side: "won", source: "promise", title: "请喝一杯" });
+    expect(settled.coupons[0]).toMatchObject({ agreementId: "agreement-1", side: "won", source: "promise", tone: "dark-coupon", title: "请喝一杯" });
     expect(settleAgreement(settled, "a")).toEqual(settled);
   });
 
@@ -27,7 +27,7 @@ describe("player transitions", () => {
     const issuance = issued.issuedStakes.truth;
     expect(issuance).toMatchObject({ status: "pending_claim", title: "输的人请喝一杯" });
     const claimed = claimGameStake(issued, issuance!.id, "获胜方", "2026-01-01T00:01:00.000Z");
-    expect(claimed.coupons[0]).toMatchObject({ source: "game", holderName: "获胜方", status: "available" });
+    expect(claimed.coupons[0]).toMatchObject({ source: "game", tone: "coral-coupon", holderName: "获胜方", status: "available" });
     expect(claimed.issuedStakes.truth?.status).toBe("claimed");
     expect(claimGameStake(claimed, issuance!.id, "另一个人")).toEqual(claimed);
   });
@@ -41,7 +41,7 @@ describe("player transitions", () => {
     expect(issued.coupons).toHaveLength(initial.coupons.length);
     const claimed = claimDirectBenefit(issued, "benefit-test", "获胜方", "2026-01-01T00:01:00.000Z");
     expect(claimed.issuedBenefits["benefit-test"]?.status).toBe("claimed");
-    expect(claimed.coupons[0]).toMatchObject({ source: "direct", holderName: "获胜方", title: "周末早餐" });
+    expect(claimed.coupons[0]).toMatchObject({ source: "direct", tone: "debt-ticket", holderName: "获胜方", title: "周末早餐" });
     expect(claimDirectBenefit(claimed, "benefit-test", "另一个人")).toEqual(claimed);
   });
 });

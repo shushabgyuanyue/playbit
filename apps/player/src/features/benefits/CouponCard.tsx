@@ -18,15 +18,17 @@ export function CouponCard({ coupon, index, onRedeem }: { coupon: Coupon; index:
   return <article className={`coupon-ticket coupon-card ${coupon.tone} ${coupon.status === "redeemed" ? "used" : ""} ${flipped ? "is-flipped" : ""}`} role="button" tabIndex={0} aria-label={`${coupon.title}，${flipped ? copy.wallet.backHint : copy.wallet.flipHint}`} onClick={toggle} onKeyDown={event => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggle(); } }}>
     <div className="coupon-flip">
       <div className="coupon-side coupon-front">
+        {coupon.status === "redeemed" && <div className="coupon-used-wash" aria-hidden="true" />}
         <div className="ticket-main">
-          <small>NO. {number}</small>
+          <small>{coupon.status === "redeemed" ? `${copy.wallet.used} · ${number}` : `PLAYBIT · ${number}`}</small>
           <strong>{coupon.title}</strong>
           <span>{coupon.subtitle}</span>
+          {coupon.status === "redeemed" && coupon.redeemedAt && <time className="coupon-used-meta">{copy.wallet.redeemedAtLabel} {formatDate(coupon.redeemedAt)}</time>}
         </div>
         {coupon.status === "redeemed" ? <div className="used-seal"><Icon name="check" size={17} />{copy.wallet.redeemed}</div> : <div className="ticket-actions single"><button type="button" tabIndex={flipped ? -1 : 0} onClick={event => { event.stopPropagation(); onRedeem(); }}><Icon name="check" size={15} />{copy.wallet.redeem}</button><small className="coupon-flip-hint">{copy.wallet.flipHint}</small></div>}
       </div>
       <div className="coupon-side coupon-back" aria-hidden={!flipped}>
-        <div className="coupon-back-number">NO. {number}</div>
+        <div className="coupon-back-number">PLAYBIT ID · {number}</div>
         <div className="coupon-signature-line">
           <div className="coupon-signature">
             {coupon.signature?.length ? <SignatureMark value={coupon.signature} /> : <b className="signature-placeholder">{copy.wallet.signatureMissing}</b>}

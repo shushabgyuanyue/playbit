@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import WebSocket from "../node_modules/.pnpm/ws@8.22.0/node_modules/ws/index.js";
 
+const baseUrl = process.env.PLAYER_URL ?? "http://127.0.0.1:5174";
+const appPort = new URL(baseUrl).port;
 const tabs = await (await fetch("http://127.0.0.1:9224/json/list")).json();
-const tab = tabs.find(item => item.type === "page" && item.url.includes("5174"));
+const tab = tabs.find(item => item.type === "page" && item.url.includes(appPort));
 if (!tab) throw new Error("No React player page is available on CDP port 9224");
 
 const socket = new WebSocket(tab.webSocketDebuggerUrl);
@@ -37,7 +39,7 @@ const drawSignature = async index => {
   await call("Input.dispatchMouseEvent", { type: "mouseReleased", button: "left", x: points.at(-1)[0], y: points.at(-1)[1] });
   return true;
 };
-const navigate = async path => { await call("Page.navigate", { url: `http://127.0.0.1:5174${path}` }); await wait(1100); };
+const navigate = async path => { await call("Page.navigate", { url: `${baseUrl}${path}` }); await wait(1100); };
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 const capture = async path => fs.writeFileSync(path, Buffer.from((await call("Page.captureScreenshot", { format: "png" })).result.data, "base64"));
 
@@ -107,9 +109,9 @@ assert(await evaluate("document.body.innerText.includes('胜者权益') && getCo
 await capture("artifacts/player-promise-mobile-verified.png");
 
 await navigate("/benefits");
-assert(await evaluate("document.body.innerText.includes('我的权益') && document.body.innerText.includes('确认核销') && !document.body.innerText.includes('我的承诺') && !document.body.innerText.includes('只展示已经属于你的权益卡')"), "Benefits page is incomplete");
+assert(await evaluate("document.body.innerText.includes('赢来的') && document.body.innerText.includes('确认核销') && !document.body.innerText.includes('我的承诺') && !document.body.innerText.includes('只展示已经属于你的权益卡')"), "Benefits page is incomplete");
 await evaluate("document.querySelector('.coupon-card')?.click()"); await wait(700);
-assert(await evaluate("Boolean(document.querySelector('.coupon-card.is-flipped')) && document.body.innerText.includes('签发证明') && document.body.innerText.includes('677A4DF7') && document.body.innerText.includes('签发时间')"), "Coupon back proof did not open");
+assert(await evaluate("Boolean(document.querySelector('.coupon-card.is-flipped')) && !document.body.innerText.includes('签发证明') && document.body.innerText.includes('PLAYBIT ID')"), "Coupon back proof did not open");
 await capture("artifacts/player-benefits-card-back-mobile.png");
 await evaluate("document.querySelector('.coupon-back-hint')?.click()"); await wait(700);
 assert(await evaluate("!document.querySelector('.coupon-card.is-flipped')"), "Coupon did not return to its front");
@@ -119,16 +121,19 @@ await evaluate("document.querySelector('.coupon-card')?.click()"); await wait(70
 assert(await evaluate("Boolean(document.querySelector('.coupon-card.used')) && !document.body.innerText.includes('卡券内容')"), "Redeemed coupon surface is incorrect");
 await evaluate("document.querySelector('.coupon-back-hint')?.click()"); await wait(700);
 assert(await click("手动签发"), "Independent issue entry is missing"); await wait(260);
-assert(await evaluate("document.body.innerText.includes('填写权益并留下签名') && Boolean(document.querySelector('.issue-benefit-picker')) && Boolean(document.querySelector('.issue-source-field select')) && !document.querySelector('.issue-source-field input')"), "Independent issue sheet is incomplete");
+assert(await evaluate("document.body.innerText.includes('填写权益并留下签名') && Boolean(document.querySelector('.issue-benefit-picker')) && Boolean(document.querySelector('.issue-source-summary')) && !document.querySelector('.issue-source-editor')"), "Independent issue sheet is incomplete");
 await capture("artifacts/player-benefits-issue-sheet-mobile.png");
 assert(await click("周末早餐"), "Shared benefit picker is missing");
-await evaluate("(() => { const select = document.querySelector('.issue-source-field select'); if (!select) return false; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, 'custom'); select.dispatchEvent(new Event('change',{bubbles:true})); return true; })()");
+await evaluate("document.querySelector('.issue-source-edit')?.click()"); await wait(80);
+assert(await evaluate("Boolean(document.querySelector('.issue-source-editor'))"), "Source editor did not open");
+assert(await click("自定义来源"), "Custom source option is missing");
 await wait(80);
-assert(await evaluate("Boolean(document.querySelector('.issue-source-field input'))"), "Custom source input did not open");
+assert(await evaluate("Boolean(document.querySelector('.issue-source-editor input'))"), "Custom source input did not open");
 await evaluate("(() => { const input = document.querySelector('.issue-source-field input'); if (!input) return false; const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; setter.call(input, '朋友间的线下约定'); input.dispatchEvent(new Event('input',{bubbles:true})); return true; })()");
 assert(await drawSignature(0), "Independent issue signature pad is not drawable"); await wait(100);
 assert(await click("签名并生成权益卡"), "Independent issue action is missing"); await wait(220);
-assert(await evaluate("document.body.innerText.includes('权益卡已生成') && document.body.innerText.includes('等待对方登录领取')"), "Independent issued state is missing");
+assert(await evaluate("!document.body.innerText.includes('权益卡已生成') && Boolean(document.querySelector('.issue-pending-ticket')) && document.body.innerText.includes('等待对方登录领取')"), "Independent issued state is missing");
+await capture("artifacts/player-benefits-pending-ticket-mobile.png");
 assert(await click("在本机领取（演示）"), "Independent self claim action is missing"); await wait(280);
 assert(await evaluate("location.pathname === '/benefits' && document.body.innerText.includes('周末早餐')"), "Independent claimed benefit did not enter owned benefits");
 await capture("artifacts/player-benefits-mobile-verified.png");

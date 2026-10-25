@@ -1,4 +1,8 @@
-import type { Party, PlayerState, Signature } from "../../data/types";
+import type { CouponSource, Party, PlayerState, Signature } from "../../data/types";
+
+export function couponTone(source: CouponSource) {
+  return source === "promise" ? "dark-coupon" : source === "direct" ? "debt-ticket" : "coral-coupon";
+}
 
 export function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
@@ -12,7 +16,7 @@ export function settleAgreement(state: PlayerState, party: Party): PlayerState {
     ...state,
     draft: { ...state.draft, step: 3, winner: party },
     agreements: state.agreements.map(a => a.id === agreement.id ? { ...a, winner: party } : a),
-    coupons: [{ id: `coupon-${agreement.id}`, displayNo: agreement.id.slice(-8).toUpperCase(), title: agreement.benefit, subtitle: agreement.text, side: "won", tone: "coral-coupon", status: "available", source: "promise", sourceNote: agreement.text, agreementId: agreement.id, issuerName: issuerParty === "a" ? "甲方" : "乙方", signature: agreement.signatures[issuerParty], issuedAt: new Date().toISOString(), holderName: party === "a" ? "甲方" : "乙方" }, ...state.coupons]
+    coupons: [{ id: `coupon-${agreement.id}`, displayNo: agreement.id.slice(-8).toUpperCase(), title: agreement.benefit, subtitle: agreement.text, side: "won", tone: couponTone("promise"), status: "available", source: "promise", sourceNote: agreement.text, agreementId: agreement.id, issuerName: issuerParty === "a" ? "甲方" : "乙方", signature: agreement.signatures[issuerParty], issuedAt: new Date().toISOString(), holderName: party === "a" ? "甲方" : "乙方" }, ...state.coupons]
   };
 }
 
@@ -66,7 +70,7 @@ export function claimGameStake(
       title: issuance.title,
       subtitle: `来自「${issuance.cardTitle}」 · ${issuance.issuerName}签发`,
       side: "won",
-      tone: "coral-coupon",
+      tone: couponTone(issuance.source),
       status: "available",
       source: "game",
       sourceNote: `来自「${issuance.cardTitle}」`,
@@ -86,7 +90,8 @@ export function issueDirectBenefit(
   signature: Signature,
   sourceNote = "手动签发",
   issuedAt = new Date().toISOString(),
-  issuanceId = createId("benefit")
+  issuanceId = createId("benefit"),
+  source: CouponSource = "direct"
 ): PlayerState {
   if (!title.trim() || !signature.length) return state;
   return {
@@ -99,7 +104,7 @@ export function issueDirectBenefit(
         issuerName,
         signature,
         issuedAt,
-        source: "direct",
+        source,
         sourceNote: sourceNote.trim() || "手动签发",
         status: "pending_claim"
       }
@@ -127,9 +132,9 @@ export function claimDirectBenefit(
       title: issuance.title,
       subtitle: `${issuance.issuerName}签发 · 独立权益`,
       side: "won",
-      tone: "coral-coupon",
+      tone: couponTone(issuance.source),
       status: "available",
-      source: "direct",
+      source: issuance.source,
       sourceNote: issuance.sourceNote,
       issuerName: issuance.issuerName,
       holderName: holderName.trim(),

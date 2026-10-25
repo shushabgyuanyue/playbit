@@ -6,6 +6,7 @@ import { usePlayer } from "../features/player/PlayerProvider";
 import { CouponCard } from "../features/benefits/CouponCard";
 import { IssueBenefitSheet } from "../features/benefits/IssueBenefitSheet";
 import { claimDirectBenefit, createId, issueDirectBenefit, redeemCoupon } from "../features/player/transitions";
+import type { CouponSource, Signature } from "../data/types";
 import { usePageMemory } from "../services/pageMemory";
 
 export function BenefitsPage() {
@@ -30,11 +31,10 @@ export function BenefitsPage() {
     setIssuanceId(null);
     setIssuing(true);
   }
-  function issue(title: string, sourceNote: string, signature: Parameters<typeof issueDirectBenefit>[3]) {
+  function issue(title: string, source: CouponSource, sourceNote: string, signature: Signature) {
     const id = createId("benefit");
-    update(current => issueDirectBenefit(current, title, current.profileName, signature, sourceNote, new Date().toISOString(), id));
+    update(current => issueDirectBenefit(current, title, current.profileName, signature, sourceNote, new Date().toISOString(), id, source));
     setIssuanceId(id);
-    notify(copy.wallet.issueCreated);
   }
   async function shareIssuance() {
     if (!issuance) return;

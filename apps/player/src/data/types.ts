@@ -53,7 +53,7 @@ export interface Coupon {
   title: string;
   subtitle: string;
   side: "won";
-  tone: "coral-coupon" | "dark-coupon" | "debt-ticket" | "debt-ticket violet-ticket";
+  tone: "coral-coupon" | "dark-coupon" | "debt-ticket" | "violet-ticket";
   status: CouponStatus;
   source: CouponSource;
   sourceNote?: string;

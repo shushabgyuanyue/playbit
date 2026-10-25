@@ -22,6 +22,6 @@ export const createInitialState = (): PlayerState => ({
   coupons: [
     { id: "sample-drink", displayNo: "677A4DF7", title: "一杯你选的饮料", subtitle: "来自「谁更懂谁」挑战", side: "won", tone: "coral-coupon", status: "available", source: "game", sourceNote: "「谁更懂谁」挑战", issuerName: "林", signature: sampleSignature, issuedAt: "2026-10-25T10:20:00.000Z" },
     { id: "sample-breakfast", displayNo: "8A12D903", title: "周末早餐券", subtitle: "赌约双方已签订", side: "won", tone: "dark-coupon", status: "available", source: "promise", sourceNote: "线下签署的赌约", issuerName: "J", signature: sampleSignature, issuedAt: "2026-10-24T15:40:00.000Z" },
-    { id: "sample-hug", displayNo: "C0FFEE04", title: "无条件拥抱 30 秒", subtitle: "留下一次拥抱的记录", side: "won", tone: "coral-coupon", status: "redeemed", source: "promise", sourceNote: "「谁先笑」赌约", issuerName: "林", signature: sampleSignature, issuedAt: "2026-10-20T12:10:00.000Z", redeemedAt: "2026-10-21T18:30:00.000Z" }
+    { id: "sample-hug", displayNo: "C0FFEE04", title: "无条件拥抱 30 秒", subtitle: "留下一次拥抱的记录", side: "won", tone: "dark-coupon", status: "redeemed", source: "promise", sourceNote: "「谁先笑」赌约", issuerName: "林", signature: sampleSignature, issuedAt: "2026-10-20T12:10:00.000Z", redeemedAt: "2026-10-21T18:30:00.000Z" }
   ]
 });
