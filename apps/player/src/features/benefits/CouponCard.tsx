@@ -26,10 +26,12 @@ export function CouponCard({ coupon, index, onRedeem }: { coupon: Coupon; index:
         {coupon.status === "redeemed" ? <div className="used-seal"><Icon name="check" size={17} />{copy.wallet.redeemed}</div> : <div className="ticket-actions single"><button type="button" tabIndex={flipped ? -1 : 0} onClick={event => { event.stopPropagation(); onRedeem(); }}><Icon name="check" size={15} />{copy.wallet.redeem}</button><small className="coupon-flip-hint">{copy.wallet.flipHint}</small></div>}
       </div>
       <div className="coupon-side coupon-back" aria-hidden={!flipped}>
-        <div className="coupon-back-head"><strong>{copy.wallet.backTitle}</strong><small>NO. {number}</small></div>
-        <div className="coupon-signature-row">
-          <div className="coupon-signature"><i>{copy.wallet.issuer}</i>{coupon.signature?.length ? <SignatureMark value={coupon.signature} /> : <b className="signature-placeholder">{copy.wallet.signatureMissing}</b>}<small>{coupon.issuerName || "Playbit"}</small></div>
-          <div className="coupon-dates"><span><i>{copy.wallet.issuedAt}</i><b>{formatDate(coupon.issuedAt)}</b></span></div>
+        <div className="coupon-back-number">NO. {number}</div>
+        <div className="coupon-signature-line">
+          <div className="coupon-signature">
+            {coupon.signature?.length ? <SignatureMark value={coupon.signature} /> : <b className="signature-placeholder">{copy.wallet.signatureMissing}</b>}
+          </div>
+          <time className="coupon-back-date">{formatDate(coupon.issuedAt)}</time>
         </div>
         <button className="coupon-back-hint" type="button" tabIndex={flipped ? 0 : -1} onClick={event => { event.stopPropagation(); toggle(); }}>{copy.wallet.backHint}<Icon name="arrow" size={13} /></button>
       </div>

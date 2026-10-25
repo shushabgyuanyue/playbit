@@ -340,31 +340,33 @@ a { color: inherit; text-decoration: none; }
 .benefit-tabs .tab-icon { width: 30px; height: 30px; display: grid; grid-row: 1 / 3; place-items: center; align-self: center; border-radius: 10px; color: var(--player-ink); background: rgba(255, 255, 255, .62); }
 .benefit-tabs button.active .tab-icon { background: var(--player-lime); }
 .benefit-tabs button > span:last-child { align-self: end; font-size: 11px; font-weight: 900; }
-.benefit-tabs small { display: block; margin-top: 4px; opacity: .58; font-size: 8px; font-weight: 600; }
+.benefit-tabs small { display: block; margin-top: 4px; opacity: .74; font-size: 8px; font-weight: 600; }
 .ticket-list { animation: ticketListIn .38s cubic-bezier(.2, .8, .2, 1); will-change: transform, opacity; }
 .ticket-list-lost { transform-origin: top right; }
 
-/* Match the reference wallet surface: the phone dot field remains visible behind the content. */
-.benefits { background: transparent; }
-.benefits h1 { font-size: 38px; font-weight: 400; letter-spacing: -.06em; }
+/* Match the reference wallet surface: keep the cards narrow, quiet and easy to scan. */
+.benefits { background: transparent; padding-right: clamp(24px, 9.75vw, 38px); padding-left: clamp(24px, 9.75vw, 38px); }
+.benefits h1 { font-size: 34px; font-weight: 400; letter-spacing: -.055em; }
 .benefit-tabs { margin-top: 18px; }
-.coupon-ticket.used { min-height: 105px; }
-.coupon-ticket.used .ticket-main { min-height: 105px; margin-right: 95px; }
+.coupon-ticket.used { min-height: 86px; }
+.coupon-ticket.used .ticket-main { min-height: 86px; margin-right: 78px; }
 
 /* Final mobile scale overrides: these stay last so legacy page rules cannot undo the reference proportions. */
-.coupon-ticket { min-height: 118px; border-radius: 18px; }
-.coupon-ticket::before, .coupon-ticket::after { right: 94px; width: 18px; height: 18px; }
-.coupon-ticket::before { top: -9px; }
-.coupon-ticket::after { bottom: -9px; }
-.ticket-main { min-height: 118px; margin-right: 94px; padding: 16px; gap: 4px; }
-.ticket-main small { font-size: 7px; }
-.ticket-main strong { font-size: 18px; line-height: 1.2; }
-.ticket-main span { font-size: 9px; }
-.ticket-actions { width: 94px; padding: 10px; }
-.ticket-actions button { min-height: 62px; border-radius: 10px; font-size: 9px; }
-.coupon-ticket.used { min-height: 104px; }
-.coupon-ticket.used .ticket-main { min-height: 104px; margin-right: 94px; }
-.used-seal { top: 30px; right: 13px; width: 58px; height: 34px; font-size: 8px; }
+.ticket-list { gap: 10px; }
+.ticket-list .used { opacity: 1; }
+.coupon-ticket { min-height: 86px; border-radius: 15px; }
+.coupon-ticket::before, .coupon-ticket::after { right: 78px; width: 14px; height: 14px; }
+.coupon-ticket::before { top: -7px; }
+.coupon-ticket::after { bottom: -7px; }
+.ticket-main { min-height: 86px; margin-right: 78px; padding: 10px 12px; gap: 3px; }
+.ticket-main small { font-size: 6.5px; opacity: .78; }
+.ticket-main strong { font-size: 16px; line-height: 1.18; }
+.ticket-main span { font-size: 8px; opacity: .74; }
+.ticket-actions { width: 78px; padding: 8px 7px; }
+.ticket-actions button { min-height: 44px; border-radius: 9px; font-size: 8px; }
+.coupon-ticket.used { min-height: 86px; }
+.coupon-ticket.used .ticket-main { min-height: 86px; margin-right: 78px; }
+.used-seal { top: 24px; right: 10px; width: 52px; height: 29px; font-size: 7px; }
 .profile-head { border-radius: 16px; }
 .profile-head::before { width: 104px; height: 104px; right: -47px; top: -47px; opacity: .72; }
 .profile-deck { border-radius: 12px; }
@@ -411,41 +413,36 @@ a { color: inherit; text-decoration: none; }
 .issue-benefit-sign-hint { margin: 6px 0 14px; color: #89828b; font-size: 9px; line-height: 1.5; text-align: center; }
 
 /* Benefit cards reveal their proof on the reverse, while redemption stays one tap away. */
-.coupon-card { min-height: 122px; overflow: visible; perspective: 1200px; background: transparent !important; box-shadow: none; cursor: pointer; }
+.coupon-card { min-height: 86px; overflow: visible; perspective: 1200px; background: transparent !important; box-shadow: none; cursor: pointer; }
 .coupon-card::before, .coupon-card::after { display: none; }
-.coupon-flip { position: relative; min-height: 122px; transform-style: preserve-3d; transition: transform .62s cubic-bezier(.2, .76, .24, 1); will-change: transform; }
+.coupon-flip { position: relative; min-height: 86px; transform-style: preserve-3d; transition: transform .62s cubic-bezier(.2, .76, .24, 1); will-change: transform; }
 .coupon-card.is-flipped .coupon-flip { transform: rotateY(180deg); }
-.coupon-side { position: absolute; inset: 0; overflow: hidden; border-radius: 18px; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 10px 26px rgba(35, 26, 42, .1); }
+.coupon-side { position: absolute; inset: 0; overflow: hidden; border-radius: 15px; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 8px 20px rgba(35, 26, 42, .1); }
 .coupon-front { color: #18151d; }
 .coral-coupon .coupon-front { background: var(--player-coral); }
 .dark-coupon .coupon-front { color: #fff; background: #18151d; }
-.coupon-front::before, .coupon-front::after { content: ""; position: absolute; right: 94px; z-index: 2; width: 18px; height: 18px; border-radius: 50%; background: #efefed; transform: translateX(50%); }
-.coupon-front::before { top: -9px; }
-.coupon-front::after { bottom: -9px; }
-.coupon-front .ticket-main { min-height: 122px; margin-right: 94px; padding: 14px 15px; gap: 4px; }
+.coupon-front::before, .coupon-front::after { content: ""; position: absolute; right: 78px; z-index: 2; width: 14px; height: 14px; border-radius: 50%; background: #efefed; transform: translateX(50%); }
+.coupon-front::before { top: -7px; }
+.coupon-front::after { bottom: -7px; }
+.coupon-front .ticket-main { min-height: 86px; margin-right: 78px; padding: 10px 12px; gap: 3px; }
 .coupon-front .ticket-main small { font-size: 7px; letter-spacing: .14em; }
-.coupon-front .ticket-main strong { max-width: 100%; overflow: hidden; font-size: 18px; line-height: 1.2; text-overflow: ellipsis; }
-.coupon-front .ticket-main span { overflow: hidden; font-size: 9px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
-.coupon-front .ticket-actions { width: 94px; padding: 9px 9px 8px; gap: 4px; }
-.coupon-front .ticket-actions button { min-height: 52px; border-radius: 10px; font-size: 9px; }
-.coupon-flip-hint { color: inherit; opacity: .58; font-size: 7px; line-height: 1.1; text-align: center; }
+.coupon-front .ticket-main strong { max-width: 100%; overflow: hidden; font-size: 16px; line-height: 1.18; text-overflow: ellipsis; }
+.coupon-front .ticket-main span { overflow: hidden; font-size: 8px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.coupon-front .ticket-actions { width: 78px; padding: 8px 7px 7px; gap: 3px; }
+.coupon-front .ticket-actions button { min-height: 44px; border-radius: 9px; font-size: 8px; }
+.coupon-flip-hint { color: inherit; opacity: .72; font-size: 7px; line-height: 1.1; text-align: center; }
 .coupon-card.used { opacity: 1; }
-.coupon-card.used .coupon-front { filter: saturate(.5) brightness(.97); }
-.coupon-back { padding: 12px 15px 10px; color: #28242b; background: linear-gradient(145deg, #fbf8f1, #e9e2d8); transform: rotateY(180deg); }
+.coupon-card.used .coupon-front { filter: none; }
+.coupon-back { padding: 10px 13px 8px; color: #28242b; background: linear-gradient(145deg, #fbf8f1, #e9e2d8); transform: rotateY(180deg); }
 .coupon-back::before { content: ""; position: absolute; inset: 8px; border: 1px solid rgba(61, 49, 42, .12); border-radius: 13px; pointer-events: none; }
-.coupon-back-head, .coupon-signature-row, .coupon-back-hint { position: relative; z-index: 1; }
-.coupon-back-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 7px; border-bottom: 1px solid rgba(61, 49, 42, .2); }
-.coupon-back-head strong { font-size: 12px; letter-spacing: .05em; }
-.coupon-back-head small { color: #6f655e; font-size: 7px; font-weight: 900; letter-spacing: .12em; }
-.coupon-signature-row { display: grid; grid-template-columns: 1.1fr .9fr; gap: 11px; min-height: 67px; padding-top: 9px; }
-.coupon-signature { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.coupon-signature > i, .coupon-dates i { color: #8e8178; font-size: 7px; font-style: normal; font-weight: 800; letter-spacing: .08em; }
-.coupon-signature .signature-mark { width: 100%; height: 38px; margin-top: -1px; color: #29222b; }
-.coupon-signature > small { overflow: hidden; color: #756a63; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
-.signature-placeholder { color: #9b9088; font-size: 8px; font-weight: 500; }
-.coupon-dates { display: flex; flex-direction: column; gap: 8px; padding: 11px 0 0 10px; border-left: 1px solid rgba(61, 49, 42, .15); }
-.coupon-dates b { color: #3e3632; font-size: 8px; line-height: 1.2; }
-.coupon-back-hint { position: absolute; right: 13px; bottom: 7px; display: inline-flex; align-items: center; gap: 3px; padding: 3px 0; color: #6a47d5; background: transparent; font-size: 7px; font-weight: 900; }
+.coupon-back-number, .coupon-signature-line, .coupon-back-hint { position: relative; z-index: 1; }
+.coupon-back-number { color: #6f655e; font-size: 7px; font-weight: 900; letter-spacing: .12em; }
+.coupon-signature-line { position: absolute; right: 13px; bottom: 9px; display: flex; align-items: flex-end; gap: 9px; }
+.coupon-signature { width: 106px; min-width: 0; }
+.coupon-signature .signature-mark { width: 100%; height: 30px; color: #29222b; }
+.signature-placeholder { display: block; overflow: hidden; color: #9b9088; font-size: 7px; font-weight: 500; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.coupon-back-date { color: #6f655e; font-size: 7px; line-height: 1.2; white-space: nowrap; }
+.coupon-back-hint { position: absolute; right: 13px; top: 29px; display: inline-flex; align-items: center; gap: 3px; padding: 3px 0; color: #6a47d5; background: transparent; font-size: 7px; font-weight: 900; }
 .coupon-back-hint svg { transform: rotate(180deg); }
 @media (prefers-reduced-motion: reduce) { .coupon-flip { transition: none; } }
 @keyframes stakeNudgeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
