@@ -247,6 +247,16 @@ a { color: inherit; text-decoration: none; }
 .agreement-list-empty p { max-width: 190px; margin: 0 0 8px; color: #99929a; font-size: 10px; line-height: 1.6; }
 .agreement-list-empty .primary-button { display: flex; align-items: center; gap: 7px; }
 
+/* Offline agreement settlement keeps the result light: the room decides the winner, Playbit issues the record. */
+.settlement-flow .settlement-summary { margin-top: 15px; }
+.settlement-flow .settlement-summary strong { font-size: 21px; }
+.settlement-note { min-height: 57px; margin-top: 12px; padding: 11px 13px; display: flex; align-items: center; gap: 9px; border: 1px solid #d8d0c5; border-radius: 10px; color: #5f4bc2; background: #e9e3f6; }
+.settlement-note > svg { flex: none; }
+.settlement-note > span { display: flex; flex-direction: column; gap: 3px; }
+.settlement-note b { color: #403368; font-size: 10px; line-height: 1.45; }
+.settlement-note small { color: #817795; font-size: 8px; line-height: 1.4; }
+.settlement-flow .view-contract-btn { margin-top: 9px; }
+
 /* The reference card uses a quiet ambient field, without floating social badges. */
 .network-field > .ambient-one, .network-field > .ambient-two, .network-field > .ambient-ring { position: absolute; display: block; border: 0; mix-blend-mode: screen; opacity: .22; filter: blur(22px); box-shadow: none; }
 .network-field > .ambient-one { width: 150px; height: 150px; right: -72px; top: 78px; background: radial-gradient(circle, rgba(255, 225, 150, .95) 0%, rgba(255, 225, 150, 0) 68%); animation: ambientMeetA 9s cubic-bezier(.45, 0, .55, 1) infinite; }

@@ -130,7 +130,7 @@ export function claimDirectBenefit(
       id: createId("coupon"),
       displayNo: String(state.coupons.length + 1).padStart(3, "0"),
       title: issuance.title,
-      subtitle: `${issuance.issuerName}签发 · 独立权益`,
+      subtitle: issuance.source === "promise" ? `来自「${issuance.sourceNote ?? "线下约定"}」 · ${issuance.issuerName}签发` : `${issuance.issuerName}签发 · 独立权益`,
       side: "won",
       tone: couponTone(issuance.source),
       status: "available",

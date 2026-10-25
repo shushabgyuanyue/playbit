@@ -1,9 +1,25 @@
 import { useEffect, useState } from "react";
 import { playerCopy as copy } from "@playbit/content/player";
-import type { GameStakeIssuance, Signature } from "../../data/types";
+import type { BenefitIssuance, Signature } from "../../data/types";
 import { Icon } from "../../components/ui/Icon";
 import { Sheet } from "../../components/ui/Sheet";
 import { SignaturePad } from "../promise/SignaturePad";
+
+type ShareIssuance = Pick<BenefitIssuance, "id" | "title" | "issuerName" | "signature" | "status">;
+export interface IssueShareLabels {
+  title: string;
+  eyebrow: string;
+  description: string;
+  issue: string;
+  pending: string;
+  sign: string;
+  signHint: string;
+  action: string;
+  signed: string;
+  claimed: string;
+  share: string;
+  selfClaim: string;
+}
 
 export function IssueStakeSheet({
   open,
@@ -14,44 +30,61 @@ export function IssueStakeSheet({
   issuance,
   onIssue,
   onShare,
-  onSelfClaim
+  onSelfClaim,
+  labels
 }: {
   open: boolean;
   onClose: () => void;
   cardTitle: string;
   stake: string;
   issuerName: string;
-  issuance: GameStakeIssuance | null;
+  issuance: ShareIssuance | null;
   onIssue: (signature: Signature) => void;
   onShare: () => void;
   onSelfClaim: () => void;
+  labels?: Partial<IssueShareLabels>;
 }) {
   const [signature, setSignature] = useState<Signature>([]);
+  const text: IssueShareLabels = {
+    title: copy.play.issueStakeTitle,
+    eyebrow: "STAKE CARD",
+    description: copy.play.issueStakeHint,
+    issue: copy.play.issueStake,
+    pending: copy.play.issueStakePending,
+    sign: copy.play.issueStakeSign,
+    signHint: copy.play.issueStakeSignHint,
+    action: copy.play.issueStakeAction,
+    signed: copy.play.issueStakeSigned,
+    claimed: copy.play.issueStakeClaimed,
+    share: copy.play.issueStakeShare,
+    selfClaim: copy.play.issueStakeSelfClaim,
+    ...labels
+  };
   useEffect(() => {
     if (open && !issuance) setSignature([]);
   }, [open, issuance]);
 
-  return <Sheet open={open} onClose={onClose} title={copy.play.issueStakeTitle} eyebrow="STAKE CARD" description={copy.play.issueStakeHint}>
+  return <Sheet open={open} onClose={onClose} title={text.title} eyebrow={text.eyebrow} description={text.description}>
     <div className="issue-stake-context">
       <span>{cardTitle}</span>
       <strong>{stake}</strong>
-      <small>{issuerName} · {issuance ? copy.play.issueStakePending : copy.play.issueStake}</small>
+      <small>{issuerName} · {issuance ? text.pending : text.issue}</small>
     </div>
     {!issuance ? <>
-      <SignaturePad label={copy.play.issueStakeSign} value={signature} onChange={setSignature} />
-      <p className="issue-stake-sign-hint">{copy.play.issueStakeSignHint}</p>
+      <SignaturePad label={text.sign} value={signature} onChange={setSignature} />
+      <p className="issue-stake-sign-hint">{text.signHint}</p>
       <button className="primary-button issue-stake-submit" type="button" disabled={!signature.length} onClick={() => onIssue(signature)}>
-        <Icon name="sign" size={17} />{copy.play.issueStakeAction}
+        <Icon name="sign" size={17} />{text.action}
       </button>
     </> : <>
       <div className="issue-stake-issued" role="status">
         <Icon name="check" size={17} />
-        <span><b>{copy.play.issueStakeSigned}</b><small>{copy.play.issueStakePending}</small></span>
+        <span><b>{issuance.status === "claimed" ? text.claimed : text.signed}</b><small>{issuance.status === "claimed" ? "这份权益已进入权益中心" : text.pending}</small></span>
       </div>
-      <div className="issue-stake-actions">
-        <button className="primary-button" type="button" onClick={onShare}><Icon name="send" size={17} />{copy.play.issueStakeShare}</button>
-        <button className="text-button" type="button" onClick={onSelfClaim}>{copy.play.issueStakeSelfClaim}</button>
-      </div>
+      {issuance.status !== "claimed" && <div className="issue-stake-actions">
+        <button className="primary-button" type="button" onClick={onShare}><Icon name="send" size={17} />{text.share}</button>
+        <button className="text-button" type="button" onClick={onSelfClaim}>{text.selfClaim}</button>
+      </div>}
     </>}
   </Sheet>;
 }

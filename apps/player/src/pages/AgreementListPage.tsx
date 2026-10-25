@@ -28,10 +28,14 @@ export function AgreementListPage() {
 
   return <section className="agreement-list-page" ref={section}>
     <header className="agreement-list-heading"><div><small>PLAYBIT RECORDS</small><h1>{copy.promise.records}</h1><p>{copy.promise.recordEmpty}</p></div><span className="agreement-list-count">{agreements.length}</span></header>
-    {agreements.length > 0 ? <div className="agreement-records">{agreements.map((agreement, index) => <button className="agreement-record" key={agreement.id} onClick={() => navigate(`/agreements/${agreement.id}`)}>
+    {agreements.length > 0 ? <div className="agreement-records">{agreements.map((agreement, index) => {
+      const issuance = state.issuedBenefits[`promise-${agreement.id}`];
+      const status = agreement.winner ? "已登记结果" : issuance?.status === "claimed" ? copy.promise.issueBenefitClaimed : issuance ? copy.promise.issueBenefitPending : copy.promise.active;
+      return <button className="agreement-record" key={agreement.id} onClick={() => navigate(`/agreements/${agreement.id}`)}>
       <span className={`agreement-record-mark mark-${index % 3}`}><Icon name="file" size={17} /></span>
-      <span className="agreement-record-copy"><small>{formatDate(agreement.createdAt)} · {agreement.winner ? "已登记结果" : copy.promise.active}</small><b>{agreement.text}</b><span>{copy.promise.benefit}：{agreement.benefit}</span></span>
+      <span className="agreement-record-copy"><small>{formatDate(agreement.createdAt)} · {status}</small><b>{agreement.text}</b><span>{copy.promise.benefit}：{agreement.benefit}</span></span>
       <Icon name="arrow" size={16} />
-    </button>)}</div> : <div className="agreement-list-empty"><Icon name="file" size={26} /><h2>{copy.promise.noRecords}</h2><p>{copy.promise.recordEmpty}</p><button className="primary-button" onClick={() => navigate("/promise")}>{copy.promise.newPromise}<Icon name="arrow" size={16} /></button></div>}
+    </button>;
+    })}</div> : <div className="agreement-list-empty"><Icon name="file" size={26} /><h2>{copy.promise.noRecords}</h2><p>{copy.promise.recordEmpty}</p><button className="primary-button" onClick={() => navigate("/promise")}>{copy.promise.newPromise}<Icon name="arrow" size={16} /></button></div>}
   </section>;
 }

@@ -112,10 +112,17 @@ assert(await evaluate("document.body.innerText.includes('请双方核对条款�
 assert(await evaluate("getComputedStyle(document.querySelector('.bet-module > .page-transition')).animationName === 'pageIn'"), "Promise signing transition is missing");
 assert(await drawSignature(0) && await drawSignature(1), "Signature pads are not drawable"); await wait(120);
 assert(await click("签字完成，盖章生效"), "Promise seal action is missing"); await wait(1100);
-assert(await evaluate("document.body.innerText.includes('确认权益获得方') && getComputedStyle(document.querySelector('.bet-module > .page-transition')).animationName === 'pageIn'"), "Promise result transition is missing");
-assert(await click("甲方"), "Winner selection is missing"); await wait(80);
-assert(await click("确认 甲方 获胜"), "Promise settlement action is missing"); await wait(250);
-assert(await evaluate("document.body.innerText.includes('胜者权益') && getComputedStyle(document.querySelector('.bet-module > .page-transition')).animationName === 'pageIn'"), "Promise issued transition is missing");
+assert(await evaluate("document.body.innerText.includes('把约定交给赢家') && !document.body.innerText.includes('确认权益获得方') && getComputedStyle(document.querySelector('.bet-module > .page-transition')).animationName === 'pageIn'"), "Offline promise settlement transition is missing");
+assert(await click("签发给赢家"), "Promise issue action is missing"); await wait(220);
+assert(await evaluate("document.body.innerText.includes('把约定权益交给赢家') && document.querySelectorAll('.signature-pad canvas').length === 1"), "Promise issue sheet is incomplete");
+assert(await drawSignature(0), "Promise issue signature pad is not drawable"); await wait(100);
+assert(await click("签发并生成权益卡"), "Promise issue action is missing"); await wait(220);
+assert(await evaluate("document.body.innerText.includes('权益已签发') && document.body.innerText.includes('等待赢家登录领取')"), "Promise issued state is missing");
+assert(await click("分享给赢家领取"), "Promise share action is missing"); await wait(120);
+assert(await click("在本机领取（演示）"), "Promise self claim action is missing"); await wait(280);
+assert(await evaluate("location.pathname === '/benefits' && document.body.innerText.includes('周末早餐')"), "Claimed promise benefit did not enter owned benefits");
+await navigate("/promise");
+assert(await evaluate("document.body.innerText.includes('把约定交给赢家') && !document.body.innerText.includes('确认权益获得方') && JSON.parse(localStorage.getItem('playbit:player:prototype:v1')).issuedBenefits[Object.keys(JSON.parse(localStorage.getItem('playbit:player:prototype:v1')).issuedBenefits)[0]].source === 'promise'"), "Promise issuance did not persist after reload");
 await capture("artifacts/player-promise-mobile-verified.png");
 
 await navigate("/benefits");
