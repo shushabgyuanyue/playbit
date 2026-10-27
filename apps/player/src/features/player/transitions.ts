@@ -31,8 +31,11 @@ export function issueGameStake(
 ): PlayerState {
   if (!title.trim() || !signature.length || state.issuedStakes[cardId]) return state;
   const issuanceId = createId("stake");
+  const stakeRecords = { ...state.stakeRecords };
+  delete stakeRecords[cardId];
   return {
     ...state,
+    stakeRecords,
     issuedStakes: {
       ...state.issuedStakes,
       [cardId]: {

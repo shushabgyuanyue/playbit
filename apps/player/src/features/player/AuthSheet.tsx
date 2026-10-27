@@ -6,6 +6,15 @@ import { Sheet } from "../../components/ui/Sheet";
 import { PlayerApiError } from "../../services/playerApi";
 import { usePlayer } from "./PlayerProvider";
 
+const nicknameAdjectives = ["认真", "随性", "临时", "开心", "刚好"];
+const nicknameNouns = ["玩家", "朋友", "同桌", "旅伴", "局内人"];
+
+function createDefaultNickname() {
+  const adjective = nicknameAdjectives[Math.floor(Math.random() * nicknameAdjectives.length)];
+  const noun = nicknameNouns[Math.floor(Math.random() * nicknameNouns.length)];
+  return `${adjective}${noun}${Math.floor(100 + Math.random() * 900)}`;
+}
+
 export function AuthSheet({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess?: (user: User) => void }) {
   const { auth, notify } = usePlayer();
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -20,7 +29,7 @@ export function AuthSheet({ open, onClose, onSuccess }: { open: boolean; onClose
     setMode("login");
     setEmail("");
     setPassword("");
-    setNickname("");
+    setNickname(createDefaultNickname());
     setError("");
     setSubmitting(false);
   }, [open]);
@@ -35,7 +44,7 @@ export function AuthSheet({ open, onClose, onSuccess }: { open: boolean; onClose
       if (mode === "login") {
         currentUser = await auth.login({ email: email.trim(), password });
       } else {
-        currentUser = await auth.register({ email: email.trim(), password, nickname: nickname.trim() });
+        currentUser = await auth.register({ email: email.trim(), password, nickname: nickname.trim() || createDefaultNickname() });
       }
       notify(mode === "login" ? "已登录，权益会同步到这里" : "账户已创建，权益会同步到这里");
       onClose();
@@ -50,8 +59,8 @@ export function AuthSheet({ open, onClose, onSuccess }: { open: boolean; onClose
 
   return <Sheet open={open} onClose={onClose} title={mode === "login" ? copy.auth.loginTitle : copy.auth.registerTitle} eyebrow="PLAYBIT ID" description={mode === "login" ? copy.auth.loginHint : copy.auth.registerHint}>
     <form className="auth-form sheet-form" onSubmit={submit}>
-      {mode === "register" && <label><span>{copy.auth.nickname}</span><input value={nickname} onChange={event => setNickname(event.target.value)} placeholder={copy.auth.nicknamePlaceholder} maxLength={20} autoComplete="nickname" required /></label>}
-      <label><span>{copy.auth.email}</span><input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder={copy.auth.emailPlaceholder} autoComplete="email" required /></label>
+      {mode === "register" && <label><span>{copy.auth.nickname}</span><input value={nickname} onChange={event => setNickname(event.target.value)} placeholder={copy.auth.nicknamePlaceholder} maxLength={20} autoComplete="nickname" /></label>}
+      <label><span>{copy.auth.email}</span><input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder={copy.auth.emailPlaceholder} list="playbit-email-domains" autoComplete="email" required />{mode === "register" && <small className="auth-field-hint">{copy.auth.emailHint}</small>}<datalist id="playbit-email-domains"><option value="name@qq.com" /><option value="name@163.com" /><option value="name@gmail.com" /><option value="name@outlook.com" /></datalist></label>
       <label><span>{copy.auth.password}</span><input type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder={copy.auth.passwordPlaceholder} minLength={8} maxLength={72} autoComplete={mode === "login" ? "current-password" : "new-password"} required /></label>
       {error && <p className="auth-error" role="alert"><Icon name="alert" size={14} />{error}</p>}
       <button className="primary-button" type="submit" disabled={submitting}>{submitting ? "正在处理…" : mode === "login" ? copy.auth.login : copy.auth.register}</button>

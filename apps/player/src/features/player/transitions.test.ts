@@ -23,9 +23,11 @@ describe("player transitions", () => {
 
   it("issues a signed game stake and creates one owned coupon when claimed", () => {
     const signature = [[{ x: 0.1, y: 0.2 }]];
-    const issued = issueGameStake(createInitialState(), "truth", "暧昧升温", "输的人请喝一杯", "主持人", signature, "2026-01-01T00:00:00.000Z");
+    const initial = createInitialState();
+    const issued = issueGameStake({ ...initial, stakes: { truth: "输的人请喝一杯" }, stakeRecords: { truth: { cardId: "truth", title: "输的人请喝一杯", createdAt: "2026-01-01T00:00:00.000Z" } } }, "truth", "暧昧升温", "输的人请喝一杯", "主持人", signature, "2026-01-01T00:00:00.000Z");
     const issuance = issued.issuedStakes.truth;
     expect(issuance).toMatchObject({ status: "pending_claim", title: "输的人请喝一杯" });
+    expect(issued.stakeRecords.truth).toBeUndefined();
     const claimed = claimGameStake(issued, issuance!.id, "获胜方", "2026-01-01T00:01:00.000Z");
     expect(claimed.coupons[0]).toMatchObject({ source: "game", tone: "coral-coupon", holderName: "获胜方", status: "available" });
     expect(claimed.issuedStakes.truth?.status).toBe("claimed");

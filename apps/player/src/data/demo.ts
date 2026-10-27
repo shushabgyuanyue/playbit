@@ -18,7 +18,7 @@ const sampleSignature = [[{ x: 0.08, y: 0.62 }, { x: 0.24, y: 0.3 }, { x: 0.38, 
 export const createInitialState = (): PlayerState => ({
   version: 1, profileName: copy.profile.defaultName, sceneId: "date", deckId: null, cardId: "truth",
   decks: [{ id: "date-deck", name: "约会灵感", cardIds: ["truth"] }, { id: "friend-deck", name: "不尴尬破冰", cardIds: ["point"] }],
-  stakes: {}, issuedStakes: {}, issuedBenefits: {}, draft: emptyDraft(), agreements: [],
+  stakes: {}, stakeRecords: {}, issuedStakes: {}, issuedBenefits: {}, draft: emptyDraft(), agreements: [],
   coupons: [
     { id: "sample-drink", displayNo: "677A4DF7", title: "一杯你选的饮料", subtitle: "来自「谁更懂谁」挑战", side: "won", tone: "coral-coupon", status: "available", source: "game", sourceNote: "「谁更懂谁」挑战", issuerName: "林", signature: sampleSignature, issuedAt: "2026-10-25T10:20:00.000Z" },
     { id: "sample-breakfast", displayNo: "8A12D903", title: "周末早餐券", subtitle: "赌约双方已签订", side: "won", tone: "dark-coupon", status: "available", source: "promise", sourceNote: "线下签署的赌约", issuerName: "J", signature: sampleSignature, issuedAt: "2026-10-24T15:40:00.000Z" },

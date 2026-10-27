@@ -20,6 +20,12 @@ export type Party = "a" | "b";
 export type CouponSource = "game" | "promise" | "direct";
 export type CouponStatus = "available" | "redeemed";
 
+export interface StakeRecord {
+  cardId: string;
+  title: string;
+  createdAt: string;
+}
+
 export interface BenefitIssuance {
   id: string;
   title: string;
@@ -83,6 +89,7 @@ export interface PlayerState {
   cardId: string;
   decks: Deck[];
   stakes: Record<string, string>;
+  stakeRecords: Record<string, StakeRecord>;
   issuedStakes: Record<string, GameStakeIssuance>;
   issuedBenefits: Record<string, BenefitIssuance>;
   draft: PromiseDraft;

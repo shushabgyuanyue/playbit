@@ -8,7 +8,7 @@ function TypedRule({ text }: { text: string }) {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setTyped(text); return; }
     let cursor = 0; setTyped("");
-    const timer = setInterval(() => { cursor += 1; setTyped(text.slice(0, cursor)); if (cursor >= text.length) clearInterval(timer); }, 28);
+    const timer = setInterval(() => { cursor += 1; setTyped(text.slice(0, cursor)); if (cursor >= text.length) clearInterval(timer); }, 58);
     return () => clearInterval(timer);
   }, [text]);
   return <p className="rule type-rule"><span className="sr-only">{text}</span><span aria-hidden="true">{typed}<i className="type-caret" /></span></p>;
@@ -43,12 +43,12 @@ export function GameCard({ card, scene, flipped, slide, saved, stake, stakeIssue
         </div>
         <span className="swipe-tip">{copy.play.swipe}</span>
       </div>
-      <div className="card-face card-back" inert={!flipped} aria-hidden={!flipped} onClick={e => { if (!(e.target as HTMLElement).closest("button")) onFlip(false); }}>
+      <div className="card-face card-back" inert={!flipped} aria-hidden={!flipped} onClick={e => { if (!(e.target as HTMLElement).closest("button, .stake-token.read-only")) onFlip(false); }}>
         <div className="play-state"><span>{copy.play.serious}</span><b>{card.time}</b></div>
         <button className={`corner-save light ${saved ? "saved" : ""}`} onClick={onSave} aria-label={copy.play.collect} aria-pressed={saved}><Icon name="bookmark" size={18} /></button>
-        <div className="type-stage" onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}><div className="rule-kicker">{copy.play.rules}</div>{flipped && <TypedRule text={card.rule} />}<span className="type-note">{card.action}{copy.play.putDown}</span></div>
+        <div className="type-stage"><div className="rule-kicker">{copy.play.rules}</div>{flipped && <TypedRule text={card.rule} />}<span className="type-note">{card.action}{copy.play.putDown}</span></div>
         <div className="stake-token-row">
-          <button className="stake-token minimal" onClick={onStake} aria-label={stake ? copy.play.stakeEdit : copy.play.stake} title={stake ? copy.play.stakeEdit : copy.play.stake}><span className="stake-trophy"><Icon name="trophy" size={14} /></span><span>{stake ? copy.play.stakeAdded : copy.play.stake}</span><b>{stake ?? copy.play.anticipation}</b>{stake && !stakeIssued && <Icon name="edit" size={12} />}</button>
+          <div className="stake-token minimal read-only" aria-label={stake ? copy.play.stakeAdded : copy.play.stake} title={stake ? copy.play.stakeAdded : copy.play.stake}><span className="stake-trophy"><Icon name="trophy" size={14} /></span><span>{stake ? copy.play.stakeAdded : copy.play.stake}</span><b>{stake ?? copy.play.anticipation}</b></div>
           {stake && <button className={`stake-issue-icon back ${stakeIssued ? "issued" : ""}`} type="button" onClick={onIssue} aria-label={stakeIssued ? copy.play.issueStakeSigned : copy.play.issueStake} title={stakeIssued ? copy.play.issueStakeSigned : copy.play.issueStake}><Icon name={stakeIssued ? "check" : "sign"} size={14} /></button>}
         </div>
         <button className="swipe-tip back-hint" onClick={() => onFlip(false)} aria-label={copy.play.backToPreview}>{copy.play.returnHint}</button>

@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { playerCopy as copy } from "@playbit/content/player";
-import { scenes } from "../data/demo";
+import { cards, scenes } from "../data/demo";
 import { Icon } from "../components/ui/Icon";
 import { Sheet } from "../components/ui/Sheet";
 import { AiSheet, CollectionSheet, CreateDeckSheet, SceneDrawer } from "../features/cards/DeckSheets";
 import { GameCard } from "../features/cards/GameCard";
 import { IssueStakeSheet } from "../features/cards/IssueStakeSheet";
+import { getPendingStakeRecords, StakeRecordsSheet, STAKE_RECORD_TTL_MS } from "../features/cards/StakeRecordsSheet";
 import { useCardDeck } from "../features/cards/useCardDeck";
 import { usePlayer } from "../features/player/PlayerProvider";
 import { claimGameStake, issueGameStake } from "../features/player/transitions";
-import type { Signature } from "../data/types";
+import type { Signature, StakeRecord } from "../data/types";
 import { usePageMemory } from "../services/pageMemory";
 import { isPlayerApiConfigured, PlayerApiError, playerApi, signatureToDataUrl } from "../services/playerApi";
 
-type Panel = "scene" | "ai" | "save" | "stake" | "issue" | "new" | "new-and-save" | null;
+type Panel = "scene" | "ai" | "records" | "save" | "stake" | "issue" | "new" | "new-and-save" | null;
 
 export function PlayPage() {
   const { state, update, notify } = usePlayer();
@@ -27,10 +28,12 @@ export function PlayPage() {
   const [issueNudge, setIssueNudge] = useState(false);
   const pendingMove = useRef<number | null>(null);
   const ignoredIssueNudges = useRef(new Set<string>());
-  const touch = useRef<{ x: number; y: number } | null>(null);
+  const pointer = useRef<{ id: number; x: number; y: number } | null>(null);
+  const [pendingIssueCardId, setPendingIssueCardId] = useState<string | null>(null);
   const scene = state.decks.find(d => d.id === state.deckId)?.name ?? scenes.find(s => s.id === state.sceneId)?.title ?? scenes[0]!.title;
   const stake = state.stakes[card.id];
   const issuance = state.issuedStakes[card.id] ?? null;
+  const pendingStakeRecords = getPendingStakeRecords(state);
   const alreadySaved = state.decks.some(deck => deck.cardIds.includes(card.id));
   const saved = alreadySaved || pendingSaveCardId === card.id;
   const close = () => {
@@ -40,6 +43,34 @@ export function PlayPage() {
   useEffect(() => {
     if (alreadySaved && pendingSaveCardId === card.id) setPendingSaveCardId(null);
   }, [alreadySaved, card.id, pendingSaveCardId]);
+  useEffect(() => {
+    const now = Date.now();
+    const records = Object.values(state.stakeRecords ?? {});
+    const stale = records.filter(record => {
+      const expired = now - Date.parse(record.createdAt) >= STAKE_RECORD_TTL_MS;
+      return expired || Boolean(state.issuedStakes[record.cardId]) || state.stakes[record.cardId] !== record.title;
+    });
+    if (stale.length) {
+      update(current => {
+        const stakeRecords = { ...(current.stakeRecords ?? {}) };
+        const stakes = { ...current.stakes };
+        for (const record of stale) {
+          delete stakeRecords[record.cardId];
+          if (now - Date.parse(record.createdAt) >= STAKE_RECORD_TTL_MS && !current.issuedStakes[record.cardId]) delete stakes[record.cardId];
+        }
+        return { ...current, stakes, stakeRecords };
+      });
+    }
+    const nextExpiry = records.map(record => Date.parse(record.createdAt) + STAKE_RECORD_TTL_MS).filter(value => Number.isFinite(value) && value > now).sort((a, b) => a - b)[0];
+    if (!nextExpiry) return;
+    const timer = window.setTimeout(() => update(current => ({ ...current })), Math.max(100, nextExpiry - now + 50));
+    return () => window.clearTimeout(timer);
+  }, [state.issuedStakes, state.stakeRecords, state.stakes, update]);
+  useEffect(() => {
+    if (pendingIssueCardId !== card.id) return;
+    setPendingIssueCardId(null);
+    setPanel("issue");
+  }, [card.id, pendingIssueCardId]);
   useEffect(() => {
     if (!issueNudge) return;
     const timer = window.setTimeout(() => {
@@ -67,10 +98,30 @@ export function PlayPage() {
     if (!stake) { setPanel("stake"); return; }
     setPanel("issue");
   }
+  function openStakeRecord(record: StakeRecord) {
+    const target = cards.find(item => item.id === record.cardId);
+    if (!target) return;
+    const deck = state.decks.find(item => item.cardIds.includes(record.cardId));
+    setPendingIssueCardId(record.cardId);
+    update(current => ({ ...current, deckId: deck?.id ?? null, sceneId: deck ? current.sceneId : target.sceneIds[0] ?? current.sceneId, cardId: record.cardId }));
+    setPanel(null);
+  }
   function saveStake(remove = false) {
     if (issuance) return;
     if (!remove && !stakeInput.trim()) return;
-    update(current => { const next = { ...current.stakes }; if (remove) delete next[card.id]; else next[card.id] = stakeInput.trim(); return { ...current, stakes: next }; });
+    update(current => {
+      const stakes = { ...current.stakes };
+      const stakeRecords = { ...(current.stakeRecords ?? {}) };
+      if (remove) {
+        delete stakes[card.id];
+        delete stakeRecords[card.id];
+      } else {
+        const title = stakeInput.trim();
+        stakes[card.id] = title;
+        if (stakeRecords[card.id]) stakeRecords[card.id] = { cardId: card.id, title, createdAt: new Date().toISOString() };
+      }
+      return { ...current, stakes, stakeRecords };
+    });
     close(); notify(remove ? copy.play.stakeRemoved : copy.play.stakeSaved);
   }
   function moveCard(direction: number) {
@@ -83,6 +134,9 @@ export function PlayPage() {
   }
   function ignoreIssueNudge() {
     ignoredIssueNudges.current.add(card.id);
+    if (stake && !issuance) {
+      update(current => ({ ...current, stakeRecords: { ...(current.stakeRecords ?? {}), [card.id]: { cardId: card.id, title: stake, createdAt: new Date().toISOString() } } }));
+    }
     setIssueNudge(false);
     const direction = pendingMove.current ?? 1;
     pendingMove.current = null;
@@ -101,25 +155,30 @@ export function PlayPage() {
           claimLimit: 1
         });
         const remoteIssuance = result.coupon;
-        update(current => ({
-          ...current,
-          issuedStakes: {
-            ...current.issuedStakes,
-            [card.id]: {
-              id: remoteIssuance.id,
-              remoteId: remoteIssuance.id,
-              claimToken: remoteIssuance.claimToken ?? undefined,
-              cardId: card.id,
-              cardTitle: card.label,
-              title: remoteIssuance.name,
-              issuerName: remoteIssuance.issuerNickname,
-              signature,
-              issuedAt: remoteIssuance.createdAt,
-              source: "game",
-              status: "pending_claim"
+        update(current => {
+          const stakeRecords = { ...(current.stakeRecords ?? {}) };
+          delete stakeRecords[card.id];
+          return {
+            ...current,
+            stakeRecords,
+            issuedStakes: {
+              ...current.issuedStakes,
+              [card.id]: {
+                id: remoteIssuance.id,
+                remoteId: remoteIssuance.id,
+                claimToken: remoteIssuance.claimToken ?? undefined,
+                cardId: card.id,
+                cardTitle: card.label,
+                title: remoteIssuance.name,
+                issuerName: remoteIssuance.issuerNickname,
+                signature,
+                issuedAt: remoteIssuance.createdAt,
+                source: "game",
+                status: "pending_claim"
+              }
             }
-          }
-        }));
+          };
+        });
         setPanel("issue");
         notify(copy.play.issueStakeSigned);
         return;
@@ -157,19 +216,20 @@ export function PlayPage() {
     if (!issuance) return;
     update(current => claimGameStake(current, issuance.id, current.profileName));
     setPanel(null);
-    navigate("/benefits");
+    navigate("/benefits", { replace: true });
     notify(copy.play.issueStakeClaimed);
   }
   return <>
     <div className="game-menu"><div className="game-menu-scroll">
       <button onClick={() => setPanel("scene")}><span><Icon name="grid" size={19} /></span><b>{copy.play.scene}</b><small>{scene}</small></button>
       <button className="game-ai" onClick={() => setPanel("ai")}><span><Icon name="spark" size={18} /></span><b>{copy.play.ai}</b></button>
+      <button className={`stake-record-menu ${pendingStakeRecords.length ? "has-records" : ""}`} onClick={() => setPanel("records")} aria-label={copy.play.stakeRecords}><span><Icon name="trophy" size={18} />{pendingStakeRecords.length > 0 && <i>{pendingStakeRecords.length}</i>}</span><b>{copy.play.stakeRecords}</b><small>{pendingStakeRecords.length ? `${pendingStakeRecords.length} 待签发` : "近 24 小时"}</small></button>
     </div></div>
     <section className="deck" tabIndex={0} aria-label={copy.nav.play}
       onKeyDown={e => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); moveCard(e.key === "ArrowUp" ? 1 : -1); } }}
-      onTouchStart={e => { touch.current = (e.target as HTMLElement).closest("button") ? null : { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY }; }}
-      onTouchCancel={() => { touch.current = null; }}
-      onTouchEnd={e => { if (!touch.current) return; const dx = touch.current.x - e.changedTouches[0]!.clientX; const dy = touch.current.y - e.changedTouches[0]!.clientY; touch.current = null; if (Math.abs(dy) > 45 && Math.abs(dy) > Math.abs(dx)) moveCard(dy > 0 ? 1 : -1); }}>
+      onPointerDown={e => { if (e.pointerType === "mouse" && e.button !== 0) return; if ((e.target as HTMLElement).closest("button")) return; pointer.current = { id: e.pointerId, x: e.clientX, y: e.clientY }; e.currentTarget.setPointerCapture(e.pointerId); }}
+      onPointerCancel={() => { pointer.current = null; }}
+      onPointerUp={e => { if (!pointer.current || pointer.current.id !== e.pointerId) return; const dx = pointer.current.x - e.clientX; const dy = pointer.current.y - e.clientY; pointer.current = null; if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); if (Math.abs(dy) > 32 && Math.abs(dy) > Math.abs(dx) * .9) moveCard(dy > 0 ? 1 : -1); }}>
       <div className="stack-card stack-one" aria-hidden="true" /><div className="stack-card stack-two" aria-hidden="true" />
       <GameCard card={card} scene={scene} flipped={flipped} slide={slide} saved={saved} stake={stake} stakeIssued={Boolean(issuance)} onFlip={setFlipped} onSave={openCollection} onStake={openStake} onIssue={openIssue} />
       {issueNudge && <div className="stake-issue-nudge" role="status"><span><Icon name="sign" size={15} /><b>{copy.play.issueStakeNudge}</b></span><div><button type="button" onClick={openIssue}>{copy.play.issueStakeNudgeAction}</button><button type="button" onClick={ignoreIssueNudge}>{copy.play.issueStakeNudgeIgnore}</button></div></div>}
@@ -177,6 +237,7 @@ export function PlayPage() {
     </section>
     <SceneDrawer open={panel === "scene"} onClose={close} onCreate={() => setPanel("new")} />
     <AiSheet open={panel === "ai"} onClose={close} />
+    <StakeRecordsSheet open={panel === "records"} onClose={close} onIssue={openStakeRecord} />
     <CollectionSheet open={panel === "save"} onClose={close} cardId={card.id} onCreate={() => setPanel("new-and-save")} />
     <CreateDeckSheet open={panel === "new" || panel === "new-and-save"} onClose={close} cardId={panel === "new-and-save" ? card.id : undefined} />
     <Sheet open={panel === "stake"} onClose={close} title={copy.play.stakeTitle} description={copy.play.stakeHint}>

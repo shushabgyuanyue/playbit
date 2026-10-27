@@ -26,6 +26,7 @@ export function CreateDeckSheet({ open, onClose, cardId }: { open: boolean; onCl
 
 export function SceneDrawer({ open, onClose, onCreate }: { open: boolean; onClose: () => void; onCreate: () => void }) {
   const { state, update, notify } = usePlayer();
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   function select(sceneId: string, name: string, deckId: string | null = null) {
     const deck = state.decks.find(d => d.id === deckId);
     if (deck && !deck.cardIds.length) { notify(copy.scenes.emptyDeck); return; }
@@ -33,15 +34,28 @@ export function SceneDrawer({ open, onClose, onCreate }: { open: boolean; onClos
     update(current => ({ ...current, sceneId, deckId, cardId: first?.id ?? cards[0]!.id }));
     onClose(); notify(copy.scenes.switched(name));
   }
-  return <Sheet open={open} onClose={onClose} variant="drawer" title={copy.scenes.title} eyebrow={copy.scenes.eyebrow} description={copy.scenes.hint}>
+  function deleteDeck() {
+    if (!deleteTarget) return;
+    update(current => ({ ...current, decks: current.decks.filter(item => item.id !== deleteTarget), ...(current.deckId === deleteTarget ? { deckId: null, cardId: cards.find(card => card.sceneIds.includes(current.sceneId))?.id ?? cards[0]!.id } : {}) }));
+    setDeleteTarget(null);
+    notify(copy.scenes.deleted);
+  }
+  const targetDeck = deleteTarget ? state.decks.find(deck => deck.id === deleteTarget) : null;
+  return <>
+    <Sheet open={open} onClose={onClose} variant="drawer" title={copy.scenes.title} eyebrow={copy.scenes.eyebrow} description={copy.scenes.hint}>
     <div className="scene-section"><div className="section-label"><span>{copy.scenes.official}</span><b>{scenes.length}</b></div><div className="scene-grid">
       {scenes.map(scene => <button key={scene.id} className={`scene-tile ${!state.deckId && state.sceneId === scene.id ? "selected" : ""}`} aria-pressed={!state.deckId && state.sceneId === scene.id} onClick={() => select(scene.id, scene.title)}><span className="scene-glyph"><Icon name={scene.icon} /></span><b>{scene.title}</b></button>)}
     </div></div>
     <div className="scene-section custom-section"><div className="section-label"><span>{copy.scenes.mine}</span><b>{state.decks.length}</b></div><div className="scene-grid">
-      {state.decks.map(deck => <button className={`scene-tile custom ${state.deckId === deck.id ? "selected" : ""}`} aria-pressed={state.deckId === deck.id} key={deck.id} onClick={() => select(state.sceneId, deck.name, deck.id)}><span className="scene-glyph"><Icon name="folder" /></span><b>{deck.name}</b><small>{copy.scenes.count(deck.cardIds.length)}</small></button>)}
+      {state.decks.map(deck => <div className="scene-tile-wrap" key={deck.id}><button className={`scene-tile custom ${state.deckId === deck.id ? "selected" : ""}`} aria-pressed={state.deckId === deck.id} onClick={() => select(state.sceneId, deck.name, deck.id)}><span className="scene-glyph"><Icon name="folder" /></span><b>{deck.name}</b><small>{copy.scenes.count(deck.cardIds.length)}</small></button><button className="scene-delete" type="button" aria-label={`删除${deck.name}`} onClick={() => setDeleteTarget(deck.id)}><Icon name="close" size={12} /></button></div>)}
       <button className="scene-tile custom add-tile" onClick={() => { onClose(); onCreate(); }}><span className="scene-glyph">＋</span><b>{copy.scenes.create}</b></button>
     </div></div>
-  </Sheet>;
+    </Sheet>
+    <Sheet open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} title={copy.scenes.deleteTitle} description={copy.scenes.deleteHint}>
+      <div className="delete-deck-preview"><span><Icon name="folder" size={18} /></span><b>{targetDeck?.name ?? "场景卡组"}</b></div>
+      <div className="sheet-actions"><button className="text-button" type="button" onClick={() => setDeleteTarget(null)}>{copy.cancel}</button><button className="danger-button" type="button" onClick={deleteDeck}>{copy.scenes.deleteAction}</button></div>
+    </Sheet>
+  </>;
 }
 
 export function CollectionSheet({ open, onClose, cardId, onCreate }: { open: boolean; onClose: () => void; cardId: string; onCreate: () => void }) {

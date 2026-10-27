@@ -8,12 +8,14 @@ export type PageScrollKey = "benefits" | "profile" | "promise" | "agreements" | 
 export interface PageMemory {
   playFlippedCardId: string | null;
   promiseWinner: Party | null;
+  homePath: "/" | "/promise";
   scrollTop: Partial<Record<PageScrollKey, number>>;
 }
 
 const initialMemory: PageMemory = {
   playFlippedCardId: null,
   promiseWinner: null,
+  homePath: "/",
   scrollTop: {}
 };
 
@@ -24,6 +26,7 @@ function readMemory(): PageMemory {
     return {
       ...initialMemory,
       ...value,
+      homePath: value.homePath === "/promise" ? "/promise" : "/",
       scrollTop: value.scrollTop && typeof value.scrollTop === "object" ? value.scrollTop : {}
     };
   } catch {

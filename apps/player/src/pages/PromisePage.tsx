@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import type { Agreement as ApiAgreement } from "@playbit/shared";
 import { playerCopy as copy } from "@playbit/content/player";
 import { Icon } from "../components/ui/Icon";
-import { emptyDraft } from "../data/demo";
 import type { Party, Signature } from "../data/types";
 import { IssueStakeSheet } from "../features/cards/IssueStakeSheet";
 import { AuthSheet } from "../features/player/AuthSheet";
@@ -34,6 +33,7 @@ export function PromisePage() {
   const [issueOpen, setIssueOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingSeal, setPendingSeal] = useState(false);
+  const [pendingSelfClaim, setPendingSelfClaim] = useState(false);
   const section = useRef<HTMLElement>(null);
   const initialScrollTop = useRef(memory.scrollTop.promise ?? 0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -42,7 +42,10 @@ export function PromisePage() {
   const agreement = draft.agreementId ? state.agreements.find(item => item.id === draft.agreementId) : null;
   const issuanceId = agreement ? `promise-${agreement.id}` : null;
   const issuance = issuanceId ? state.issuedBenefits[issuanceId] ?? null : null;
-  const activeStep = draft.step === 2 && issuance ? 3 : draft.step;
+  // Offline signing keeps settlement and benefit issuance as two separate steps.
+  // Older saved sessions with an issued benefit are rendered in the issuance step.
+  const flowStep = draft.step === 2 && issuance ? 3 : draft.step;
+  const activeStep = Math.min(flowStep, 3);
 
   useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
@@ -118,6 +121,15 @@ export function PromisePage() {
     void sealAfterAuth();
   }
 
+  function openWallet() {
+    navigate("/benefits", { state: { returnTo: "/promise" } });
+  }
+
+  function startIssuance() {
+    update(current => ({ ...current, draft: { ...current.draft, step: 3 } }));
+    setIssueOpen(true);
+  }
+
   async function persistBenefit(signature: Signature) {
     if (!agreement || issuance) return;
     const localIssuanceId = `promise-${agreement.id}`;
@@ -147,7 +159,8 @@ export function PromisePage() {
               sourceNote: agreement.text,
               status: "pending_claim"
             }
-          }
+          },
+          draft: { ...current.draft, step: 3 }
         }));
         notify(copy.promise.issueBenefitSigned);
         return;
@@ -156,7 +169,7 @@ export function PromisePage() {
         return;
       }
     }
-    update(current => issueDirectBenefit(current, current.draft.benefit, current.profileName, signature, current.draft.text, new Date().toISOString(), localIssuanceId, "promise"));
+    update(current => ({ ...issueDirectBenefit(current, current.draft.benefit, current.profileName, signature, current.draft.text, new Date().toISOString(), localIssuanceId, "promise"), draft: { ...current.draft, step: 3 } }));
     notify(copy.promise.issueBenefitSigned);
   }
 
@@ -182,33 +195,54 @@ export function PromisePage() {
     }
   }
 
-  function selfClaimBenefit() {
+  async function selfClaimBenefit(authReady = false) {
     if (!issuance) return;
-    update(current => claimDirectBenefit(current, issuance.id, current.profileName));
+    if (issuance.claimToken && isPlayerApiConfigured()) {
+      if (!auth.user && !authReady) {
+        setPendingSelfClaim(true);
+        setAuthOpen(true);
+        return;
+      }
+      try {
+        await playerApi.claimCoupon(issuance.claimToken);
+        update(current => ({ ...claimDirectBenefit(current, issuance.id, current.profileName), draft: { ...current.draft, step: 3 } }));
+        setIssueOpen(false);
+        notify(copy.promise.issueBenefitClaimed);
+      } catch (error) {
+        notify(error instanceof PlayerApiError && error.status === 0 ? copy.auth.network : copy.wallet.claimError);
+      }
+      return;
+    }
+    update(current => ({ ...claimDirectBenefit(current, issuance.id, current.profileName), draft: { ...current.draft, step: 3 } }));
     setIssueOpen(false);
-    navigate("/benefits");
     notify(copy.promise.issueBenefitClaimed);
   }
 
-  const partyLabel = (party: Party | null) => party === "a" ? copy.promise.a : copy.promise.b;
   return <section className="bet-module" ref={section}>
     <div className="bet-progress" aria-label={copy.promise.steps[activeStep]}>{copy.promise.steps.map((step, i) => <span className={i <= activeStep ? "active" : ""} key={step} aria-current={i === activeStep ? "step" : undefined}><i>{i < activeStep ? <Icon name="check" size={10} /> : i + 1}</i>{step}</span>)}</div>
-    {draft.step === 0 && <div className="page-transition" key="promise-create"><PromiseForm draft={draft} onChange={change} onContinue={() => { if (draft.text.trim() && draft.benefit.trim()) update(current => ({ ...current, draft: { ...current.draft, step: 1 } })); }} /></div>}
-    {draft.step === 1 && <div className="page-transition" key="promise-sign"><SigningStep draft={draft} stamping={stamping} onSignature={sign} onSeal={seal} /></div>}
-    {draft.step === 2 && <div className="page-transition settlement-flow" key="promise-settlement">
+    {flowStep === 0 && <div className="page-transition" key="promise-create"><PromiseForm draft={draft} onChange={change} onContinue={() => { if (draft.text.trim() && draft.benefit.trim()) update(current => ({ ...current, draft: { ...current.draft, step: 1 } })); }} /></div>}
+    {flowStep === 1 && <div className="page-transition" key="promise-sign"><SigningStep draft={draft} stamping={stamping} onSignature={sign} onSeal={seal} /></div>}
+    {flowStep === 2 && <div className="page-transition settlement-flow" key="promise-settlement">
       <div className="ritual-title"><span><Icon name="shield" size={17} /></span><div><small>{copy.promise.resultStep}</small><b>{copy.promise.resultTitle}</b></div></div>
       <div className="active-contract settlement-summary"><span><Icon name="check" size={12} />{copy.promise.active}</span><small>PB-{new Date().getFullYear()}-{draft.agreementId?.slice(0, 4).toUpperCase() ?? "0088"}</small><strong>{draft.benefit}</strong><p>赌约事项：<b>{draft.text}</b></p></div>
-      <div className="settlement-note"><Icon name="send" size={16} /><span><b>{copy.promise.settlementHint}</b><small>签发后分享给赢家登录领取，也可以在本机领取。</small></span></div>
-      <button className="contract-cta result-cta" onClick={() => setIssueOpen(true)}><span>{issuance ? copy.promise.issueBenefitShare : copy.promise.issueBenefit}</span><Icon name="gift" /></button>
-      <Link className="view-contract-btn" to={`/agreements/${draft.agreementId}`}><Icon name="file" size={17} /><span><b>{copy.promise.viewDocument}</b><small>{copy.promise.detailHint}</small></span><Icon name="arrow" size={16} /></Link>
+      <button className="contract-cta result-cta" onClick={startIssuance}><span>{copy.promise.goToIssuance}</span><Icon name="gift" /></button>
     </div>}
-    {draft.step === 3 && <div className="page-transition issued-flow" key="promise-issued">
+    {flowStep === 3 && <div className="page-transition issued-flow settlement-complete-flow" key="promise-issued">
       <div className="celebration-field" aria-hidden="true"><i /><i /><i /><i /><i /></div>
-      <span className="issued-mark"><Icon name="gift" size={27} /></span><div className="module-tag">{copy.promise.issuedEyebrow}</div><h1>{copy.promise.issuedTitle}<br />{copy.promise.issuedTitleEnd}</h1><p>{copy.promise.issuedHint(partyLabel(draft.winner))}</p>
-      <Link className="view-contract-btn" to={`/agreements/${draft.agreementId}`}><Icon name="file" size={17} /><span><b>{copy.promise.viewDocument}</b><small>{copy.promise.detailHint}</small></span><Icon name="arrow" size={16} /></Link>
-      <button className="contract-cta" onClick={() => { update(current => ({ ...current, draft: emptyDraft() })); }}>{copy.promise.another}<Icon name="arrow" /></button>
+      <span className="issued-mark"><Icon name={issuance ? "check" : "gift"} size={27} /></span>
+      <div className="module-tag">{issuance ? copy.promise.issuedEyebrow : copy.promise.resultLabel}</div>
+      <h1>{!issuance ? copy.promise.issueBenefitTitle : issuance.status === "claimed" ? copy.promise.issuedClaimedTitle : copy.promise.issuedTitle}<br />{!issuance ? copy.promise.issueBenefitTitleEnd : issuance.status === "claimed" ? copy.promise.issuedClaimedTitleEnd : copy.promise.issuedTitleEnd}</h1>
+      <p>{!issuance ? copy.promise.issueBenefitHint : issuance.status === "claimed" ? copy.promise.issueBenefitClaimed : copy.promise.issueBenefitPending}</p>
+      {issuance && <div className="settlement-benefit-proof">
+        <span><Icon name="gift" size={18} /></span>
+        <div><small>{copy.promise.issuedType}</small><strong>{issuance.title}</strong></div>
+        <button type="button" onClick={openWallet} aria-label={copy.promise.viewWallet}><Icon name="arrow" size={17} /></button>
+      </div>}
+      {!issuance && <button className="contract-cta issued-share-cta" onClick={() => setIssueOpen(true)}><span>{copy.promise.issueBenefit}</span><Icon name="gift" /></button>}
+      {issuance && issuance.status !== "claimed" && <button className="contract-cta issued-share-cta" onClick={() => setIssueOpen(true)}><span>{copy.promise.issueBenefitShare}</span><Icon name="send" /></button>}
+      {issuance?.status === "claimed" && <button className="contract-cta issued-share-cta" onClick={openWallet}><span>{copy.promise.viewWallet}</span><Icon name="arrow" /></button>}
     </div>}
-    {agreement && <IssueStakeSheet open={issueOpen} onClose={() => setIssueOpen(false)} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} issuance={issuance} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={selfClaimBenefit} canSelfClaim={!issuance?.claimToken} labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.issueBenefit, pending: copy.promise.issueBenefitPending, sign: copy.play.issueStakeSign, signHint: copy.play.issueStakeSignHint, action: copy.play.issueStakeAction, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
-    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSeal(false); }} onSuccess={() => { const shouldSeal = pendingSeal; setPendingSeal(false); if (shouldSeal) void sealAfterAuth(true); }} />
+    {agreement && <IssueStakeSheet open={issueOpen} onClose={() => setIssueOpen(false)} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} issuance={issuance} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={() => void selfClaimBenefit()} canSelfClaim labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.issueBenefit, pending: copy.promise.issueBenefitPending, sign: copy.play.issueStakeSign, signHint: copy.play.issueStakeSignHint, action: copy.play.issueStakeAction, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
+    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSeal(false); setPendingSelfClaim(false); }} onSuccess={() => { const shouldSeal = pendingSeal; const shouldSelfClaim = pendingSelfClaim; setPendingSeal(false); setPendingSelfClaim(false); if (shouldSeal) void sealAfterAuth(true); if (shouldSelfClaim) void selfClaimBenefit(true); }} />
   </section>;
 }
