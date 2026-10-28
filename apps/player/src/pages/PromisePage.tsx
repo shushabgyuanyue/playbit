@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { Agreement as ApiAgreement } from "@playbit/shared";
 import { playerCopy as copy } from "@playbit/content/player";
 import { Icon } from "../components/ui/Icon";
+import { emptyDraft } from "../data/demo";
 import type { Party, Signature } from "../data/types";
 import { IssueStakeSheet } from "../features/cards/IssueStakeSheet";
 import { AuthSheet } from "../features/player/AuthSheet";
@@ -130,6 +131,11 @@ export function PromisePage() {
     setIssueOpen(true);
   }
 
+  function startNewPromise() {
+    update(current => ({ ...current, draft: emptyDraft() }));
+    navigate("/promise");
+  }
+
   async function persistBenefit(signature: Signature) {
     if (!agreement || issuance) return;
     const localIssuanceId = `promise-${agreement.id}`;
@@ -241,6 +247,7 @@ export function PromisePage() {
       {!issuance && <button className="contract-cta issued-share-cta" onClick={() => setIssueOpen(true)}><span>{copy.promise.issueBenefit}</span><Icon name="gift" /></button>}
       {issuance && issuance.status !== "claimed" && <button className="contract-cta issued-share-cta" onClick={() => setIssueOpen(true)}><span>{copy.promise.issueBenefitShare}</span><Icon name="send" /></button>}
       {issuance?.status === "claimed" && <button className="contract-cta issued-share-cta" onClick={openWallet}><span>{copy.promise.viewWallet}</span><Icon name="arrow" /></button>}
+      <button className="issued-new-promise" type="button" onClick={startNewPromise}><Icon name="edit" size={14} />{copy.promise.newPromise}</button>
     </div>}
     {agreement && <IssueStakeSheet open={issueOpen} onClose={() => setIssueOpen(false)} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} issuance={issuance} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={() => void selfClaimBenefit()} canSelfClaim labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.issueBenefit, pending: copy.promise.issueBenefitPending, sign: copy.play.issueStakeSign, signHint: copy.play.issueStakeSignHint, action: copy.play.issueStakeAction, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
     <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSeal(false); setPendingSelfClaim(false); }} onSuccess={() => { const shouldSeal = pendingSeal; const shouldSelfClaim = pendingSelfClaim; setPendingSeal(false); setPendingSelfClaim(false); if (shouldSeal) void sealAfterAuth(true); if (shouldSelfClaim) void selfClaimBenefit(true); }} />
