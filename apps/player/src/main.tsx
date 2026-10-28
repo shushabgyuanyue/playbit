@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { App } from "./app/App";
 import "./styles/index.css";
+import "./styles/voice-recorder.css";
+import "./styles/agreement-card.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -40,6 +40,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
       ...init,
+      signal: init?.signal ?? AbortSignal.timeout(15_000),
       cache: init?.cache ?? "no-store",
       headers: {
         "Content-Type": "application/json",
@@ -135,6 +136,9 @@ export const playerApi = {
       method: "POST",
       body: JSON.stringify(payload)
     });
+  },
+  getAgreementShare(shareCode: string) {
+    return request<{ agreement: Agreement }>(`/share/${encodeURIComponent(shareCode)}`);
   },
   getCouponShare(token: string) {
     return request<{ coupon: Pick<Coupon, "id" | "name" | "description" | "sourceLabel" | "issuerNickname" | "transferNote" | "status" | "createdAt" | "claimLimit" | "claimedCount" | "remainingClaims"> }>(`/coupons/share/${encodeURIComponent(token)}`);

@@ -46,4 +46,13 @@ describe("player transitions", () => {
     expect(claimed.coupons[0]).toMatchObject({ source: "direct", tone: "debt-ticket", holderName: "获胜方", title: "周末早餐" });
     expect(claimDirectBenefit(claimed, "benefit-test", "另一个人")).toEqual(claimed);
   });
+
+  it("uses a recorded voice as the signature for an audio benefit", () => {
+    const voice = { id: "voice-1", assetId: "voice-asset-1", durationMs: 1800, storage: "indexeddb" as const };
+    const initial = createInitialState();
+    const issued = issueDirectBenefit(initial, "一句承诺", "主持人", [], "来自原声约定", "2026-01-01T00:00:00.000Z", "voice-benefit", "promise", voice);
+    expect(issued.issuedBenefits["voice-benefit"]).toMatchObject({ status: "pending_claim", voice, signature: [] });
+    const claimed = claimDirectBenefit(issued, "voice-benefit", "获胜方", "2026-01-01T00:01:00.000Z");
+    expect(claimed.coupons[0]).toMatchObject({ source: "promise", voice, signature: [] });
+  });
 });

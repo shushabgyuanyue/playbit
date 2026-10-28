@@ -4,41 +4,18 @@ import { playerCopy as copy } from "@playbit/content/player";
 import { Icon } from "../components/ui/Icon";
 import { Sheet } from "../components/ui/Sheet";
 import { usePlayer } from "../features/player/PlayerProvider";
+import { useLinkSharing } from "../features/player/useLinkSharing";
+import { benefitShareData } from "../services/linkSharing";
 import { AuthSheet } from "../features/player/AuthSheet";
 import { CouponCard } from "../features/benefits/CouponCard";
 import { IssueBenefitSheet } from "../features/benefits/IssueBenefitSheet";
-import { claimDirectBenefit, createId, issueDirectBenefit, redeemCoupon, couponTone } from "../features/player/transitions";
-import type { Coupon as PlayerCoupon, CouponSource, Signature } from "../data/types";
+import { claimDirectBenefit, createId, issueDirectBenefit, redeemCoupon } from "../features/player/transitions";
+import { toPlayerCoupon } from "../features/benefits/couponPresentation";
+import type { CouponSource, Signature } from "../data/types";
 import { isPlayerApiConfigured, PlayerApiError, playerApi, signatureToDataUrl } from "../services/playerApi";
 import { usePageMemory } from "../services/pageMemory";
 
 type RemotePage = { items: ApiCoupon[]; nextCursor: string | null; hasMore: boolean };
-
-function sourceFor(label: string): CouponSource {
-  if (label.includes("游戏")) return "game";
-  if (label.includes("赌约") || label.includes("签约")) return "promise";
-  return "direct";
-}
-
-function toPlayerCoupon(coupon: ApiCoupon): PlayerCoupon {
-  const source = sourceFor(coupon.sourceLabel);
-  return {
-    id: coupon.id,
-    displayNo: coupon.id.slice(-8).toUpperCase(),
-    title: coupon.name,
-    subtitle: coupon.description,
-    side: "won",
-    tone: couponTone(source),
-    status: coupon.status === "used" || coupon.status === "waived" ? "redeemed" : "available",
-    source,
-    sourceNote: coupon.sourceLabel,
-    agreementId: coupon.agreementId ?? undefined,
-    issuerName: coupon.issuerNickname,
-    holderName: coupon.holderNickname,
-    issuedAt: coupon.createdAt,
-    redeemedAt: coupon.usedAt ?? undefined
-  };
-}
 
 function isApiActionError(error: unknown) {
   return error instanceof PlayerApiError && error.status > 0;
@@ -46,11 +23,17 @@ function isApiActionError(error: unknown) {
 
 export function BenefitsPage() {
   const { state, update, notify, auth } = usePlayer();
+  const shareLink = useLinkSharing();
   const { memory, remember } = usePageMemory();
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [issuanceId, setIssuanceId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
+  const [pendingSelfClaim, setPendingSelfClaim] = useState(false);
+  const [issueLoading, setIssueLoading] = useState(false);
+  const [claimLoading, setClaimLoading] = useState(false);
+  const issuingRef = useRef(false);
+  const claimingRef = useRef(false);
   const [remote, setRemote] = useState<RemotePage>({ items: [], nextCursor: null, hasMore: false });
   const [remoteMode, setRemoteMode] = useState(false);
   const [remoteLoading, setRemoteLoading] = useState(false);
@@ -116,9 +99,10 @@ export function BenefitsPage() {
   const issuance = issuanceId ? state.issuedBenefits[issuanceId] ?? null : null;
   const hasRemoteSession = Boolean(auth.user && isPlayerApiConfigured());
   const displayedCoupons = auth.user
-    ? (remoteMode || hasRemoteSession ? remote.items.map(toPlayerCoupon) : state.coupons)
+    ? (remoteMode || hasRemoteSession ? remote.items.map(item => toPlayerCoupon(item, state)) : state.coupons)
     : [];
   const remoteById = new Map(remote.items.map(item => [item.id, item]));
+  const pendingIssuances = Object.entries(state.issuedBenefits).filter(([, item]) => item.status === "pending_claim").sort((a, b) => Date.parse(b[1].issuedAt) - Date.parse(a[1].issuedAt));
 
   function openIssuance() {
     notify("");
@@ -127,7 +111,10 @@ export function BenefitsPage() {
   }
 
   async function issue(title: string, source: CouponSource, sourceNote: string, signature: Signature) {
+    if (issuingRef.current) return;
     if (isPlayerApiConfigured()) {
+      issuingRef.current = true;
+      setIssueLoading(true);
       try {
         const payload = {
           name: title,
@@ -136,9 +123,7 @@ export function BenefitsPage() {
           signatureDataUrl: signatureToDataUrl(signature),
           claimLimit: 1
         };
-        const result = await (auth.user
-          ? playerApi.createIndependentCoupon(payload)
-          : playerApi.createPublicCoupon({ ...payload, issuerNickname: state.profileName }));
+        const result = await playerApi.createPublicCoupon({ ...payload, issuerNickname: state.profileName });
         const remoteIssuance = result.coupon;
         update(current => ({
           ...current,
@@ -163,6 +148,9 @@ export function BenefitsPage() {
       } catch (error) {
         notify(isApiActionError(error) ? copy.auth.network : copy.wallet.issueTitle);
         return;
+      } finally {
+        issuingRef.current = false;
+        setIssueLoading(false);
       }
     }
     const id = createId("benefit");
@@ -171,21 +159,27 @@ export function BenefitsPage() {
   }
 
   async function shareIssuance() {
-    if (!issuance) return;
-    const url = issuance.claimToken
-      ? `${window.location.origin}/claim/${encodeURIComponent(issuance.claimToken)}`
-      : `${window.location.href.split("#")[0]}#benefit=${issuance.id}`;
-    try {
-      if (navigator.share) await navigator.share({ title: issuance.title, text: `一份给你的权益：${issuance.title}`, url });
-      else if (navigator.clipboard) await navigator.clipboard.writeText(url);
-      notify(copy.wallet.issueShared);
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) notify(copy.wallet.issueShared);
-    }
+    await shareLink(benefitShareData(issuance));
   }
 
-  function selfClaimIssuance() {
-    if (!issuance) return;
+  async function selfClaimIssuance(authReady = false) {
+    if (!issuance || issuance.status !== "pending_claim" || claimingRef.current) return;
+    if (!auth.user && !authReady) { setPendingSelfClaim(true); setAuthOpen(true); return; }
+    if (issuance.claimToken && isPlayerApiConfigured()) {
+      claimingRef.current = true;
+      setClaimLoading(true);
+      try {
+        const result = await playerApi.claimCoupon(issuance.claimToken);
+        setRemote(current => ({ ...current, items: [result.coupon, ...current.items.filter(item => item.id !== result.coupon.id)] }));
+        setRemoteMode(true);
+      } catch (error) {
+        notify(error instanceof PlayerApiError && error.status === 410 ? copy.wallet.claimUnavailable : copy.wallet.claimError);
+        return;
+      } finally {
+        claimingRef.current = false;
+        setClaimLoading(false);
+      }
+    }
     update(current => claimDirectBenefit(current, issuance.id, current.profileName));
     setIssuing(false);
     setIssuanceId(null);
@@ -217,6 +211,7 @@ export function BenefitsPage() {
   return <section className="benefits" ref={section}>
     <div className="module-tag">{copy.wallet.eyebrow}</div><div className="benefit-title"><h1>{copy.wallet.title[0]}<br />{copy.wallet.title[1]}</h1></div>
     {remoteError && <p className="remote-list-note" role="status">{copy.auth.network}</p>}
+    {pendingIssuances.length > 0 && <section className="pending-benefits"><h2>{copy.sharing.pendingTitle}</h2>{pendingIssuances.map(([key, item]) => <button type="button" key={key} onClick={() => { setIssuanceId(key); setIssuing(true); }}><Icon name="send" size={16} /><strong>{item.title}</strong><span>{copy.sharing.resume}<Icon name="arrow" size={13} /></span></button>)}</section>}
     {auth.user && <div className="ticket-list ticket-list-won">
       {displayedCoupons.map((coupon, i) => <CouponCard coupon={coupon} index={i} signatureDataUrl={remoteById.get(coupon.id)?.signatureDataUrl} onRedeem={() => { setRedeeming(coupon.id); }} key={coupon.id} />)}
       {!displayedCoupons.length && !remoteLoading && <p className="empty-state">{copy.wallet.empty}</p>}
@@ -228,7 +223,7 @@ export function BenefitsPage() {
     <Sheet open={!!redeeming} onClose={() => { if (!redeemLoading) setRedeeming(null); }} title={copy.wallet.redeemTitle} description={copy.wallet.redeemHint}>
       <div className="sheet-actions"><button className="text-button" onClick={() => setRedeeming(null)} disabled={redeemLoading}>{copy.cancel}</button><button className="primary-button" onClick={() => void redeem()} disabled={redeemLoading}>{redeemLoading ? "正在核销…" : copy.wallet.redeemConfirm}</button></div>
     </Sheet>
-    <IssueBenefitSheet open={issuing} onClose={() => { setIssuing(false); setIssuanceId(null); }} issuerName={state.profileName} issuance={issuance} onIssue={(title, source, sourceNote, signature) => void issue(title, source, sourceNote, signature)} onShare={() => void shareIssuance()} onSelfClaim={selfClaimIssuance} canSelfClaim={!issuance?.claimToken} />
-    <AuthSheet open={authOpen} onClose={() => setAuthOpen(false)} onSuccess={() => setAuthOpen(false)} />
+    <IssueBenefitSheet open={issuing} onClose={() => { if (!issueLoading && !claimLoading) { setIssuing(false); setIssuanceId(null); } }} issuerName={state.profileName} issuance={issuance} submitting={issueLoading} claiming={claimLoading} onIssue={(title, source, sourceNote, signature) => void issue(title, source, sourceNote, signature)} onShare={() => void shareIssuance()} onSelfClaim={() => void selfClaimIssuance()} />
+    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSelfClaim(false); }} onSuccess={() => { setAuthOpen(false); if (pendingSelfClaim) { setPendingSelfClaim(false); void selfClaimIssuance(true); } }} />
   </section>;
 }

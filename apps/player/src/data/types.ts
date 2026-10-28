@@ -20,6 +20,15 @@ export type Party = "a" | "b";
 export type CouponSource = "game" | "promise" | "direct";
 export type CouponStatus = "available" | "redeemed";
 
+export interface VoiceNote {
+  id: string;
+  durationMs: number;
+  storage: "demo" | "indexeddb";
+  assetId?: string;
+  mimeType?: string;
+  byteLength?: number;
+}
+
 export interface StakeRecord {
   cardId: string;
   title: string;
@@ -31,10 +40,11 @@ export interface BenefitIssuance {
   title: string;
   issuerName: string;
   signature: Signature;
+  voice?: VoiceNote;
   issuedAt: string;
   source: CouponSource;
   sourceNote?: string;
-  status: "pending_claim" | "claimed";
+  status: "pending_claim" | "claimed" | "unavailable";
   claimedBy?: string;
   claimedAt?: string;
   claimToken?: string;
@@ -51,9 +61,12 @@ export interface Agreement {
   id: string;
   text: string;
   benefit: string;
+  challengeVoice?: VoiceNote;
+  benefitVoice?: VoiceNote;
   signatures: Record<Party, Signature>;
   createdAt: string;
   winner: Party | null;
+  shareCode?: string;
 }
 export interface Coupon {
   id: string;
@@ -69,6 +82,7 @@ export interface Coupon {
   issuerName?: string;
   holderName?: string;
   signature?: Signature;
+  voice?: VoiceNote;
   issuedAt?: string;
   claimedAt?: string;
   redeemedAt?: string;
@@ -76,6 +90,8 @@ export interface Coupon {
 export interface PromiseDraft {
   text: string;
   benefit: string;
+  challengeVoice: VoiceNote;
+  benefitVoice: VoiceNote;
   signatures: Record<Party, Signature>;
   step: 0 | 1 | 2 | 3;
   agreementId: string | null;

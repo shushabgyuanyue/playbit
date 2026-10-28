@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playbit signing fixture</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement as h, useState } from "react";
+      import { createRoot } from "react-dom/client";
+      import { SigningStep } from "/src/features/promise/SigningStep.tsx";
+      import { AgreementCard } from "/src/features/promise/AgreementCard.tsx";
+      import { CouponCard } from "/src/features/benefits/CouponCard.tsx";
+      import { toPlayerCoupon } from "/src/features/benefits/couponPresentation.ts";
+      import { PromiseProgress } from "/src/features/promise/PromiseProgress.tsx";
+      import { emptyDraft } from "/src/data/demo.ts";
+      import { saveVoiceAsset, deleteVoiceAsset } from "/src/services/voiceRepository.ts";
+      import "/src/styles/index.css";
+      import "/src/styles/voice-recorder.css";
+      import "/src/styles/agreement-card.css";
+
+      // Local synthetic WAV only; this fixture never requests a microphone or an API.
+      const assetId = `signing-fixture-${crypto.randomUUID()}`;
+      const sampleRate = 8000, count = sampleRate * 3;
+      const buffer = new ArrayBuffer(44 + count * 2);
+      const data = new DataView(buffer);
+      const write = (offset, text) => [...text].forEach((char, i) => data.setUint8(offset + i, char.charCodeAt(0)));
+      write(0, "RIFF"); data.setUint32(4, 36 + count * 2, true); write(8, "WAVEfmt ");
+      data.setUint32(16, 16, true); data.setUint16(20, 1, true); data.setUint16(22, 1, true);
+      data.setUint32(24, sampleRate, true); data.setUint32(28, sampleRate * 2, true);
+      data.setUint16(32, 2, true); data.setUint16(34, 16, true); write(36, "data");
+      data.setUint32(40, count * 2, true);
+      for (let i = 0; i < count; i++) data.setInt16(44 + i * 2, Math.sin(i * Math.PI * 440 / sampleRate) * 300, true);
+      await saveVoiceAsset(new Blob([buffer], { type: "audio/wav" }), assetId);
+      const voice = { id: assetId, assetId, storage: "indexeddb", durationMs: 3000 };
+
+      function Fixture() {
+        const [draft, setDraft] = useState(() => ({ ...emptyDraft(), text: "怎么分胜负", benefit: "赢了拿什么", challengeVoice: voice, benefitVoice: voice }));
+        const [sealed, setSealed] = useState(false);
+        const [version, setVersion] = useState(0);
+        const [missing, setMissing] = useState(false);
+        const reset = () => { setDraft(current => ({ ...current, signatures: { a: [], b: [] } })); setSealed(false); setVersion(v => v + 1); };
+        return h("div", { className: "app-shell" }, h("main", { className: "phone" },
+          h("header", { style: { height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 18px", flexShrink: 0 } }, "Playbit.", h("div", null,
+            h("button", { onClick: reset }, "Reset"), h("button", { onClick: () => { setMissing(v => !v); setVersion(v => v + 1); } }, "Missing audio"),
+            h("button", { onClick: async () => { await deleteVoiceAsset(assetId); setMissing(true); } }, "Clean fixture"))),
+          h("section", { className: "bet-module is-signing" },
+            h(PromiseProgress, { activeStep: 1, onRestart: reset }),
+            h("div", { className: "page-transition", key: version }, sealed
+              ? h(AgreementCard, { text: draft.text, benefit: draft.benefit, challengeVoice: voice, benefitVoice: voice, status: "已签署 ✓", createdAt: "2026-10-28T08:00:00Z", code: "fixture-12345678", participants: [{ role: "initiator", nickname: "甲方", signed: true, signature: draft.signatures.a }, { role: "counterparty", nickname: "乙方", signed: true, signature: draft.signatures.b }] })
+              : h(SigningStep, { draft: { ...draft, benefitVoice: missing ? { ...voice, assetId: "missing-fixture-asset" } : voice }, stamping: false, onSignature: (party, value) => setDraft(current => ({ ...current, signatures: { ...current.signatures, [party]: value } })), onSeal: () => setSealed(true) }))),
+          h("footer", { style: { height: 77, display: "grid", placeItems: "center", flexShrink: 0 } }, "Isolated signing test")));
+      }
+      function CouponPreview() {
+        const [redeemed, setRedeemed] = useState(false);
+        const [cleaned, setCleaned] = useState(false);
+        const signature = [[{ x: .1, y: .4 }, { x: .3, y: .7 }, { x: .6, y: .2 }, { x: .8, y: .5 }]];
+        const coupon = toPlayerCoupon({ id: "claim-fixture", parentCouponId: "issued-fixture", name: "请喝一杯", description: "来自原声约定", sourceLabel: "赌约权益", issuerNickname: "签发人", holderNickname: "领取人", status: redeemed ? "used" : "available", createdAt: "2026-10-28T08:00:00Z", usedAt: redeemed ? "2026-10-28T09:00:00Z" : null }, { coupons: [], agreements: [], issuedBenefits: { fixture: { id: "local-fixture", remoteId: "issued-fixture", voice, signature } } });
+        return h("div", { className: "app-shell" }, h("main", { className: "phone" },
+          h("header", { style: { height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 18px", flexShrink: 0 } }, "Playbit.", h("button", { onClick: async () => { await deleteVoiceAsset(assetId); setCleaned(true); } }, cleaned ? "Cleaned" : "Clean fixture")),
+          h("section", { className: "benefits" }, h("div", { className: "module-tag" }, "PLAYBIT BENEFITS"), h("div", { className: "benefit-title" }, h("h1", null, "你的权益卡")),
+            h("div", { className: "ticket-list ticket-list-won" }, h(CouponCard, { coupon, index: 0, signatureDataUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E", onRedeem: () => setRedeemed(true) }),
+              h(CouponCard, { coupon: { ...coupon, id: "handwritten-fixture", title: "周末早餐", voice: undefined, signature }, index: 1, onRedeem: () => {} }))),
+          h("footer", { style: { height: 77, display: "grid", placeItems: "center", flexShrink: 0 } }, "Isolated coupon test")));
+      }
+      createRoot(document.getElementById("root")).render(h(new URL(location.href).searchParams.get("view") === "coupon" ? CouponPreview : Fixture));
+    </script>
+  </body>
+</html>

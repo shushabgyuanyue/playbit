@@ -74,6 +74,8 @@ assert.equal(second.hasMore, false);
 assert.equal(new Set([...first.coupons, ...second.coupons].map(item => item.id)).size, 3);
 
 const issued = first.coupons[0]!;
+const issuerOwned = await json<{ coupons: Coupon[] }>("/coupons?limit=10&owned=1", { headers: auth(issuer.token) });
+assert.equal(issuerOwned.coupons.length, 0, "issued coupons do not belong in the issuer's owned wallet");
 const share = await json<{ coupon: Coupon }>(`/coupons/share/${issued.claimToken}`);
 assert.equal(share.coupon.remainingClaims, 1);
 const claimed = await json<{ coupon: Coupon }>(`/coupons/share/${issued.claimToken}/claim`, {

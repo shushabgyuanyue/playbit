@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Coupon } from "@playbit/shared";
 import { playerCopy as copy } from "@playbit/content/player";
@@ -15,6 +15,7 @@ export function CouponClaimPage() {
   const [coupon, setCoupon] = useState<Pick<Coupon, "name" | "description" | "sourceLabel" | "issuerNickname" | "transferNote" | "status" | "createdAt" | "claimLimit" | "claimedCount" | "remainingClaims"> | null>(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
+  const claimingRef = useRef(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [claimAfterAuth, setClaimAfterAuth] = useState(false);
   const [error, setError] = useState("");
@@ -32,13 +33,14 @@ export function CouponClaimPage() {
     return () => { cancelled = true; };
   }, [token]);
 
-  async function claim() {
-    if (!token || claiming) return;
-    if (!auth.user) {
+  async function claim(authReady = false) {
+    if (!token || claimingRef.current) return;
+    if (!auth.user && !authReady) {
       setClaimAfterAuth(true);
       setAuthOpen(true);
       return;
     }
+    claimingRef.current = true;
     setClaiming(true);
     setError("");
     try {
@@ -48,15 +50,10 @@ export function CouponClaimPage() {
     } catch (cause) {
       setError(cause instanceof PlayerApiError && cause.status === 410 ? copy.wallet.claimUnavailable : copy.wallet.claimError);
     } finally {
+      claimingRef.current = false;
       setClaiming(false);
     }
   }
-
-  useEffect(() => {
-    if (!claimAfterAuth || !auth.user) return;
-    setClaimAfterAuth(false);
-    void claim();
-  }, [auth.user, claimAfterAuth]);
 
   return <section className="claim-page">
     <PageBack fallback="/" />
@@ -75,6 +72,6 @@ export function CouponClaimPage() {
       <button className="text-button" type="button" onClick={() => navigate("/")}>先回去玩一局</button>
     </div>}
     {!loading && error && <div className="claim-state claim-error"><Icon name="alert" size={24} /><strong>{error}</strong><button className="text-button" type="button" onClick={() => navigate("/")}>回到 Playbit</button></div>}
-    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setClaimAfterAuth(false); }} onSuccess={() => undefined} />
+    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setClaimAfterAuth(false); }} onSuccess={() => { if (claimAfterAuth) { setClaimAfterAuth(false); void claim(true); } }} />
   </section>;
 }

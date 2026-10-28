@@ -1,5 +1,5 @@
 import { playerCopy as copy } from "@playbit/content/player";
-import type { GameCard, PlayerState, PromiseDraft, Scene } from "./types";
+import type { GameCard, PlayerState, PromiseDraft, Scene, VoiceNote } from "./types";
 
 export const cards: GameCard[] = [
   { id: "truth", label: "暧昧升温", prompt: "如果今晚只能对我说一句真话——", kicker: "你敢说哪句？", rule: "轮流直视对方 10 秒，然后说出此刻最想让对方知道的一件事。也可以选择换个问题。", time: "3 MIN", color: "coral", moment: "两个人 · 气氛刚刚好", payoff: "让一句没说出口的话，被认真听见", action: "先安静对视 10 秒", sceneIds: ["date", "night"] },
@@ -13,7 +13,10 @@ export const scenes: Scene[] = [
   { id: "night", title: "深夜聊天", icon: "moon" },
   { id: "family", title: "家庭聚餐", icon: "home" }
 ];
-export const emptyDraft = (): PromiseDraft => ({ text: "", benefit: "", signatures: { a: [], b: [] }, step: 0, agreementId: null, winner: null });
+export function demoVoice(text: string, kind: "challenge" | "benefit"): VoiceNote {
+  return { id: `demo-${kind}-${text.trim() || "empty"}`, durationMs: 0, storage: "demo" };
+}
+export const emptyDraft = (): PromiseDraft => ({ text: "", benefit: "", challengeVoice: demoVoice("", "challenge"), benefitVoice: demoVoice("", "benefit"), signatures: { a: [], b: [] }, step: 0, agreementId: null, winner: null });
 const sampleSignature = [[{ x: 0.08, y: 0.62 }, { x: 0.24, y: 0.3 }, { x: 0.38, y: 0.65 }, { x: 0.54, y: 0.34 }, { x: 0.72, y: 0.58 }]];
 export const createInitialState = (): PlayerState => ({
   version: 1, profileName: copy.profile.defaultName, sceneId: "date", deckId: null, cardId: "truth",

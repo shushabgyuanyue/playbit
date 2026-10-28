@@ -4,6 +4,7 @@ import type { LoginInput, RegisterInput, User } from "@playbit/shared";
 import type { PlayerState } from "../../data/types";
 import { readState, writeState } from "../../services/playerRepository";
 import { clearAuthToken, getAuthToken, isPlayerApiConfigured, playerApi, setAuthToken } from "../../services/playerApi";
+import { useIssuanceAvailability } from "./useIssuanceAvailability";
 
 interface PlayerAuth {
   user: User | null;
@@ -25,6 +26,7 @@ const PlayerContext = createContext<PlayerContextValue | null>(null);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [state, update] = useState(readState);
+  useIssuanceAvailability(state, update);
   const [toast, setToast] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);

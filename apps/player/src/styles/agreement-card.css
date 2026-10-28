@@ -1,0 +1,90 @@
+/* Shared signing, record and link-preview artifact. */
+.agreement-card { width: 100%; max-width: 390px; margin: 0 auto; padding: 0 14px 16px; overflow: hidden; border-radius: 20px; color: var(--player-ink); background: var(--player-lime); box-shadow: 0 7px 0 rgba(24, 21, 29, .07); letter-spacing: 0; }
+.agreement-card-head { min-height: 59px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.agreement-card-head strong { font-size: 21px; font-weight: 900; }
+.agreement-card-head sup { margin-left: 1px; font-size: 9px; }
+.agreement-card-head > span { font-size: 10px; font-weight: 800; text-align: right; }
+.agreement-card-challenge { padding: 17px; border-radius: 12px; color: #fff; background: var(--player-ink); }
+.agreement-card-challenge > small { color: var(--player-lime); font-size: 11px; font-weight: 800; }
+.agreement-card-challenge h1 { margin: 12px 0; font-size: 30px; font-weight: 900; line-height: 1.35; overflow-wrap: anywhere; }
+.agreement-card-challenge p { margin: 0; color: rgba(255, 255, 255, .65); font-size: 10px; line-height: 1.6; }
+.agreement-audio-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 11px; }
+.agreement-audio { position: relative; min-width: 0; min-height: 134px; overflow: hidden; border: 1.5px solid var(--player-ink); border-radius: 12px; }
+.agreement-audio-label { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 900; line-height: 18px; }
+.challenge-audio { display: flex; flex-direction: column; justify-content: space-between; gap: 7px; padding: 12px; }
+.challenge-audio > .voice-wave { width: 80px; height: 30px; margin: 0 auto; opacity: .8; }
+.agreement-audio-play { display: flex; align-items: center; justify-content: space-between; gap: 5px; width: 100%; min-height: 44px; padding: 5px 0; color: inherit; background: transparent; text-align: left; font-size: 11px; }
+.agreement-audio-play > svg { flex: none; width: 28px; height: 28px; padding: 6px; border-radius: 50%; color: var(--player-lime); background: var(--player-ink); }
+.agreement-audio-play:disabled { opacity: .5; cursor: default; }
+.agreement-audio-duration { position: absolute; right: 12px; top: 39px; color: currentColor; opacity: .5; font-size: 9px; pointer-events: none; }
+.reward-audio { border-color: transparent; background: #ece5ff; }
+.reward-audio-content { display: flex; flex-direction: column; justify-content: space-between; gap: 6px; height: 100%; padding: 12px; opacity: 0; transition: opacity 180ms; }
+.reward-audio-content > strong { font-size: 18px; font-weight: 900; line-height: 1.25; overflow-wrap: anywhere; }
+.reward-audio-content > .voice-wave { flex: none; width: 80px; height: 30px; margin: 0 auto; }
+.reward-audio.is-revealed .reward-audio-content { opacity: 1; }
+.reward-audio > .agreement-audio-duration { opacity: 0; }
+.reward-audio.is-revealed > .agreement-audio-duration { opacity: .5; }
+.voice-tear-seal { position: absolute; inset: -1px; z-index: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; padding: 13px; overflow: hidden; color: #fff; background: var(--player-violet); text-align: left; cursor: grab; touch-action: pan-y; user-select: none; transform: translateX(var(--tear-x, 0px)) rotate(var(--tear-rotation, 0deg)); transform-origin: 50% 10%; transition: transform 320ms cubic-bezier(.2,.8,.2,1), opacity 250ms; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 3% 94%, 0 87%, 3% 80%, 0 73%, 3% 66%, 0 59%, 3% 52%, 0 45%, 3% 38%, 0 31%, 3% 24%, 0 17%, 3% 10%); }
+.voice-tear-seal.is-dragging { cursor: grabbing; transition: none; }
+.voice-seal-watermark { position: absolute; right: 14px; top: 21px; color: rgba(255,255,255,.09); font-size: 98px; font-weight: 900; line-height: 1; transform: rotate(12deg); pointer-events: none; }
+.voice-seal-bottom { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 12px; }
+.voice-seal-bottom > .voice-wave { flex: none; width: 32px; height: 25px; gap: 2px; }
+.voice-seal-bottom > .voice-wave i { flex: 1; min-width: 0; }
+.voice-seal-grip { position: absolute; left: 5px; top: 50%; display: flex; gap: 2px; transform: translateY(-50%); opacity: .45; }
+.voice-seal-grip i { width: 1px; height: 16px; background: #fff; }
+.reward-audio.is-revealed .voice-tear-seal { transform: translateX(var(--tear-end, 115%)) rotate(var(--tear-rotation, 6deg)); opacity: 0; pointer-events: none; }
+.reward-audio-error, .agreement-audio-error { display: block; margin: 7px 0 0; color: #8a222c; font-size: 10px; line-height: 1.5; }
+.reward-audio-error { grid-column: 1 / -1; margin: 0; }
+.agreement-tear-hint { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 16px 0; color: rgba(24,21,29,.75); font-size: 10px; line-height: 1.5; }
+.agreement-tear-hint svg { flex: none; }
+.agreement-tear-hint svg:first-child { transform: rotate(180deg); }
+.agreement-card-participants { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 14px; border-top: 2px solid var(--player-ink); }
+.agreement-card-participant { min-width: 0; }
+.agreement-card-participant > b { display: block; margin: 5px 0 18px; font-size: 24px; overflow-wrap: anywhere; }
+.agreement-card-participant .signature-mark { width: 100%; height: 54px; margin: 0 0 7px; }
+.agreement-card-participant > small { font-size: 10px; line-height: 1.6; }
+.agreement-card-footer { display: flex; justify-content: space-between; gap: 10px; padding-top: 18px; color: rgba(24,21,29,.6); font-size: 9px; }
+.bet-module.is-signing { display: flex; flex-direction: column; padding: 14px 18px 18px; }
+.bet-module.is-signing .bet-progress { flex: none; margin-bottom: 16px; }
+.bet-module.is-signing > .page-transition { display: flex; flex: 1; min-height: 0; }
+.agreement-signing-flow { display: flex; flex-direction: column; gap: 16px; width: 100%; min-height: min-content; }
+.agreement-signing-artifact { position: relative; width: 100%; max-width: 390px; margin: 0 auto; }
+.agreement-signatures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; padding: 14px 0 0; margin: 0; border: 0; border-top: 2px solid var(--player-ink); }
+.agreement-signatures:disabled { pointer-events: none; }
+.agreement-signatures .signature-pad { height: 104px; border: 0; border-radius: 0; background: transparent; }
+.agreement-signatures .signature-pad > div { padding: 0; font-size: 11px; line-height: 16px; }
+.agreement-signatures .signature-pad > div b { color: var(--player-ink); font-size: 9px; }
+.agreement-signatures .signature-pad canvas { width: 100%; height: 65px; margin-top: 5px; border-bottom: 1px solid rgba(24,21,29,.3); }
+.agreement-signatures .signature-pad > button { right: 0; bottom: 0; min-height: 22px; padding: 2px 0 2px 8px; color: rgba(24,21,29,.65); background: var(--player-lime); font-size: 9px; }
+.agreement-signatures .signature-pad.signed::after { content: none; }
+.agreement-signing-actions { width: 100%; max-width: 390px; margin: auto auto 0; }
+.agreement-signing-actions > p { margin: 0 0 9px; color: var(--player-muted); text-align: center; font-size: 10px; line-height: 1.5; }
+.agreement-signing-actions .contract-cta { min-height: 48px; margin: 0; border-radius: var(--pb-radius-control); color: #fff; background: var(--player-ink); font-size: 14px; box-shadow: none; }
+.agreement-signing-actions .contract-cta:disabled { opacity: .35; }
+.agreement-audio-play:focus-visible, .voice-tear-seal:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }
+@media (max-width: 360px) {
+  .bet-module.is-signing { padding-right: 12px; padding-left: 12px; }
+  .agreement-card { padding-right: 11px; padding-left: 11px; }
+  .agreement-card-challenge { padding: 16px 14px; }
+  .agreement-card-challenge h1 { font-size: 26px; }
+  .agreement-audio-label { gap: 4px; font-size: 11px; }
+  .challenge-audio, .reward-audio-content { padding: 10px; }
+  .voice-tear-seal { padding: 11px; }
+}
+@media (max-height: 740px) {
+  .bet-module.is-signing { padding-top: 9px; padding-bottom: 12px; }
+  .bet-module.is-signing .bet-progress { margin-bottom: 10px; }
+  .agreement-signing-flow { gap: 12px; }
+  .agreement-card-head { min-height: 48px; }
+  .agreement-card-challenge { padding-top: 13px; padding-bottom: 13px; }
+  .agreement-card-challenge h1 { margin: 8px 0; font-size: 26px; }
+  .agreement-audio { min-height: 118px; }
+  .challenge-audio > .voice-wave { height: 20px; }
+  .agreement-tear-hint { margin: 11px 0; }
+  .agreement-signatures { padding-top: 10px; }
+  .agreement-signatures .signature-pad { height: 90px; }
+  .agreement-signatures .signature-pad canvas { height: 52px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-tear-seal, .reward-audio-content { transition: none; }
+}

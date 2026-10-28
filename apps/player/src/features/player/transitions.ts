@@ -1,4 +1,4 @@
-import type { CouponSource, Party, PlayerState, Signature } from "../../data/types";
+import type { CouponSource, Party, PlayerState, Signature, VoiceNote } from "../../data/types";
 
 export function couponTone(source: CouponSource) {
   return source === "promise" ? "dark-coupon" : source === "direct" ? "debt-ticket" : "coral-coupon";
@@ -16,7 +16,7 @@ export function settleAgreement(state: PlayerState, party: Party): PlayerState {
     ...state,
     draft: { ...state.draft, step: 3, winner: party },
     agreements: state.agreements.map(a => a.id === agreement.id ? { ...a, winner: party } : a),
-    coupons: [{ id: `coupon-${agreement.id}`, displayNo: agreement.id.slice(-8).toUpperCase(), title: agreement.benefit, subtitle: agreement.text, side: "won", tone: couponTone("promise"), status: "available", source: "promise", sourceNote: agreement.text, agreementId: agreement.id, issuerName: issuerParty === "a" ? "甲方" : "乙方", signature: agreement.signatures[issuerParty], issuedAt: new Date().toISOString(), holderName: party === "a" ? "甲方" : "乙方" }, ...state.coupons]
+    coupons: [{ id: `coupon-${agreement.id}`, displayNo: agreement.id.slice(-8).toUpperCase(), title: agreement.benefit, subtitle: agreement.text, side: "won", tone: couponTone("promise"), status: "available", source: "promise", sourceNote: agreement.text, agreementId: agreement.id, issuerName: issuerParty === "a" ? "甲方" : "乙方", signature: agreement.signatures[issuerParty], voice: agreement.benefitVoice, issuedAt: new Date().toISOString(), holderName: party === "a" ? "甲方" : "乙方" }, ...state.coupons]
   };
 }
 
@@ -60,7 +60,7 @@ export function claimGameStake(
   claimedAt = new Date().toISOString()
 ): PlayerState {
   const issuance = Object.values(state.issuedStakes).find(item => item.id === issuanceId);
-  if (!issuance || issuance.status === "claimed" || !holderName.trim()) return state;
+  if (!issuance || issuance.status !== "pending_claim" || !holderName.trim()) return state;
   return {
     ...state,
     issuedStakes: {
@@ -94,9 +94,10 @@ export function issueDirectBenefit(
   sourceNote = "手动签发",
   issuedAt = new Date().toISOString(),
   issuanceId = createId("benefit"),
-  source: CouponSource = "direct"
+  source: CouponSource = "direct",
+  voice?: VoiceNote
 ): PlayerState {
-  if (!title.trim() || !signature.length) return state;
+  if (!title.trim() || (!signature.length && !voice?.assetId)) return state;
   return {
     ...state,
     issuedBenefits: {
@@ -106,6 +107,7 @@ export function issueDirectBenefit(
         title: title.trim(),
         issuerName,
         signature,
+        voice,
         issuedAt,
         source,
         sourceNote: sourceNote.trim() || "手动签发",
@@ -122,7 +124,7 @@ export function claimDirectBenefit(
   claimedAt = new Date().toISOString()
 ): PlayerState {
   const issuance = state.issuedBenefits[issuanceId];
-  if (!issuance || issuance.status === "claimed" || !holderName.trim()) return state;
+  if (!issuance || issuance.status !== "pending_claim" || !holderName.trim()) return state;
   return {
     ...state,
     issuedBenefits: {
@@ -142,6 +144,7 @@ export function claimDirectBenefit(
       issuerName: issuance.issuerName,
       holderName: holderName.trim(),
       signature: issuance.signature,
+      voice: issuance.voice,
       issuedAt: issuance.issuedAt,
       claimedAt
     }, ...state.coupons]

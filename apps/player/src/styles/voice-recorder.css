@@ -1,0 +1,101 @@
+.bet-module.is-creating { display: flex; flex-direction: column; padding: 14px 22px 18px; }
+.bet-module.is-creating .bet-progress { flex: none; margin-bottom: 22px; }
+.bet-module.is-creating > .page-transition { display: flex; flex: 1; min-height: 0; }
+.is-creating .bet-create { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; gap: 18px; padding: 0; }
+.agreement-editor { display: flex; flex: 1 0 auto; min-width: 0; min-height: 350px; flex-direction: column; color: var(--player-ink); }
+.agreement-edit-header { flex: none; padding: 0 1px 22px; }
+.agreement-edit-header h2 { margin: 0 0 5px; font-size: 25px; line-height: 1.35; letter-spacing: 0; font-weight: 800; }
+.agreement-edit-header p { margin: 0; color: var(--player-muted); font-size: 12px; line-height: 1.6; }
+.agreement-voice-tabs { display: grid; flex: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; border-bottom: 1px solid var(--player-line); }
+.agreement-voice-tabs > button { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 4px; border-bottom: 2px solid transparent; color: var(--player-muted); background: transparent; font-size: 13px; font-weight: 700; }
+.agreement-voice-tabs > button[aria-selected="true"] { border-bottom-color: var(--player-violet); color: var(--player-ink); }
+.voice-stage-number { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: var(--player-muted); background: rgba(24, 21, 29, .05); font-size: 10px; font-variant-numeric: tabular-nums; }
+.voice-stage-number.is-complete { color: var(--player-ink); background: var(--player-lime); }
+.agreement-voice-tabs [aria-selected="true"] .voice-stage-number:not(.is-complete) { color: #fff; background: var(--player-violet); }
+.agreement-voice-workspace { display: flex; flex: 1; min-height: 0; flex-direction: column; padding-top: 24px; outline: none; }
+.agreement-voice-question { flex: none; text-align: center; }
+.agreement-voice-question h3 { margin: 0; font-size: 23px; line-height: 1.4; font-weight: 800; letter-spacing: 0; }
+.agreement-voice-question p { margin: 6px 0 0; color: var(--player-muted); font-size: 12px; line-height: 1.6; }
+.agreement-voice-workspace > .voice-recorder { display: flex; flex: 1; min-height: 155px; flex-direction: column; align-items: center; justify-content: center; padding: 16px 0; }
+.voice-composer { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+.voice-composer.has-voice { display: grid; grid-template-columns: auto auto; column-gap: 12px; }
+.voice-composer.has-voice .voice-composer-primary { grid-column: 1 / -1; justify-self: center; }
+.voice-composer-primary { display: grid; place-items: center; width: 80px; height: 80px; padding: 0; border: 1px solid rgba(255,255,255,.5); border-radius: 50%; outline: 1px solid rgba(125,84,255,.16); outline-offset: 7px; color: #fff; background: var(--player-violet); box-shadow: 0 6px 16px rgba(125,84,255,.14); transition: transform .18s, background-color .18s; }
+.voice-composer-primary.is-playback { color: var(--player-lime); background: var(--player-ink); outline-color: rgba(24,21,29,.1); box-shadow: 0 6px 16px rgba(24,21,29,.08); }
+.voice-composer-primary:active { transform: scale(.96); }
+.voice-composer-label { margin-top: 3px; color: var(--player-ink); font-size: 12px; font-weight: 700; }
+.voice-composer-take { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 24px; margin-top: 1px; }
+.voice-composer-take .voice-wave { width: 75px; height: 22px; margin: 0; color: var(--player-ink); }
+.voice-composer-take > span { color: var(--player-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.voice-composer-rerecord { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; padding: 0 5px; color: var(--player-muted); background: transparent; font-size: 11px; }
+.agreement-voice-inspiration { flex: none; margin: 0; padding: 14px 0 0; border-top: 1px solid var(--player-line); }
+.agreement-voice-inspiration > span { color: var(--player-muted); font-size: 10px; }
+.agreement-voice-inspiration > p { margin: 6px 0 0; color: var(--player-ink); font-size: 14px; line-height: 1.65; }
+.agreement-voice-inspiration > small { display: block; margin-top: 5px; color: var(--player-muted); font-size: 11px; line-height: 1.6; }
+.bet-create .contract-cta { flex: none; min-height: 50px; margin: 0; gap: 12px; font-size: 13px; letter-spacing: 0; }
+.voice-playback-error { display: block; margin-top: 5px; color: #ae3e3b; font-size: 10px; line-height: 1.4; }
+
+.recording-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(255, 255, 255, .08); -webkit-backdrop-filter: blur(.6px); backdrop-filter: blur(.6px); animation: recorderIn .2s ease-out; }
+.recording-screen { position: fixed; inset: 0; z-index: 91; display: grid; grid-template-rows: auto minmax(80px, 1fr) auto; justify-items: center; padding: max(18px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)); overflow: hidden; outline: none; color: var(--player-ink); background: transparent; font-family: var(--pb-font-body); animation: recorderIn .2s ease-out; }
+.recording-header { width: 100%; max-width: 600px; display: flex; align-items: center; justify-content: space-between; }
+.recording-header > span { display: flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 16px; color: #62596b; background: rgba(255, 255, 255, .86); font-size: 11px; }
+.recording-header i { width: 6px; height: 6px; border-radius: 50%; background: #736e7c; }
+.recording-header .is-live i { background: var(--player-coral); }
+.recording-close { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; color: #68616f; background: rgba(255, 255, 255, .86); }
+.recording-signal { position: absolute; top: 40%; left: 50%; width: min(calc(100% - 48px), 700px); display: flex; align-items: center; transform: translate(-50%, -50%); pointer-events: none; }
+.recording-waveform { display: block; width: 100%; height: min(8dvh, 72px); color: rgba(255, 255, 255, .9); opacity: .64; filter: drop-shadow(0 0 4px rgba(125, 84, 255, .5)); }
+.recording-controls { grid-row: 3; display: flex; align-items: center; justify-content: space-between; gap: 18px; width: min(100%, 290px); min-height: 86px; padding: 12px 14px 12px 20px; border: 1px solid rgba(255, 255, 255, .8); border-radius: 18px; background: rgba(255, 255, 255, .9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 6px 28px rgba(24, 21, 29, .08); }
+.recording-readout { min-width: 0; }
+.recording-time { font-size: 28px; line-height: 1.2; font-weight: 500; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.recording-time small { color: #857d91; font-size: 18px; }
+.recording-status { margin: 4px 0 0; color: #6b6571; font-size: 10px; line-height: 1.5; }
+.recording-status.has-error { color: #ae3e3b; }
+.recording-main-button { flex: none; width: 58px; height: 58px; display: grid; place-items: center; border: 4px solid rgba(255, 255, 255, .95); border-radius: 50%; outline: 1px solid rgba(24, 21, 29, .14); color: #fff; background: var(--player-violet); transition: background-color .18s, transform .18s; }
+.recording-main-button.is-recording { color: #fff; background: var(--player-coral); }
+.recording-main-button.is-recording svg { fill: currentColor; }
+.recording-main-button:active { transform: scale(.96); }
+@keyframes recorderIn { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 360px) {
+  .bet-module.is-creating { padding-right: 18px; padding-left: 18px; }
+  .agreement-edit-header h2 { font-size: 23px; }
+}
+@media (max-height: 760px) {
+  .bet-module.is-creating { padding-top: 10px; padding-bottom: 12px; }
+  .bet-module.is-creating .bet-progress { margin-bottom: 16px; }
+  .is-creating .bet-create { gap: 14px; }
+  .agreement-editor { min-height: 304px; }
+  .agreement-edit-header { padding-bottom: 13px; }
+  .agreement-edit-header h2 { font-size: 23px; }
+  .agreement-voice-tabs > button { min-height: 42px; }
+  .agreement-voice-workspace { padding-top: 12px; }
+  .agreement-voice-question h3 { font-size: 21px; }
+  .agreement-voice-workspace > .voice-recorder { min-height: 128px; padding: 10px 0; }
+  .voice-composer { gap: 12px; }
+  .voice-composer-primary { width: 68px; height: 68px; outline-offset: 6px; }
+  .agreement-voice-inspiration { padding-top: 10px; }
+  .bet-create .contract-cta { min-height: 48px; }
+  .recording-signal { top: 43%; }
+}
+@media (max-height: 680px) {
+  .bet-module.is-creating { padding-bottom: 6px; }
+  .bet-module.is-creating .bet-progress { margin-bottom: 12px; }
+  .is-creating .bet-create { gap: 12px; }
+  .agreement-editor { min-height: 270px; }
+  .agreement-edit-header { padding-bottom: 10px; }
+  .agreement-edit-header p { display: none; }
+  .agreement-voice-tabs > button { min-height: 38px; }
+  .agreement-voice-workspace { padding-top: 12px; }
+  .agreement-voice-question p { display: none; }
+  .agreement-voice-workspace > .voice-recorder { min-height: 108px; padding: 6px 0; }
+  .voice-composer { gap: 8px; }
+  .voice-composer-primary { width: 60px; height: 60px; }
+  .voice-composer-rerecord { min-height: 32px; }
+  .agreement-voice-inspiration > small { display: none; }
+  .bet-create .contract-cta { min-height: 46px; }
+  .recording-waveform { height: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .recording-overlay, .recording-screen, .voice-wave i { animation: none; }
+  .recording-main-button, .voice-composer-primary { transition: none; }
+}

@@ -1,4 +1,4 @@
-import { cards, createInitialState } from "../data/demo";
+import { cards, createInitialState, demoVoice } from "../data/demo";
 import type { PlayerState } from "../data/types";
 
 export const STORAGE_KEY = "playbit:player:prototype:v1";
@@ -21,14 +21,24 @@ export function decodeState(raw: string | null): PlayerState {
     if (![value.draft.signatures?.a, value.draft.signatures?.b].every(Array.isArray) || !value.stakes || typeof value.stakes !== "object" || Object.values(value.stakes).some(title => typeof title !== "string")) return createInitialState();
     if (value.decks.some(d => !d || typeof d.id !== "string" || typeof d.name !== "string" || !Array.isArray(d.cardIds) || d.cardIds.some(id => typeof id !== "string"))) return createInitialState();
     if (value.coupons.some(c => !c || typeof c.id !== "string" || typeof c.title !== "string" || c.side !== "won" || !["available", "redeemed"].includes(c.status))) return createInitialState();
-    if (value.issuedBenefits && (typeof value.issuedBenefits !== "object" || Object.values(value.issuedBenefits).some(item => !item || typeof item.id !== "string" || typeof item.title !== "string" || typeof item.issuerName !== "string" || !Array.isArray(item.signature) || !["direct", "promise", "game"].includes(item.source) || !["pending_claim", "claimed"].includes(item.status)))) return createInitialState();
+    if (value.issuedBenefits && (typeof value.issuedBenefits !== "object" || Object.values(value.issuedBenefits).some(item => !item || typeof item.id !== "string" || typeof item.title !== "string" || typeof item.issuerName !== "string" || !Array.isArray(item.signature) || !["direct", "promise", "game"].includes(item.source) || !["pending_claim", "claimed", "unavailable"].includes(item.status)))) return createInitialState();
     if (value.agreements.some(a => !a || typeof a.id !== "string" || typeof a.text !== "string" || typeof a.benefit !== "string" || !Number.isFinite(Date.parse(a.createdAt)) || !Array.isArray(a.signatures?.a) || !Array.isArray(a.signatures?.b))) return createInitialState();
     if (value.draft.step >= 2 && !value.agreements.some(a => a.id === value.draft.agreementId)) return createInitialState();
     return {
       ...value,
       // Step 3 is benefit issuance. Older saved sessions already used this step
       // after issuance, so keep it and render the issuance page.
-      draft: { ...value.draft, step: draftStep as PlayerState["draft"]["step"] },
+      draft: {
+        ...value.draft,
+        step: draftStep as PlayerState["draft"]["step"],
+        challengeVoice: value.draft.challengeVoice ?? demoVoice(value.draft.text, "challenge"),
+        benefitVoice: value.draft.benefitVoice ?? demoVoice(value.draft.benefit, "benefit")
+      },
+      agreements: value.agreements.map(agreement => ({
+        ...agreement,
+        challengeVoice: agreement.challengeVoice ?? demoVoice(agreement.text, "challenge"),
+        benefitVoice: agreement.benefitVoice ?? demoVoice(agreement.benefit, "benefit")
+      })),
       stakeRecords: normalizeStakeRecords(value),
       issuedStakes: value.issuedStakes && typeof value.issuedStakes === "object" ? Object.fromEntries(Object.entries(value.issuedStakes).map(([cardId, issuance]) => [cardId, { ...issuance, source: "game" }])) : {},
       issuedBenefits: value.issuedBenefits && typeof value.issuedBenefits === "object" ? value.issuedBenefits : {},

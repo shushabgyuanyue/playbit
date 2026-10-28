@@ -303,7 +303,8 @@ class MemoryCouponRepository {
   }
 
   async listPageByUser(userId: string, options: CouponListOptions = {}): Promise<CouponListPage> {
-    return pageFromItems(await this.listByUser(userId), options);
+    const items = await this.listByUser(userId);
+    return pageFromItems(options.ownedOnly ? items.filter(item => item.holderUserId === userId) : items, options);
   }
 
   async findById(id: string): Promise<Coupon | null> {

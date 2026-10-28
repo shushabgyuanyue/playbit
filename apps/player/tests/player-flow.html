@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playbit isolated flow test</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement as h } from "react";
+      import { createRoot } from "react-dom/client";
+      import { BrowserRouter } from "react-router-dom";
+      import { App } from "/src/app/App.tsx";
+      import "/src/styles/index.css";
+      import "/src/styles/voice-recorder.css";
+      import "/src/styles/agreement-card.css";
+
+      if (new URL(import.meta.env.VITE_API_BASE_URL).port !== "8799") throw Error("Run this fixture only against the disposable flow API");
+      // Native recording/encoding path, synthetic input only. No microphone is opened.
+      Object.defineProperty(navigator.mediaDevices, "getUserMedia", { value: async () => {
+        const context = new AudioContext();
+        await context.resume();
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const destination = context.createMediaStreamDestination();
+        oscillator.frequency.value = 220;
+        gain.gain.value = .03;
+        oscillator.connect(gain).connect(destination);
+        oscillator.start();
+        const track = destination.stream.getAudioTracks()[0];
+        const stop = track.stop.bind(track);
+        track.stop = () => { stop(); oscillator.stop(); void context.close(); };
+        return destination.stream;
+      }});
+      createRoot(document.getElementById("root")).render(h(BrowserRouter, null, h(App)));
+    </script>
+  </body>
+</html>

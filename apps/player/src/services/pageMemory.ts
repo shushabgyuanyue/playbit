@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useSyncExternalStore } from "react";
 import type { Party } from "../data/types";
 
 const STORAGE_KEY = "playbit:player:page-memory:v1";
@@ -38,14 +38,18 @@ function writeMemory(value: PageMemory) {
   try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value)); } catch { /* Session memory is optional. */ }
 }
 
+let snapshot: PageMemory | undefined;
+const listeners = new Set<() => void>();
+function getSnapshot() { return snapshot ??= readMemory(); }
+function subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
+function remember(patch: Partial<PageMemory>) {
+  const current = getSnapshot();
+  snapshot = { ...current, ...patch, scrollTop: { ...current.scrollTop, ...patch.scrollTop } };
+  writeMemory(snapshot);
+  for (const listener of listeners) listener();
+}
+
 export function usePageMemory() {
-  const [memory, setMemory] = useState(readMemory);
-  const remember = useCallback((patch: Partial<PageMemory>) => {
-    setMemory(current => {
-      const next = { ...current, ...patch, scrollTop: { ...current.scrollTop, ...patch.scrollTop } };
-      writeMemory(next);
-      return next;
-    });
-  }, []);
+  const memory = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   return { memory, remember };
 }

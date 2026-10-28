@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { playerCopy as copy } from "@playbit/content/player";
+import { useLinkSharing } from "../features/player/useLinkSharing";
+import { benefitShareData } from "../services/linkSharing";
 import { cards, scenes } from "../data/demo";
 import { Icon } from "../components/ui/Icon";
 import { Sheet } from "../components/ui/Sheet";
@@ -18,6 +20,7 @@ import { isPlayerApiConfigured, PlayerApiError, playerApi, signatureToDataUrl } 
 type Panel = "scene" | "ai" | "records" | "save" | "stake" | "issue" | "new" | "new-and-save" | null;
 
 export function PlayPage() {
+  const shareLink = useLinkSharing();
   const { state, update, notify } = usePlayer();
   const { memory, remember } = usePageMemory();
   const { card, pool, flipped, setFlipped, slide, go } = useCardDeck(memory.playFlippedCardId);
@@ -197,20 +200,7 @@ export function PlayPage() {
     void persistGameStake(signature);
   }
   async function shareStake() {
-    if (!issuance) return;
-    const url = issuance.claimToken
-      ? `${window.location.origin}/claim/${encodeURIComponent(issuance.claimToken)}`
-      : `${window.location.href.split("#")[0]}#stake=${issuance.id}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: issuance.title, text: `${issuance.cardTitle} · ${issuance.title}`, url });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(url);
-      }
-      notify(copy.play.issueStakeShared);
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) notify(copy.play.issueStakeShared);
-    }
+    await shareLink(benefitShareData(issuance, issuance?.cardTitle));
   }
   function selfClaimStake() {
     if (!issuance) return;

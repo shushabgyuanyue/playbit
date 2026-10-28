@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { playerCopy as copy } from "@playbit/content/player";
 import { Icon } from "../components/ui/Icon";
 import { PageBack } from "../components/ui/PageBack";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { emptyDraft } from "../data/demo";
 import { usePlayer } from "../features/player/PlayerProvider";
 import { usePageMemory } from "../services/pageMemory";
@@ -17,9 +18,20 @@ export function AgreementListPage() {
   const { memory, remember } = usePageMemory();
   const section = useRef<HTMLElement>(null);
   const initialScrollTop = useRef(memory.scrollTop.agreements ?? 0);
+  const [restartOpen, setRestartOpen] = useState(false);
   const agreements = useMemo(() => [...state.agreements].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)), [state.agreements]);
 
   function startNewPromise() {
+    const draft = state.draft;
+    if (!draft.agreementId && (draft.text || draft.benefit || draft.challengeVoice?.assetId || draft.benefitVoice?.assetId)) {
+      setRestartOpen(true);
+      return;
+    }
+    resetPromise();
+  }
+
+  function resetPromise() {
+    setRestartOpen(false);
     update(current => ({ ...current, draft: emptyDraft() }));
     navigate("/promise");
   }
@@ -38,12 +50,13 @@ export function AgreementListPage() {
     <header className="agreement-list-heading"><div><small>PLAYBIT RECORDS</small><h1>{copy.promise.records}</h1><p>{copy.promise.recordEmpty}</p></div><div className="agreement-list-heading-actions"><span className="agreement-list-count">{agreements.length}</span><button className="agreement-new-button" type="button" onClick={startNewPromise}><Icon name="edit" size={14} />{copy.promise.newPromise}</button></div></header>
     {agreements.length > 0 ? <div className="agreement-records">{agreements.map((agreement, index) => {
       const issuance = state.issuedBenefits[`promise-${agreement.id}`];
-      const status = agreement.winner ? "已登记结果" : issuance?.status === "claimed" ? copy.promise.issueBenefitClaimed : issuance ? copy.promise.issueBenefitPending : copy.promise.active;
+      const status = agreement.winner ? "已登记结果" : issuance?.status === "unavailable" ? copy.sharing.closed : issuance?.status === "claimed" ? copy.promise.issueBenefitClaimed : issuance ? copy.promise.issueBenefitPending : copy.promise.active;
       return <button className="agreement-record" key={agreement.id} onClick={() => navigate(`/agreements/${agreement.id}`)}>
       <span className={`agreement-record-mark mark-${index % 3}`}><Icon name="file" size={17} /></span>
       <span className="agreement-record-copy"><small>{formatDate(agreement.createdAt)} · {status}</small><b>{agreement.text}</b><span>{copy.promise.benefit}：{agreement.benefit}</span></span>
       <Icon name="arrow" size={16} />
     </button>;
     })}</div> : <div className="agreement-list-empty"><Icon name="file" size={26} /><h2>{copy.promise.noRecords}</h2><p>{copy.promise.recordEmpty}</p><button className="primary-button" onClick={() => navigate("/promise")}>{copy.promise.newPromise}<Icon name="arrow" size={16} /></button></div>}
+    <ConfirmDialog open={restartOpen} onClose={() => setRestartOpen(false)} title={copy.promise.restartTitle} description={copy.promise.restartHint} confirmLabel={copy.promise.restartConfirm} onConfirm={resetPromise} />
   </section>;
 }

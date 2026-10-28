@@ -4,6 +4,7 @@ import type { BenefitIssuance, CouponSource, Signature } from "../../data/types"
 import { Icon } from "../../components/ui/Icon";
 import { Sheet } from "../../components/ui/Sheet";
 import { SignaturePad } from "../promise/SignaturePad";
+import { BenefitClaimLink } from "./BenefitClaimLink";
 
 export function IssueBenefitSheet({
   open,
@@ -13,6 +14,8 @@ export function IssueBenefitSheet({
   onIssue,
   onShare,
   onSelfClaim,
+  submitting = false,
+  claiming = false,
   canSelfClaim = true
 }: {
   open: boolean;
@@ -22,6 +25,8 @@ export function IssueBenefitSheet({
   onIssue: (title: string, source: CouponSource, sourceNote: string, signature: Signature) => void;
   onShare: () => void;
   onSelfClaim: () => void;
+  submitting?: boolean;
+  claiming?: boolean;
   canSelfClaim?: boolean;
 }) {
   const [title, setTitle] = useState("");
@@ -78,22 +83,23 @@ export function IssueBenefitSheet({
       </div>
       <SignaturePad label={copy.wallet.issueSign} value={signature} onChange={setSignature} />
       <p className="issue-benefit-sign-hint">{copy.wallet.issueSignHint(issuerName)}</p>
-      <button className="primary-button issue-stake-submit" type="button" disabled={!value.trim() || !signature.length} onClick={() => onIssue(value, source, sourceNote, signature)}>
-        <Icon name="sign" size={17} />{copy.wallet.issueAction}
+      <button className="primary-button issue-stake-submit" type="button" disabled={submitting || !value.trim() || !signature.length} onClick={() => onIssue(value, source, sourceNote, signature)}>
+        <Icon name="sign" size={17} />{submitting ? copy.sharing.issuing : copy.wallet.issueAction}
       </button>
     </> : <>
       <div className={`issue-pending-ticket ${issuance.source === "promise" ? "dark-coupon" : issuance.source === "game" ? "coral-coupon" : "debt-ticket"}`} role="status">
         <div className="issue-pending-ticket-body">
-          <small>{copy.wallet.issueIssuedLabel}</small>
+          <small>{issuance.status === "unavailable" ? copy.sharing.closed : issuance.status === "claimed" ? copy.wallet.issueClaimed : copy.wallet.issueIssuedLabel}</small>
           <strong>{issuance.title}</strong>
-          <span>{issuance.issuerName} · {copy.wallet.issuePending}</span>
+          <span>{issuance.issuerName} · {issuance.status === "unavailable" ? copy.sharing.closed : issuance.status === "claimed" ? copy.wallet.issueClaimed : copy.wallet.issuePending}</span>
         </div>
         <div className="issue-pending-ticket-mark"><Icon name="send" size={14} />{sourceLabel}</div>
       </div>
+      {issuance.status === "pending_claim" && <><BenefitClaimLink token={issuance.claimToken} />
       <div className="issue-stake-actions">
-        <button className="primary-button" type="button" onClick={onShare}><Icon name="send" size={17} />{copy.wallet.issueShare}</button>
-        {canSelfClaim && <button className="text-button" type="button" onClick={onSelfClaim}>{copy.wallet.issueSelfClaim}</button>}
-      </div>
+        <button className="primary-button" type="button" onClick={onShare} disabled={claiming}><Icon name="send" size={17} />{copy.wallet.issueShare}</button>
+        {canSelfClaim && <button className="text-button" type="button" disabled={claiming} onClick={onSelfClaim}>{claiming ? copy.sharing.claiming : copy.wallet.issueSelfClaim}</button>}
+      </div></>}
     </>}
   </Sheet>;
 }

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playbit recorder fixture</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement as h, useState } from "react";
+      import { createRoot } from "react-dom/client";
+      import { PromiseForm } from "/src/features/promise/PromiseForm.tsx";
+      import { emptyDraft } from "/src/data/demo.ts";
+      import { deleteVoiceAsset } from "/src/services/voiceRepository.ts";
+      import "/src/styles/index.css";
+      import "/src/styles/voice-recorder.css";
+
+      // Isolated browser fixture: native encoding of a synthetic tone, never microphone input.
+      const assetIds = new Set();
+      Object.defineProperty(navigator.mediaDevices, "getUserMedia", { value: async () => {
+        const context = new AudioContext();
+        await context.resume();
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const destination = context.createMediaStreamDestination();
+        oscillator.frequency.value = 220;
+        gain.gain.value = .06;
+        oscillator.connect(gain).connect(destination);
+        oscillator.start();
+        const track = destination.stream.getAudioTracks()[0];
+        const stop = track.stop.bind(track);
+        track.stop = () => { stop(); oscillator.stop(); void context.close(); };
+        return destination.stream;
+      }});
+
+      function Fixture() {
+        const [draft, setDraft] = useState(emptyDraft);
+        const [complete, setComplete] = useState(false);
+        const change = (kind, voice) => {
+          assetIds.add(voice.assetId);
+          setDraft(current => ({ ...current, [`${kind}Voice`]: voice }));
+        };
+        const reset = async () => {
+          await Promise.all([...assetIds].map(deleteVoiceAsset));
+          assetIds.clear();
+          setDraft(emptyDraft());
+          setComplete(false);
+        };
+        return h("div", { className: "app-shell" }, h("main", { className: "phone" },
+          h("header", { style: { height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 18px", flexShrink: 0 } }, "Playbit.", h("button", { type: "button", onClick: reset }, "Reset fixture")),
+          h("section", { className: "bet-module is-creating" },
+            h("div", { className: "bet-progress" }, ...["合约创建", "合约签订", "合约结算", "权益发放"].map((label, i) => h("span", { className: i === 0 ? "active" : "", key: label }, h("i", null, i + 1), label))),
+            h("div", { className: "page-transition" }, h(PromiseForm, { draft, onVoiceChange: change, onContinue: () => setComplete(true) })),
+            complete && h("p", { role: "status" }, "Fixture complete")),
+          h("footer", { style: { height: 77, display: "grid", placeItems: "center", flexShrink: 0 } }, "Audio test fixture")));
+      }
+      createRoot(document.getElementById("root")).render(h(Fixture));
+    </script>
+  </body>
+</html>
