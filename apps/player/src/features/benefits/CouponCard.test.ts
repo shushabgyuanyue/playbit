@@ -14,6 +14,7 @@ const coupon: Coupon = { id: "test", title: "请喝一杯", subtitle: "约定权
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   playback.toggle.mockReset(); playback.stop.mockReset();
+  playback.playing = false;
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
@@ -28,6 +29,12 @@ it("shows a clickable waveform in place of both local and remote signatures", as
   await act(async () => host.querySelector<HTMLButtonElement>(".coupon-audio-play")!.click());
   expect(playback.toggle).toHaveBeenCalledOnce();
   expect(host.querySelector("article")?.classList.contains("is-flipped")).toBe(true);
+  playback.playing = true;
+  await act(async () => root.render(createElement(CouponCard, { coupon, index: 0, onRedeem: vi.fn() })));
+  expect(host.querySelector('.coupon-audio-play[aria-pressed="true"] .voice-wave.is-active')).not.toBeNull();
+  expect(host.querySelector('.coupon-audio-play svg')).toBeNull();
+  await act(async () => host.querySelector<HTMLButtonElement>(".coupon-audio-play .voice-wave")!.click());
+  expect(playback.toggle).toHaveBeenCalledTimes(2);
   playback.stop.mockClear();
   await act(async () => host.querySelector<HTMLButtonElement>(".coupon-back-hint")!.click());
   expect(playback.stop).toHaveBeenCalledOnce();

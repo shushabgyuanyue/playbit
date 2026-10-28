@@ -38,7 +38,6 @@ export function AgreementDetailPage() {
     <header>
       <button className="icon-btn" onClick={() => navigate(-1)} aria-label={copy.back}><Icon name="arrow" /></button>
       <span>{copy.promise.shareCard.eyebrow}</span>
-      <button className="share-contract" onClick={share}>{copy.promise.share}</button>
     </header>
     <div className="agreement-detail-card-wrap">
       <AgreementCard
@@ -51,8 +50,7 @@ export function AgreementDetailPage() {
         code={record.shareCode ?? record.id}
         createdAt={record.createdAt}
       />
-      <label className="benefit-claim-link"><span>{copy.sharing.agreementLink}</span><input aria-label={copy.sharing.agreementLink} readOnly value={shareUrl} onFocus={event => event.currentTarget.select()} /></label>
     </div>
-    <button className="contract-share-cta" onClick={share}><Icon name="send" size={17} />{copy.promise.shareDocument}</button>
+    <button className="contract-share-cta" onClick={share}><Icon name="share" size={17} />{copy.promise.shareDocument}</button>
   </section>;
 }

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playbit isolated agreement sharing</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement as h, useEffect } from "react";
+      import { createRoot } from "react-dom/client";
+      import { MemoryRouter, Route, Routes } from "react-router-dom";
+      import { playerCopy as copy } from "@playbit/content/player";
+      import { PlayerProvider, usePlayer } from "/src/features/player/PlayerProvider.tsx";
+      import { AgreementDetailPage } from "/src/pages/AgreementDetailPage.tsx";
+      import { AgreementSharePage } from "/src/pages/AgreementSharePage.tsx";
+      import "/src/styles/index.css";
+      import "/src/styles/agreement-card.css";
+
+      if (location.port !== "5181" || import.meta.env.VITE_API_BASE_URL) throw Error("Run this fixture only on isolated port 5181 with no API");
+      const fixtureId = "sharing-fixture";
+      const signature = [[{ x: .1, y: .6 }, { x: .3, y: .2 }, { x: .5, y: .7 }, { x: .8, y: .4 }]];
+
+      function Fixture() {
+        const { state, update, toast } = usePlayer();
+        useEffect(() => {
+          update(current => ({ ...current, profileName: "示例甲方", agreements: [{
+            id: fixtureId, shareCode: "sharing-fixture-code", text: "这周谁先完成三次晨跑", benefit: "输的人请喝一杯",
+            signatures: { a: signature, b: signature }, createdAt: "2026-10-29T08:00:00Z"
+          }] }));
+        }, []);
+        if (!state.agreements.some(item => item.id === fixtureId)) return null;
+        return h("main", { className: "app-shell" }, h("section", { className: "phone" },
+          h("header", { className: "topbar" }, h("span", { className: "brand-word" }, "Playbit.")),
+          h("div", { className: "page-view page-view-detail" }, h(Routes, null,
+            h(Route, { path: "/agreements/:agreementId", element: h(AgreementDetailPage) }),
+            h(Route, { path: "/share/:shareCode", element: h(AgreementSharePage) }))),
+          h("nav", { className: "bottom-nav", "aria-label": copy.nav.label }, [copy.nav.benefits, copy.nav.play, copy.nav.me].map(label => h("span", { key: label, className: "nav-item" }, label))),
+          toast && h("div", { className: "toast", role: "status" }, toast)));
+      }
+      const path = new URL(location.href).searchParams.has("shared") ? "/share/sharing-fixture-code" : `/agreements/${fixtureId}`;
+      createRoot(document.getElementById("root")).render(h(MemoryRouter, { initialEntries: [path] }, h(PlayerProvider, null, h(Fixture))));
+    </script>
+  </body>
+</html>

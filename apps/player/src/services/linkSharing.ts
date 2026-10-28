@@ -9,9 +9,15 @@ export function benefitShareData(issuance: BenefitIssuance | null, description =
   };
 }
 
+export function isLocalShareUrl(url: string) {
+  return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url, window.location.origin).hostname);
+}
+
 export async function shareLink(data: ShareData): Promise<"shared" | "copied" | "cancelled"> {
   if (!data.url) throw new Error("Missing share URL");
-  if (navigator.share) {
+  const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  // Desktop share sheets can block on URL previews; copying does not depend on that UI.
+  if (mobile && !isLocalShareUrl(data.url) && navigator.share && (!navigator.canShare || navigator.canShare(data))) {
     try {
       await navigator.share(data);
       return "shared";

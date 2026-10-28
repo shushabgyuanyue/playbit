@@ -6,9 +6,11 @@ import { VoiceRecorderButton } from "./VoiceRecorderButton";
 
 type VoiceKind = "challenge" | "benefit";
 
-export function VoiceAgreementEditor({ draft, active, onActiveChange, onVoiceChange }: {
+export function VoiceAgreementEditor({ draft, active, recording, onRecordingChange, onActiveChange, onVoiceChange }: {
   draft: PromiseDraft;
   active: VoiceKind;
+  recording: boolean;
+  onRecordingChange: (busy: boolean) => void;
   onActiveChange: (kind: VoiceKind) => void;
   onVoiceChange: (kind: VoiceKind, voice: VoiceNote) => void;
 }) {
@@ -31,7 +33,7 @@ export function VoiceAgreementEditor({ draft, active, onActiveChange, onVoiceCha
     <div className="agreement-voice-tabs" role="tablist" aria-label={labels.creationTitle}>
       {(["challenge", "benefit"] as const).map((kind, index) => {
         const recorded = Boolean((kind === "challenge" ? draft.challengeVoice : draft.benefitVoice).assetId);
-        return <button key={kind} id={`${id}-${kind}`} data-kind={kind} type="button" role="tab" aria-selected={active === kind} aria-controls={`${id}-panel`} tabIndex={active === kind ? 0 : -1} onClick={() => onActiveChange(kind)} onKeyDown={navigateTabs}>
+        return <button key={kind} id={`${id}-${kind}`} data-kind={kind} type="button" role="tab" disabled={recording} aria-selected={active === kind} aria-controls={`${id}-panel`} tabIndex={active === kind ? 0 : -1} onClick={() => onActiveChange(kind)} onKeyDown={navigateTabs}>
           <span className={`voice-stage-number${recorded ? " is-complete" : ""}`}>{recorded ? <Icon name="check" size={13} /> : `0${index + 1}`}</span>
           {kind === "challenge" ? labels.challengeStep : labels.benefitStep}
         </button>;
@@ -39,7 +41,7 @@ export function VoiceAgreementEditor({ draft, active, onActiveChange, onVoiceCha
     </div>
     <section className="agreement-voice-workspace" role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${active}`} tabIndex={0}>
       <div className="agreement-voice-question"><h3>{title}</h3><p>{isChallenge ? labels.challengePrompt : labels.benefitPrompt}</p></div>
-      <VoiceRecorderButton key={active} voice={voice} onChange={value => onVoiceChange(active, value)} label={title} hint={isChallenge ? labels.challengeHint : labels.benefitHint} recordLabel={isChallenge ? labels.recordChallenge : labels.recordBenefit} />
+      <VoiceRecorderButton key={active} voice={voice} onChange={value => onVoiceChange(active, value)} onBusyChange={onRecordingChange} label={title} hint={isChallenge ? labels.challengeHint : labels.benefitHint} recordLabel={isChallenge ? labels.recordChallenge : labels.recordBenefit} />
       <aside className="agreement-voice-inspiration" aria-label={labels.exampleLabel}>
         <span>{labels.exampleLabel}</span>
         <p>{isChallenge ? labels.challengeExample : labels.benefitExamples[0].text}</p>

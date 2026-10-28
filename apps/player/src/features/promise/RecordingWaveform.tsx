@@ -47,11 +47,12 @@ export function RecordingWaveform({ stream }: { stream: MediaStream | null }) {
       context.strokeStyle = getComputedStyle(element).color;
       context.lineCap = "round";
       context.lineWidth = 1.6;
-      const step = width / history.length;
-      history.forEach((level, index) => {
+      const visible = history.slice(-Math.max(1, Math.floor(width / 4)));
+      const step = width / visible.length;
+      visible.forEach((level, index) => {
         const size = Math.max(2, level * height * .88);
         const x = (index + .5) * step;
-        context.globalAlpha = .3 + .7 * index / history.length;
+        context.globalAlpha = .3 + .7 * index / visible.length;
         context.beginPath();
         context.moveTo(x, (height - size) / 2);
         context.lineTo(x, (height + size) / 2);

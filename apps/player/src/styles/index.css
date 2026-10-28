@@ -469,10 +469,23 @@ a { color: inherit; text-decoration: none; }
 .stake-issue-icon { width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, .36); border-radius: 9px; color: currentColor; background: rgba(24, 21, 29, .16); transition: background-color .2s, transform .2s; }
 .stake-issue-icon:hover { background: rgba(24, 21, 29, .34); transform: translateY(-1px); }
 .stake-issue-icon.issued { color: var(--player-lime); background: rgba(24, 21, 29, .26); }
-.issue-stake-context { display: grid; gap: 5px; margin: 0 0 16px; padding: 13px 14px; border: 1px solid #d7d0c8; border-radius: 14px; background: #fff; }
-.issue-stake-context span { color: #8b838a; font-size: 9px; font-weight: 800; }
-.issue-stake-context strong { color: var(--player-ink); font-size: 17px; line-height: 1.35; }
-.issue-stake-context small { color: #8b838a; font-size: 9px; }
+.benefit-share-preview { margin-bottom: 16px; }
+.benefit-share-card { margin-top: 0; }
+.benefit-share-card::before, .benefit-share-card::after { background: var(--player-paper); }
+.benefit-share-card .ticket-main { min-width: 0; }
+.benefit-share-card .ticket-main small { overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.benefit-share-card .ticket-main strong { overflow-wrap: anywhere; }
+.benefit-share-card .ticket-main > span { line-height: 1.4; overflow-wrap: anywhere; }
+.benefit-share-card .ticket-actions button { width: 100%; min-height: 62px; padding: 6px 2px; gap: 3px; }
+.benefit-share-card .ticket-actions .benefit-share-audio { border-radius: 0; color: inherit; background: transparent; }
+.benefit-share-card.dark-coupon .ticket-actions .benefit-share-audio { color: var(--player-lime); }
+.benefit-share-audio .voice-wave { flex: none; width: 46px; height: 24px; justify-content: center; gap: 1px; }
+.benefit-share-audio .voice-wave i { width: 2px; }
+.benefit-share-audio small { font-size: 8px; font-variant-numeric: tabular-nums; opacity: .7; }
+.benefit-share-card.dark-coupon .ticket-actions { border-left-color: rgba(255,255,255,.2); }
+.benefit-share-mark { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.benefit-share-mark small { font-size: 8px; }
+.benefit-share-card.dark-coupon .benefit-share-mark { color: var(--player-lime); }
 .issue-stake-sign-hint { margin: -7px 0 14px; color: #89828b; font-size: 9px; text-align: center; }
 .issue-stake-submit { width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px; }
 .issue-stake-issued { display: flex; align-items: center; gap: 10px; margin: 8px 0 16px; padding: 12px 13px; border-radius: 14px; color: #536d2a; background: #e3edbd; }
@@ -794,7 +807,7 @@ a { color: inherit; text-decoration: none; }
 .agreement-share-page .share-state .share-open-button { color: #fff; background: var(--player-ink); }
 .contract-detail-page { background: #f2f1ef; }
 .contract-detail-page > header { border-bottom: 1px solid rgba(24, 21, 29, .08); background: rgba(250, 248, 244, .94); }
-.contract-detail-page .share-contract { color: #fff; background: var(--player-ink); }
+.contract-detail-page > header > span { font-size: 14px; font-weight: 900; }
 .bet-progress.has-restart { grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 6px 4px 4px; }
 .bet-progress.has-restart > span, .bet-progress .restart-step { min-height: 44px; justify-content: center; }
 .bet-progress.has-restart > span::after { top: 14px; }
@@ -820,7 +833,7 @@ a { color: inherit; text-decoration: none; }
 .coupon-audio-signature { position: absolute; inset: 22px 17px 12px; z-index: 1; }
 .coupon-audio-play { width: 100%; min-height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--player-violet); background: transparent; }
 .coupon-audio-play .voice-wave { flex: none; width: 112px; height: 26px; justify-content: center; }
-.coupon-audio-play-icon { width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid rgba(125,84,255,.2); border-radius: 50%; background: rgba(255,255,255,.6); }
+.coupon-audio-play .voice-wave i, .benefit-share-audio .voice-wave i { animation-duration: .75s; }
 .coupon-audio-play small { color: #6f655e; font-size: 8px; }
 .coupon-audio-play:focus-visible { outline: 2px solid var(--player-violet); outline-offset: -2px; border-radius: 5px; }
 .coupon-audio-date { position: absolute; right: 17px; bottom: 8px; }
@@ -834,9 +847,6 @@ a { color: inherit; text-decoration: none; }
 .pending-benefits > button > svg { color: var(--player-violet); flex: none; }
 .pending-benefits strong { min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: 12px; }
 .pending-benefits > button > span { display: flex; align-items: center; gap: 4px; flex: none; color: var(--player-violet); font-size: 10px; }
-.issue-stake-voice { padding: 10px 0 1px; }
-.issue-stake-voice .voice-note-button { width: 100%; }
-.issue-stake-voice p { margin: 7px 0 0; color: #8b8292; font-size: 9px; text-align: center; }
 
 
 

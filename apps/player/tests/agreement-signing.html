@@ -13,6 +13,7 @@
       import { SigningStep } from "/src/features/promise/SigningStep.tsx";
       import { AgreementCard } from "/src/features/promise/AgreementCard.tsx";
       import { CouponCard } from "/src/features/benefits/CouponCard.tsx";
+      import { IssueStakeSheet } from "/src/features/cards/IssueStakeSheet.tsx";
       import { toPlayerCoupon } from "/src/features/benefits/couponPresentation.ts";
       import { PromiseProgress } from "/src/features/promise/PromiseProgress.tsx";
       import { emptyDraft } from "/src/data/demo.ts";
@@ -56,14 +57,19 @@
       function CouponPreview() {
         const [redeemed, setRedeemed] = useState(false);
         const [cleaned, setCleaned] = useState(false);
+        const [shareOpen, setShareOpen] = useState(false);
+        const [issuance, setIssuance] = useState(null);
         const signature = [[{ x: .1, y: .4 }, { x: .3, y: .7 }, { x: .6, y: .2 }, { x: .8, y: .5 }]];
         const coupon = toPlayerCoupon({ id: "claim-fixture", parentCouponId: "issued-fixture", name: "请喝一杯", description: "来自原声约定", sourceLabel: "赌约权益", issuerNickname: "签发人", holderNickname: "领取人", status: redeemed ? "used" : "available", createdAt: "2026-10-28T08:00:00Z", usedAt: redeemed ? "2026-10-28T09:00:00Z" : null }, { coupons: [], agreements: [], issuedBenefits: { fixture: { id: "local-fixture", remoteId: "issued-fixture", voice, signature } } });
         return h("div", { className: "app-shell" }, h("main", { className: "phone" },
-          h("header", { style: { height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 18px", flexShrink: 0 } }, "Playbit.", h("button", { onClick: async () => { await deleteVoiceAsset(assetId); setCleaned(true); } }, cleaned ? "Cleaned" : "Clean fixture")),
+          h("header", { style: { height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 18px", flexShrink: 0 } }, "Playbit.", h("button", { onClick: () => setShareOpen(true) }, "Share preview"), h("button", { onClick: async () => { await deleteVoiceAsset(assetId); setCleaned(true); } }, cleaned ? "Cleaned" : "Clean fixture")),
           h("section", { className: "benefits" }, h("div", { className: "module-tag" }, "PLAYBIT BENEFITS"), h("div", { className: "benefit-title" }, h("h1", null, "你的权益卡")),
             h("div", { className: "ticket-list ticket-list-won" }, h(CouponCard, { coupon, index: 0, signatureDataUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E", onRedeem: () => setRedeemed(true) }),
               h(CouponCard, { coupon: { ...coupon, id: "handwritten-fixture", title: "周末早餐", voice: undefined, signature }, index: 1, onRedeem: () => {} }))),
-          h("footer", { style: { height: 77, display: "grid", placeItems: "center", flexShrink: 0 } }, "Isolated coupon test")));
+          h("footer", { style: { height: 77, display: "grid", placeItems: "center", flexShrink: 0 } }, "Isolated coupon test"),
+          h(IssueStakeSheet, { open: shareOpen, onClose: () => setShareOpen(false), cardTitle: "谁先笑，谁就输", stake: "请喝一杯", issuerName: "签发人", source: "promise", voice, issuance,
+            onIssue: () => setIssuance({ id: "isolated-preview", title: "请喝一杯", issuerName: "签发人", signature: [], status: "pending_claim", claimToken: "isolated-preview" }), onShare: () => {}, onSelfClaim: () => {},
+            labels: { title: "把约定权益交给对方", eyebrow: "AGREEMENT BENEFIT", issue: "签发这份权益", action: "签发这份权益", share: "分享给对方领取" } })));
       }
       createRoot(document.getElementById("root")).render(h(new URL(location.href).searchParams.get("view") === "coupon" ? CouponPreview : Fixture));
     </script>

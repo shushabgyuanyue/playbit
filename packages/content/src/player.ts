@@ -69,7 +69,7 @@ const promiseVoiceCopy = {
     recordAgain: "重新录音",
     recording: "正在录音，点击结束",
     stopRecording: "说好了，保存",
-    cancelRecording: "关闭录音，保留原有原声",
+    cancelRecording: "取消录音，保留原有原声",
     recorder: "留下这句话",
     live: "正在录音",
     requesting: "正在等待麦克风…",
@@ -146,7 +146,7 @@ const promiseVoiceCopy = {
 
 export const playerCopy = {
   ...playerCopyBase,
-  sharing: { ...playerCopyBase.sharing, copied: "分享链接已复制", agreementLink: "约定链接", closed: "已结束领取" },
+  sharing: { ...playerCopyBase.sharing, copied: "分享链接已复制", localCopied: "本地预览链接已复制，仅限当前设备打开", closed: "已结束领取" },
   play: { ...playerCopyBase.play, issueStakeClaimed: "权益已领取" },
   wallet: { ...playerCopyBase.wallet, issueSelfClaim: "我来领取", issueClaimed: "已放入权益中心" },
   promise: {

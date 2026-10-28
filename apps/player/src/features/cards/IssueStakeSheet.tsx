@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { playerCopy as copy } from "@playbit/content/player";
-import type { BenefitIssuance, Signature, VoiceNote } from "../../data/types";
+import type { BenefitIssuance, CouponSource, Signature, VoiceNote } from "../../data/types";
 import { Icon } from "../../components/ui/Icon";
 import { Sheet } from "../../components/ui/Sheet";
 import { SignaturePad } from "../promise/SignaturePad";
-import { VoiceNoteButton } from "../promise/VoiceNoteButton";
+import { BenefitShareCard } from "../benefits/BenefitShareCard";
 import { BenefitClaimLink } from "../benefits/BenefitClaimLink";
 
 type ShareIssuance = Pick<BenefitIssuance, "id" | "title" | "issuerName" | "signature" | "status" | "claimToken">;
@@ -37,6 +37,7 @@ export function IssueStakeSheet({
   submitting = false,
   claiming = false,
   labels,
+  source = "game",
   canSelfClaim = true
 }: {
   open: boolean;
@@ -52,6 +53,7 @@ export function IssueStakeSheet({
   submitting?: boolean;
   claiming?: boolean;
   labels?: Partial<IssueShareLabels>;
+  source?: CouponSource;
   canSelfClaim?: boolean;
 }) {
   const [signature, setSignature] = useState<Signature>([]);
@@ -78,16 +80,12 @@ export function IssueStakeSheet({
   const unavailable = issuance?.status === "unavailable";
 
   return <Sheet open={open} onClose={onClose} title={text.title} eyebrow={text.eyebrow} description={audioBenefit ? copy.promise.voice.issueHint : text.description}>
-    <div className="issue-stake-context">
-      <span>{cardTitle}</span>
-      <strong>{stake}</strong>
-      <small>{issuerName} · {unavailable ? copy.sharing.closed : issuance?.status === "claimed" ? text.claimed : issuance ? text.pending : text.issue}</small>
-    </div>
+    <BenefitShareCard title={issuance?.title ?? stake} context={cardTitle} issuerName={issuance?.issuerName ?? issuerName} source={source} voice={voice} active={open} status={unavailable ? copy.sharing.closed : issuance?.status === "claimed" ? text.claimed : issuance ? text.pending : text.issue} />
     {audioBenefit && <p className="issue-stake-sign-hint">{copy.promise.voice.localShareHint}</p>}
     {!issuance ? <>
-      {audioBenefit ? <div className="issue-stake-voice"><VoiceNoteButton voice={voice!} /><p>{copy.promise.voice.voiceSignature}</p></div> : <><SignaturePad label={text.sign} value={signature} onChange={setSignature} /><p className="issue-stake-sign-hint">{text.signHint}</p></>}
+      {!audioBenefit && <><SignaturePad label={text.sign} value={signature} onChange={setSignature} /><p className="issue-stake-sign-hint">{text.signHint}</p></>}
       <button className="primary-button issue-stake-submit" type="button" disabled={submitting || (!audioBenefit && !signature.length)} onClick={() => onIssue(signature)}>
-        <Icon name={audioBenefit ? "volume" : "sign"} size={17} />{submitting ? copy.sharing.issuing : text.action}
+        <Icon name="share" size={17} />{submitting ? copy.sharing.issuing : text.action}
       </button>
     </> : <>
       <div className="issue-stake-issued" role="status">
@@ -95,7 +93,7 @@ export function IssueStakeSheet({
         <span><b>{unavailable ? copy.sharing.closed : issuance.status === "claimed" ? text.claimed : text.signed}</b><small>{unavailable ? copy.wallet.claimUnavailable : issuance.status === "claimed" ? "这份权益已进入权益中心" : text.pending}</small></span>
       </div>
       {issuance.status === "pending_claim" && <><BenefitClaimLink token={issuance.claimToken} /><div className="issue-stake-actions">
-        <button className="primary-button" type="button" disabled={claiming} onClick={onShare}><Icon name="send" size={17} />{text.share}</button>
+        <button className="primary-button" type="button" disabled={claiming} onClick={onShare}><Icon name="share" size={17} />{text.share}</button>
         {canSelfClaim && <button className="text-button" type="button" disabled={claiming} onClick={onSelfClaim}>{claiming ? copy.sharing.claiming : text.selfClaim}</button>}
       </div></>}
     </>}
