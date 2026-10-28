@@ -15,8 +15,6 @@
 }
 .phone-play .brand-word { font-size: 21px; letter-spacing: 0; }
 .phone-play .brand-word span { color: currentColor; }
-.phone-play .top-action { width: 44px; height: 44px; background: rgba(255,255,255,.55); color: var(--player-ink); box-shadow: none; }
-.phone-play .top-action > svg { width: 19px; height: 19px; }
 .phone-play .bottom-nav {
   position: absolute; inset: auto 0 0; z-index: 5;
   height: calc(76px + env(safe-area-inset-bottom)); min-height: 76px;

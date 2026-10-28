@@ -38,10 +38,10 @@ a { color: inherit; text-decoration: none; }
 .top-actions { display: flex; align-items: center; gap: 7px; }
 .top-action, .icon-btn { width: 30px; height: 30px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: #fff; box-shadow: 0 5px 14px rgba(31, 24, 40, .07); }
 .top-action > svg { width: 15px; height: 15px; }
-.top-action.mode-flip { margin-left: 2px; color: #fff; background: var(--player-ink); }
-.top-action.mode-flip.flip-game { color: var(--player-ink); background: var(--player-coral); }
+.top-action.mode-flip { width: 44px; height: 44px; margin-left: 2px; color: var(--player-ink); background: transparent; box-shadow: none; }
+.top-action.mode-flip > svg { width: 20px; height: 20px; }
 .mode-flip.flip-game { animation: modeFlipGame .45s cubic-bezier(.2, .8, .2, 1); }
-.mode-flip.flip-promise { color: #fff; background: var(--player-violet); animation: modeFlipPromise .45s cubic-bezier(.2, .8, .2, 1); }
+.mode-flip.flip-promise { animation: modeFlipPromise .45s cubic-bezier(.2, .8, .2, 1); }
 
 /* Navigation and common overlay */
 .bottom-nav { min-height: 77px; padding: 7px 35px max(9px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid rgba(30, 25, 35, .06); background: rgba(250, 248, 244, .92); backdrop-filter: blur(18px); }.nav-item { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #8c8791; background: transparent; font-size: 10px; font-weight: 700; }.nav-item.active { color: var(--player-ink); }.nav-item.play { font-size: 12px; }.play-logo { width: 35px; height: 29px; display: grid; place-items: center; border-radius: 10px; color: white; background: linear-gradient(135deg, var(--player-coral) 0 48%, var(--player-violet) 49%); font-size: 16px; font-weight: 900; transform: rotate(-3deg); }.badge { position: absolute; top: 4px; right: 21px; min-width: 16px; height: 16px; display: grid; place-items: center; border-radius: 8px; color: #fff; background: var(--player-coral); font-size: 9px; font-style: normal; }

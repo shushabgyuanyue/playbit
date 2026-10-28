@@ -39,7 +39,7 @@ function Shell() {
     <OverlayContainer.Provider value={overlay.current}>
       <header className="topbar">
         <Link className="brand-word" to={location.pathname === "/benefits" ? playTarget : isHome ? location.pathname : rememberedHome}>{copy.brand}<span>.</span></Link>
-        {isHome && <div className="top-actions"><button className={`top-action mode-flip flip-${mode}`} onClick={toggleMode} aria-label={mode === "game" ? copy.nav.toPromise : copy.nav.toPlay}><Icon name={mode === "game" ? "game" : "seal"} size={20} /></button></div>}
+        {isHome && <div className="top-actions"><button className={`top-action mode-flip flip-${mode}`} type="button" onClick={toggleMode} aria-label={mode === "game" ? copy.nav.toPromise : copy.nav.toPlay} title={mode === "game" ? copy.nav.toPromise : copy.nav.toPlay}><Icon name="switch" size={20} /></button></div>}
       </header>
       <div className={`page-view page-transition${isAgreement ? " page-view-detail" : ""}`} key={location.pathname}>
         <Routes>
