@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { playerCopy as copy } from "@playbit/content/player";
 import { useLinkSharing } from "../features/player/useLinkSharing";
@@ -8,9 +8,11 @@ import { Icon } from "../components/ui/Icon";
 import { Sheet } from "../components/ui/Sheet";
 import { AiSheet, CollectionSheet, CreateDeckSheet, SceneDrawer } from "../features/cards/DeckSheets";
 import { GameCard } from "../features/cards/GameCard";
+import { FeedNeighbors } from "../features/cards/FeedNeighbors";
 import { IssueStakeSheet } from "../features/cards/IssueStakeSheet";
 import { getPendingStakeRecords, StakeRecordsSheet, STAKE_RECORD_TTL_MS } from "../features/cards/StakeRecordsSheet";
-import { useCardDeck } from "../features/cards/useCardDeck";
+import { CARD_MOVE_MS, useCardDeck } from "../features/cards/useCardDeck";
+import { useFeedSwipe } from "../features/cards/useFeedSwipe";
 import { usePlayer } from "../features/player/PlayerProvider";
 import { claimGameStake, issueGameStake } from "../features/player/transitions";
 import type { Signature, StakeRecord } from "../data/types";
@@ -31,7 +33,6 @@ export function PlayPage() {
   const [issueNudge, setIssueNudge] = useState(false);
   const pendingMove = useRef<number | null>(null);
   const ignoredIssueNudges = useRef(new Set<string>());
-  const pointer = useRef<{ id: number; x: number; y: number } | null>(null);
   const [pendingIssueCardId, setPendingIssueCardId] = useState<string | null>(null);
   const scene = state.decks.find(d => d.id === state.deckId)?.name ?? scenes.find(s => s.id === state.sceneId)?.title ?? scenes[0]!.title;
   const stake = state.stakes[card.id];
@@ -39,6 +40,7 @@ export function PlayPage() {
   const pendingStakeRecords = getPendingStakeRecords(state);
   const alreadySaved = state.decks.some(deck => deck.cardIds.includes(card.id));
   const saved = alreadySaved || pendingSaveCardId === card.id;
+  const swipe = useFeedSwipe(slide, card.id, moveCard);
   const close = () => {
     if (panel === "save" && !alreadySaved) setPendingSaveCardId(null);
     setPanel(null);
@@ -128,12 +130,14 @@ export function PlayPage() {
     close(); notify(remove ? copy.play.stakeRemoved : copy.play.stakeSaved);
   }
   function moveCard(direction: number) {
+    if (slide || pool.length < 2) return false;
     if (stake && !issuance && !ignoredIssueNudges.current.has(card.id)) {
       pendingMove.current = direction;
       setIssueNudge(true);
-      return;
+      return false;
     }
     go(direction);
+    return true;
   }
   function ignoreIssueNudge() {
     ignoredIssueNudges.current.add(card.id);
@@ -210,20 +214,18 @@ export function PlayPage() {
     notify(copy.play.issueStakeClaimed);
   }
   return <>
-    <div className="game-menu"><div className="game-menu-scroll">
-      <button onClick={() => setPanel("scene")}><span><Icon name="grid" size={19} /></span><b>{copy.play.scene}</b><small>{scene}</small></button>
-      <button className="game-ai" onClick={() => setPanel("ai")}><span><Icon name="spark" size={18} /></span><b>{copy.play.ai}</b></button>
-      <button className={`stake-record-menu ${pendingStakeRecords.length ? "has-records" : ""}`} onClick={() => setPanel("records")} aria-label={copy.play.stakeRecords}><span><Icon name="trophy" size={18} />{pendingStakeRecords.length > 0 && <i>{pendingStakeRecords.length}</i>}</span><b>{copy.play.stakeRecords}</b><small>{pendingStakeRecords.length ? `${pendingStakeRecords.length} 待签发` : "近 24 小时"}</small></button>
-    </div></div>
-    <section className="deck" tabIndex={0} aria-label={copy.nav.play}
-      onKeyDown={e => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); moveCard(e.key === "ArrowUp" ? 1 : -1); } }}
-      onPointerDown={e => { if (e.pointerType === "mouse" && e.button !== 0) return; if ((e.target as HTMLElement).closest("button")) return; pointer.current = { id: e.pointerId, x: e.clientX, y: e.clientY }; e.currentTarget.setPointerCapture(e.pointerId); }}
-      onPointerCancel={() => { pointer.current = null; }}
-      onPointerUp={e => { if (!pointer.current || pointer.current.id !== e.pointerId) return; const dx = pointer.current.x - e.clientX; const dy = pointer.current.y - e.clientY; pointer.current = null; if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); if (Math.abs(dy) > 32 && Math.abs(dy) > Math.abs(dx) * .9) moveCard(dy > 0 ? 1 : -1); }}>
-      <div className="stack-card stack-one" aria-hidden="true" /><div className="stack-card stack-two" aria-hidden="true" />
-      <GameCard card={card} scene={scene} flipped={flipped} slide={slide} saved={saved} stake={stake} stakeIssued={Boolean(issuance)} onFlip={setFlipped} onSave={openCollection} onStake={openStake} onIssue={openIssue} />
+    <div className="feed-toolbar">
+      <button className="feed-scene" onClick={() => setPanel("scene")} aria-label={`${copy.play.scene}：${scene}`}><Icon name="grid" size={17} /><span>{scene}</span><Icon name="chevronDown" size={14} /></button>
+      <button className="feed-tool" onClick={() => setPanel("ai")} aria-label={copy.play.ai} title={copy.play.ai}><Icon name="spark" size={20} /></button>
+      <button className={`feed-tool ${saved ? "is-saved" : ""}`} onClick={openCollection} aria-label={copy.play.collect} aria-pressed={saved} title={copy.play.collect}><Icon name="bookmark" size={20} /></button>
+      <button className="feed-tool feed-records" onClick={() => setPanel("records")} aria-label={copy.play.stakeRecords} title={copy.play.stakeRecords}><Icon name="trophy" size={19} />{pendingStakeRecords.length > 0 && <i>{pendingStakeRecords.length}</i>}</button>
+    </div>
+    <section className="deck" tabIndex={0} aria-label={copy.nav.play} {...swipe} data-slide={slide} style={{ "--feed-snap-duration": `${CARD_MOVE_MS}ms` } as CSSProperties}
+      onKeyDown={e => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); moveCard(e.key === "ArrowUp" ? 1 : -1); } }}>
+      <FeedNeighbors pool={pool} cardId={card.id} stakes={state.stakes} issuedStakes={state.issuedStakes} />
+      <div className="feed-current"><GameCard key={card.id} card={card} flipped={flipped} slide={slide} stake={stake} stakeIssued={Boolean(issuance)} onFlip={setFlipped} onStake={openStake} onIssue={openIssue} /></div>
       {issueNudge && <div className="stake-issue-nudge" role="status"><span><Icon name="sign" size={15} /><b>{copy.play.issueStakeNudge}</b></span><div><button type="button" onClick={openIssue}>{copy.play.issueStakeNudgeAction}</button><button type="button" onClick={ignoreIssueNudge}>{copy.play.issueStakeNudgeIgnore}</button></div></div>}
-      {pool.length > 1 && <div className="deck-controls"><button onClick={() => moveCard(-1)} aria-label={copy.play.previous}>↓</button><button onClick={() => moveCard(1)} aria-label={copy.play.next}>↑</button></div>}
+      {pool.length > 1 && <div className="deck-controls"><button onClick={() => moveCard(-1)} aria-label={copy.play.previous} title={copy.play.previous}><Icon name="chevronDown" size={20} /></button><button onClick={() => moveCard(1)} aria-label={copy.play.next} title={copy.play.next}><Icon name="chevronUp" size={20} /></button></div>}
     </section>
     <SceneDrawer open={panel === "scene"} onClose={close} onCreate={() => setPanel("new")} />
     <AiSheet open={panel === "ai"} onClose={close} />

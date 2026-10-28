@@ -11,7 +11,8 @@ const playerCopyBase = {
     scene: "场景", ai: "AI 组局", author: "Playbit", justNow: "刚刚", happening: "正在发生",
     turn: "现在轮到你回答", payoff: "这张卡可能带来", quote: "“把它发给那个你想听到答案的人。”",
     answers: "2,481 人收藏", stake: "添个彩头", stakeAdded: "本局彩头", stakeEdit: "修改彩头", anticipation: "加一点期待",
-    defaultStake: "输的人请喝一杯", flip: "翻开开始", swipe: "↑ 上滑换一张", next: "下一张", previous: "上一张",
+    defaultStake: "输的人请喝一杯", flip: "翻开即玩", swipe: "上滑，发现下一张", next: "下一张", previous: "上一张", feedRules: "这局怎么玩",
+    mediaPlay: "播放", mediaStop: "停止播放", mediaFailed: "这段内容没加载好，点此重试",
     serious: "现在，认真玩", rules: "HOW TO PLAY · 这轮怎么玩", putDown: "，然后把手机放下。",
     returnHint: "轻触空白处返回 · 上滑换题", collect: "收藏到卡组", backToPreview: "返回卡片预告",
     stakeTitle: "给这一局，加一点期待", stakeHint: "彩头由你们自行约定，玩游戏不需要签约。", stakePlaceholder: "例如：输的人请喝一杯", stakeConfirm: "就这个彩头", removeStake: "移除彩头", stakeRemoved: "已移除彩头", stakeSaved: "已记下本局彩头",
@@ -19,9 +20,9 @@ const playerCopyBase = {
     stakeRecords: "彩头记录", stakeRecordsEyebrow: "STAKE NOTES", stakeRecordsHint: "跳过的彩头会保留 24 小时，回到对应卡片补签发。", stakeRecordsEmpty: "今天还没有待签发的彩头", stakeRecordIssue: "去签发", stakeRecordExpires: (hours: number) => `${hours} 小时内有效`
   },
   scenes: {
-    eyebrow: "PLAY IN REAL LIFE", title: "今晚，什么局？", hint: "选择现实场景，找到刚刚好的尺度。", official: "官方场景", mine: "我的场景卡组", create: "新建卡组", createTitle: "给卡组起个名字", name: "卡组名称", namePlaceholder: "例如：下班后玩一会儿", empty: "还没有收藏卡片", add: "新建", custom: "自定义场景", count: (n: number) => `${n} 张卡片`, switched: (name: string) => `已切换到「${name}」`, duplicate: "已有同名卡组", emptyDeck: "这个卡组还没有卡片，先去收藏喜欢的内容", created: "卡组已创建", deleteTitle: "删除这个场景卡组？", deleteHint: "卡组里的收藏会一起移除，但原来的游戏卡片不会受影响。", deleteAction: "删除卡组", deleted: "场景卡组已删除"
+    eyebrow: "PLAY IN REAL LIFE", title: "现在，什么局？", hint: "就从眼前的这几分钟开始。", official: "此刻的场景", mine: "我的场景卡组", create: "新建卡组", createTitle: "给卡组起个名字", name: "卡组名称", namePlaceholder: "例如：下班后玩一会儿", empty: "还没有收藏卡片", add: "新建", custom: "自定义场景", count: (n: number) => `${n} 张卡片`, switched: (name: string) => `已切换到「${name}」`, duplicate: "已有同名卡组", emptyDeck: "这个卡组还没有卡片，先去收藏喜欢的内容", created: "卡组已创建", deleteTitle: "删除这个场景卡组？", deleteHint: "卡组里的收藏会一起移除，但原来的游戏卡片不会受影响。", deleteAction: "删除卡组", deleted: "场景卡组已删除"
   },
-  ai: { eyebrow: "PLAYBIT AI", title: "说说现在的气氛", hint: "先从现有卡片里，找一个更适合此刻的场景。", placeholder: "例如：第一次约会，有点害羞，想自然地拉近距离…", suggestions: ["更暧昧一点", "适合四个人", "不要太尴尬"], send: "选择适合的场景" },
+  ai: { eyebrow: "PLAYBIT AI", title: "说说现在的气氛", hint: "先从现有卡片里，找一个更适合此刻的场景。", placeholder: "例如：还要等车五分钟，两个人，想找点乐子…", suggestions: ["等车5分钟", "谁来洗碗", "店里整点活动"], send: "选择适合的场景" },
   collection: { eyebrow: "SAVE TO SCENE", title: "收藏到场景卡组", create: "新建场景卡组 ＋", newHint: "自定义名称与场景", saved: (name: string) => `已收藏到「${name}」`, already: "已经在这个卡组里了" },
   promise: {
     steps: ["合约创建", "合约签订", "权益发放"], eyebrow: "AGREEMENT CREATION", title: "建立一份", titleEnd: "双方认可的合约。",

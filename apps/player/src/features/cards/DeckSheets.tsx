@@ -77,7 +77,7 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
   const { update, notify } = usePlayer();
   function select() {
     if (!query.trim()) return;
-    const id = /朋友|四个|聚会|多人|破冰/.test(query) ? "friends" : /深夜|晚上/.test(query) ? "night" : /家人|家庭/.test(query) ? "family" : /初次|害羞|尴尬/.test(query) ? "hello" : "date";
+    const id = /洗碗|家务|水槽/.test(query) ? "dishes" : /店|商家|活动|广告|咖啡/.test(query) ? "shop" : /等车|候车|等位|排队|五分钟|5分钟/.test(query) ? "wait" : /睡前|深夜|晚上/.test(query) ? "night" : /家人|家庭|回家/.test(query) ? "family" : /初次|刚认识|害羞|尴尬/.test(query) ? "hello" : /朋友|四个|聚会|多人|饭后/.test(query) ? "friends" : "date";
     update(current => ({ ...current, sceneId: id, deckId: null, cardId: cards.find(c => c.sceneIds.includes(id))!.id }));
     notify(copy.scenes.switched(scenes.find(s => s.id === id)!.title));
     setQuery(""); onClose();

@@ -1,4 +1,9 @@
 export type CardTone = "coral" | "violet" | "lime";
+export type CardMedia =
+  | { kind: "image"; src: string; alt: string }
+  | { kind: "audio"; src: string; title: string; duration: string }
+  | { kind: "video"; src: string; poster: string; title: string };
+export interface CardSponsor { name: string; disclosure: "活动示例" | "广告示例"; note: string }
 export interface GameCard {
   id: string;
   label: string;
@@ -11,8 +16,14 @@ export interface GameCard {
   payoff: string;
   action: string;
   sceneIds: string[];
+  textStyle?: "quote";
+  media?: CardMedia;
+  steps?: string[];
+  note?: string;
+  reveal?: { question: string; answer: string };
+  sponsor?: CardSponsor;
 }
-export interface Scene { id: string; title: string; icon: "date" | "friends" | "hello" | "moon" | "home" }
+export interface Scene { id: string; title: string; icon: "date" | "friends" | "hello" | "moon" | "home" | "clock" | "utensils" | "store" }
 export interface Deck { id: string; name: string; cardIds: string[] }
 export type Point = { x: number; y: number };
 export type Signature = Point[][];

@@ -1,0 +1,39 @@
+{
+  "creator": "Playbit",
+  "source": "Original procedural game illustrations, animation and synthesized audio",
+  "generator": "scripts/build-scene-card-media.py",
+  "assets": [
+    {
+      "file": "book-window.webp",
+      "bytes": 4546
+    },
+    {
+      "file": "coffee-menu.webp",
+      "bytes": 8806
+    },
+    {
+      "file": "cup-shuffle.mp4",
+      "bytes": 29204
+    },
+    {
+      "file": "cup-shuffle.webp",
+      "bytes": 5218
+    },
+    {
+      "file": "fridge-notes.webp",
+      "bytes": 11424
+    },
+    {
+      "file": "knock-pattern.m4a",
+      "bytes": 14132
+    },
+    {
+      "file": "little-theme.m4a",
+      "bytes": 50425
+    },
+    {
+      "file": "monday-cat.webp",
+      "bytes": 9104
+    }
+  ]
+}

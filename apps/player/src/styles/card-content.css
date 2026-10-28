@@ -1,0 +1,63 @@
+/* Content variants share the same full-screen card and fixed actions. */
+.prompt p, .prompt strong { white-space: pre-line; }
+.is-quote .card-front { background: #f5ece5; }
+.is-quote .prompt { margin-top: 18px; }
+.is-quote .prompt p { font-family: Georgia, "Songti SC", SimSun, serif; font-size: 19px; line-height: 1.85; }
+.is-quote .prompt strong { margin-top: 20px; font-size: 29px; line-height: 1.6; font-weight: 700; }
+.has-media .prompt { margin-top: 14px; }
+.has-media .prompt p { margin-bottom: 9px; font-size: 17px; line-height: 1.5; }
+.has-media .prompt strong { font-size: 30px; line-height: 1.35; }
+.card-media { position: relative; flex: none; width: 100%; min-width: 0; margin-top: 16px; }
+.card-media-image, .card-media-video { height: 190px; }
+.card-media img, .card-media video { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
+.card-media video { background: var(--player-paper); }
+.card-media audio { display: none; }
+.card-audio { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 100px; padding: 16px 0; border-top: 1px solid var(--player-line); border-bottom: 1px solid var(--player-line); background: transparent; text-align: left; }
+.card-audio .voice-wave { flex: none; height: 54px; width: 81px; justify-content: center; }
+.card-audio .voice-wave i { width: 3px; }
+.card-audio > span:nth-child(2) { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 7px; }
+.card-audio b { font-size: 13px; line-height: 1.6; font-weight: 500; }
+.card-audio small { color: #6c5f67; font-size: 11px; }
+.card-audio > svg { flex: none; }
+.card-media-error { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; min-height: 44px; padding: 8px; color: #773e37; background: #fff3e6; font-size: 12px; }
+.card-media-image .card-media-error, .card-media-video .card-media-error { position: absolute; inset: auto 0 0; }
+.has-steps h1 { font-size: 28px; margin: 13px 0 16px; }
+.has-steps .feed-rule { font-size: 20px; line-height: 1.65; }
+.feed-steps { display: flex; flex-direction: column; gap: 14px; margin: 22px 0 0; padding: 0; list-style: none; }
+.feed-steps li { display: flex; gap: 10px; align-items: flex-start; }
+.feed-steps li > span { display: block; flex: 0 0 18px; padding-top: 2px; color: #8c7569; font-size: 11px; }
+.feed-steps p { margin: 0; font-size: 14px; line-height: 1.7; }
+.feed-boundary { margin: 15px 0 0; color: #786b64; font-size: 11px; line-height: 1.65; }
+.feed-answer { margin-top: 18px; border-top: 1px solid var(--player-line); border-bottom: 1px solid var(--player-line); }
+.feed-answer summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 46px; color: #63489b; font-size: 13px; cursor: pointer; list-style: none; }
+.feed-answer summary::-webkit-details-marker { display: none; }
+.feed-answer summary:focus-visible { outline: 2px solid var(--player-violet); outline-offset: 2px; }
+.feed-answer summary svg { flex: none; transition: transform .2s ease; }
+.feed-answer[open] summary svg { transform: rotate(180deg); }
+.feed-answer > p { margin: 0 0 14px; font-size: 13px; line-height: 1.75; }
+@media (max-height: 700px) {
+  .is-quote .prompt { margin-top: 13px; }
+  .is-quote .prompt p { font-size: 18px; line-height: 1.7; }
+  .is-quote .prompt strong { font-size: 25px; margin-top: 14px; }
+  .has-media .prompt { margin-top: 10px; }
+  .has-media .prompt p { font-size: 14px; margin-bottom: 6px; }
+  .has-media .prompt strong { font-size: 24px; }
+  .card-media { margin-top: 10px; }
+  .card-media-image, .card-media-video { height: 116px; }
+  .card-audio { min-height: 76px; padding: 10px 0; }
+  .card-audio .voice-wave { height: 40px; }
+  .has-steps h1 { font-size: 23px; margin: 9px 0 12px; }
+  .has-steps .feed-rule { font-size: 17px; }
+  .feed-steps { gap: 9px; margin-top: 14px; }
+  .feed-steps p { font-size: 13px; line-height: 1.55; }
+  .feed-boundary { margin-top: 10px; font-size: 10px; }
+  .feed-answer { margin-top: 12px; }
+}
+@media (max-height: 620px) {
+  .has-media .feed-story { padding: 4px 0; }
+  .has-media .prompt { margin-top: 8px; }
+  .has-media .prompt p { margin-bottom: 4px; font-size: 13px; line-height: 1.4; }
+  .has-media .prompt strong { font-size: 22px; line-height: 1.25; }
+  .card-media { margin-top: 8px; }
+  .card-media-image, .card-media-video { height: 92px; }
+}
