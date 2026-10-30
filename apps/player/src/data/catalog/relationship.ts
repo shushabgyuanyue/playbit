@@ -7,8 +7,17 @@ export const relationshipCards: CardDraft[] = [
     headline: "我觉得爱是\n想触碰又收回手。", hook: "这张卡会让你们亲密接触。",
     goal: "打手板心。先轻碰到对方手背 3 次的人赢。",
     steps: ["一人掌心朝上，另一人把手轻放在上面。", "下面的人突然翻手轻碰，上面的人可以随时抽走。碰到得 1 分。", "每次尝试后交换上下位置，先到 3 分就收手。"],
+    flow: { countdownSeconds: 3, result: "三秒到了，换手开始。碰到三次的人赢。" },
     note: "只轻碰，不用力；任何一方不想接触就换张卡。", players: [2, 2], seconds: 90,
     adaptation: "用户提供的文学预告制造克制的亲密期待，翻面由真实的伸手与躲手兑现。文案不附未经核实的作者归属。"
+  },
+  {
+    id: "metal-bird", l1: "picture-dub", title: "这只鸟，替你们保守一个秘密", scenes: ["date", "friends", "wait"], tone: "violet",
+    intro: "它停在你的手指上，\n好像已经听见了。", headline: "先别翻，\n猜它想要什么。", hook: "答案不在图里，在你们下一句话里。",
+    media: { kind: "image", src: "/media/cards/metal-bird.jpg", alt: "一只停在手指上的金属鸟，胸口有一枚发光的蓝色眼睛" },
+    goal: "轮流给这只鸟一句指令，最后一句必须让两个人都想做。",
+    steps: ["一起看图 5 秒，各自在心里给金属鸟一个名字。", "轮流说一句它听见就会执行的指令，不能超过 10 个字。", "选出最想执行的一句，立刻一起做；如果意见不同，就由鸟的名字决定。"],
+    players: [2, 4], seconds: 90, adaptation: "用一张有明确视线和触感的图做共同角色，先让用户猜，再把答案交给在场人的一句话。"
   },
   {
     id: "date-deadpan", l1: "no-laugh", title: "请严肃地喜欢我", scenes: ["date", "night"], tone: "violet",

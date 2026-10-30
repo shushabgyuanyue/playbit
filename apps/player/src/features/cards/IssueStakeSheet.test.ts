@@ -23,7 +23,7 @@ it("keeps voice issuance shareable, guards busy actions and removes claim action
     expect(playback.toggle).toHaveBeenCalledOnce();
     expect(props.onIssue).not.toHaveBeenCalled();
     await act(async () => host.querySelector<HTMLButtonElement>(".issue-stake-submit")!.click());
-    expect(props.onIssue).toHaveBeenCalledWith([]);
+    expect(props.onIssue).toHaveBeenCalledWith(props.voice);
     await act(async () => root.render(createElement(IssueStakeSheet, props)));
     const findShare = () => Array.from(host.querySelectorAll("button")).find(button => button.textContent?.includes("分享给获胜方"));
     expect(host.querySelector("canvas")).toBeNull();

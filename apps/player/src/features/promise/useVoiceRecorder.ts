@@ -122,6 +122,10 @@ export function useVoiceRecorder(onChange: (voice: VoiceNote) => void) {
   }
 
   function stop() {
+    if (active.current && !recorder.current) {
+      cancel();
+      return;
+    }
     if (recorder.current?.state === "recording") {
       clearInterval(timer.current);
       setStatus("saving");

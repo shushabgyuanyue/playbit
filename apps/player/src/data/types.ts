@@ -1,11 +1,17 @@
 export type CardTone = "coral" | "violet" | "lime";
+export type CardGameplayId = string;
 export type CardMedia =
   | { kind: "image"; src: string; alt: string }
   | { kind: "audio"; src: string; title: string; duration: string }
   | { kind: "video"; src: string; poster: string; title: string };
+export interface CardFlow {
+  countdownSeconds?: number;
+  result?: string;
+}
 export interface CardSponsor { name: string; disclosure: "活动示例" | "广告示例"; note: string }
 export interface GameCard {
   id: string;
+  gameplayId?: CardGameplayId;
   label: string;
   prompt: string;
   kicker: string;
@@ -18,12 +24,13 @@ export interface GameCard {
   sceneIds: string[];
   textStyle?: "quote";
   media?: CardMedia;
+  flow?: CardFlow;
   steps?: string[];
   note?: string;
   reveal?: { question: string; answer: string };
   sponsor?: CardSponsor;
 }
-export interface Scene { id: string; title: string; icon: "date" | "friends" | "hello" | "moon" | "home" | "clock" | "utensils" | "store" }
+export interface Scene { id: string; title: string; icon: "date" | "friends" | "hello" | "moon" | "home" | "clock" | "utensils" | "store" | "spark" | "question" }
 export interface Deck { id: string; name: string; cardIds: string[] }
 export type Point = { x: number; y: number };
 export type Signature = Point[][];
@@ -116,6 +123,7 @@ export interface PlayerState {
   cardId: string;
   decks: Deck[];
   stakes: Record<string, string>;
+  stakeVoices: Record<string, VoiceNote>;
   stakeRecords: Record<string, StakeRecord>;
   issuedStakes: Record<string, GameStakeIssuance>;
   issuedBenefits: Record<string, BenefitIssuance>;

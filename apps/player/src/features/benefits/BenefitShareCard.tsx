@@ -18,7 +18,7 @@ export function BenefitShareCard({ title, context, issuerName, status, source, v
   return <div className="benefit-share-preview">
     <article className={`coupon-ticket benefit-share-card ${couponTone(source)}`} aria-label={title}>
       <div className="ticket-main">
-        <small>{sourceLabel}{context && context !== title ? ` · ${context}` : ""}</small>
+        <small className="benefit-source-line"><span className="benefit-source-tag">{sourceLabel}</span>{context && context !== title ? <em> · {context}</em> : null}</small>
         <strong>{title}</strong>
         <span>{issuerName} · {status}</span>
       </div>

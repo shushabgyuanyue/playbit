@@ -9,13 +9,16 @@ import { benefitShareData } from "../services/linkSharing";
 import { AuthSheet } from "../features/player/AuthSheet";
 import { CouponCard } from "../features/benefits/CouponCard";
 import { IssueBenefitSheet } from "../features/benefits/IssueBenefitSheet";
+import { VoiceRecorderButton } from "../features/promise/VoiceRecorderButton";
 import { claimDirectBenefit, createId, issueDirectBenefit, redeemCoupon } from "../features/player/transitions";
 import { toPlayerCoupon } from "../features/benefits/couponPresentation";
-import type { CouponSource, Signature } from "../data/types";
-import { isPlayerApiConfigured, PlayerApiError, playerApi, signatureToDataUrl } from "../services/playerApi";
+import type { VoiceNote } from "../data/types";
+import { isPlayerApiConfigured, PlayerApiError, playerApi } from "../services/playerApi";
 import { usePageMemory } from "../services/pageMemory";
 
 type RemotePage = { items: ApiCoupon[]; nextCursor: string | null; hasMore: boolean };
+const emptyVoice: VoiceNote = { id: "", durationMs: 0, storage: "demo" };
+const ignoreRecordingState = () => {};
 
 function isApiActionError(error: unknown) {
   return error instanceof PlayerApiError && error.status > 0;
@@ -28,6 +31,7 @@ export function BenefitsPage() {
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [issuanceId, setIssuanceId] = useState<string | null>(null);
+  const [manualVoice, setManualVoice] = useState<VoiceNote>(emptyVoice);
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingSelfClaim, setPendingSelfClaim] = useState(false);
   const [issueLoading, setIssueLoading] = useState(false);
@@ -104,23 +108,26 @@ export function BenefitsPage() {
   const remoteById = new Map(remote.items.map(item => [item.id, item]));
   const pendingIssuances = Object.entries(state.issuedBenefits).filter(([, item]) => item.status === "pending_claim").sort((a, b) => Date.parse(b[1].issuedAt) - Date.parse(a[1].issuedAt));
 
-  function openIssuance() {
-    notify("");
+  function captureManualVoice(voice: VoiceNote) {
+    setManualVoice(voice);
     setIssuanceId(null);
     setIssuing(true);
   }
 
-  async function issue(title: string, source: CouponSource, sourceNote: string, signature: Signature) {
+  async function issue(voice: VoiceNote) {
     if (issuingRef.current) return;
+    const title = copy.wallet.issueVoiceTitle;
+    const source = "direct" as const;
+    const sourceNote = copy.wallet.issueSourceOptions.manual;
     if (isPlayerApiConfigured()) {
       issuingRef.current = true;
       setIssueLoading(true);
       try {
         const payload = {
           name: title,
-          description: sourceNote.trim() || "由签发方提供的 Playbit 权益",
-          sourceLabel: source === "game" ? copy.wallet.issueSourceOptions.game : source === "promise" ? copy.wallet.issueSourceOptions.promise : copy.wallet.issueSourceOptions.manual,
-          signatureDataUrl: signatureToDataUrl(signature),
+          description: copy.wallet.issueVoiceDescription,
+          sourceLabel: copy.wallet.issueSourceOptions.manual,
+          signatureDataUrl: null,
           claimLimit: 1
         };
         const result = await playerApi.createPublicCoupon({ ...payload, issuerNickname: state.profileName });
@@ -135,7 +142,8 @@ export function BenefitsPage() {
               claimToken: remoteIssuance.claimToken ?? undefined,
               title: remoteIssuance.name,
               issuerName: remoteIssuance.issuerNickname,
-              signature,
+              signature: [],
+              voice,
               issuedAt: remoteIssuance.createdAt,
               source,
               sourceNote,
@@ -154,7 +162,7 @@ export function BenefitsPage() {
       }
     }
     const id = createId("benefit");
-    update(current => issueDirectBenefit(current, title, current.profileName, signature, sourceNote, new Date().toISOString(), id, source));
+    update(current => issueDirectBenefit(current, title, current.profileName, [], sourceNote, new Date().toISOString(), id, source, voice));
     setIssuanceId(id);
   }
 
@@ -183,6 +191,7 @@ export function BenefitsPage() {
     update(current => claimDirectBenefit(current, issuance.id, current.profileName));
     setIssuing(false);
     setIssuanceId(null);
+    setManualVoice(emptyVoice);
     notify(copy.wallet.issueClaimed);
   }
 
@@ -211,6 +220,11 @@ export function BenefitsPage() {
   return <section className="benefits" ref={section}>
     <div className="module-tag">{copy.wallet.eyebrow}</div><div className="benefit-title"><h1>{copy.wallet.title[0]}<br />{copy.wallet.title[1]}</h1></div>
     {remoteError && <p className="remote-list-note" role="status">{copy.auth.network}</p>}
+    <IssueBenefitSheet open={issuing} onClose={() => { if (!issueLoading && !claimLoading) { setIssuing(false); setIssuanceId(null); } }} issuerName={state.profileName} issuance={issuance} voice={manualVoice} submitting={issueLoading} claiming={claimLoading} onIssue={voice => void issue(voice)} onShare={() => void shareIssuance()} onSelfClaim={() => void selfClaimIssuance()} />
+    {!issuing && !issuance && <div className="benefit-direct-recorder" aria-label={copy.wallet.issueTitle}>
+      <VoiceRecorderButton voice={manualVoice} onChange={captureManualVoice} onBusyChange={ignoreRecordingState} label={copy.wallet.issueVoice} hint={copy.wallet.issueVoiceHint(state.profileName)} recordLabel={copy.wallet.issueVoiceRecord} compact />
+      {manualVoice.assetId && <button className="benefit-direct-issue" type="button" onClick={() => setIssuing(true)}><Icon name="share" size={13} />{copy.wallet.issueAction}</button>}
+    </div>}
     {pendingIssuances.length > 0 && <section className="pending-benefits"><h2>{copy.sharing.pendingTitle}</h2>{pendingIssuances.map(([key, item]) => <button type="button" key={key} onClick={() => { setIssuanceId(key); setIssuing(true); }}><Icon name="send" size={16} /><strong>{item.title}</strong><span>{copy.sharing.resume}<Icon name="arrow" size={13} /></span></button>)}</section>}
     {auth.user && <div className="ticket-list ticket-list-won">
       {displayedCoupons.map((coupon, i) => <CouponCard coupon={coupon} index={i} signatureDataUrl={remoteById.get(coupon.id)?.signatureDataUrl} onRedeem={() => { setRedeeming(coupon.id); }} key={coupon.id} />)}
@@ -219,11 +233,9 @@ export function BenefitsPage() {
     </div>}
     {!auth.loading && !auth.user && <div className="benefits-guest-state"><span className="benefits-guest-mark"><Icon name="shield" size={19} /></span><strong>{copy.auth.requiredTitle}</strong><p>{copy.auth.requiredHint}</p><button className="text-button" type="button" onClick={() => setAuthOpen(true)}>{copy.auth.login}<Icon name="arrow" size={14} /></button></div>}
     {auth.loading && <div className="benefits-guest-state benefits-loading-state"><span className="list-loading-dot" /><p>{copy.wallet.claimLoading}</p></div>}
-    <button className="benefit-issue-fab" type="button" onClick={openIssuance} aria-label={copy.wallet.issueTitle} title={copy.wallet.issueTitle}><Icon name="sign" size={19} /><span className="sr-only">{copy.wallet.issueTitle}</span></button>
     <Sheet open={!!redeeming} onClose={() => { if (!redeemLoading) setRedeeming(null); }} title={copy.wallet.redeemTitle} description={copy.wallet.redeemHint}>
       <div className="sheet-actions"><button className="text-button" onClick={() => setRedeeming(null)} disabled={redeemLoading}>{copy.cancel}</button><button className="primary-button" onClick={() => void redeem()} disabled={redeemLoading}>{redeemLoading ? "正在核销…" : copy.wallet.redeemConfirm}</button></div>
     </Sheet>
-    <IssueBenefitSheet open={issuing} onClose={() => { if (!issueLoading && !claimLoading) { setIssuing(false); setIssuanceId(null); } }} issuerName={state.profileName} issuance={issuance} submitting={issueLoading} claiming={claimLoading} onIssue={(title, source, sourceNote, signature) => void issue(title, source, sourceNote, signature)} onShare={() => void shareIssuance()} onSelfClaim={() => void selfClaimIssuance()} />
     <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSelfClaim(false); }} onSuccess={() => { setAuthOpen(false); if (pendingSelfClaim) { setPendingSelfClaim(false); void selfClaimIssuance(true); } }} />
   </section>;
 }

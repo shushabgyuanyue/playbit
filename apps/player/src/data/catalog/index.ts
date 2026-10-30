@@ -1,11 +1,13 @@
 import type { Scene } from "../types";
 import { everydayCards } from "./everyday";
 import { merchantCards } from "./merchant";
+import { mysteryCards } from "./mystery";
 import { relationshipCards } from "./relationship";
 import { socialCards } from "./social";
 import { toGameCard } from "./types";
 
-export const cardDrafts = [...relationshipCards, ...everydayCards, ...socialCards, ...merchantCards];
+export const EXPLORE_SCENE_ID = "explore" as const;
+export const cardDrafts = [...relationshipCards, ...everydayCards, ...socialCards, ...merchantCards, ...mysteryCards];
 export const sceneCards = cardDrafts.map(toGameCard);
 export const scenes: Scene[] = [
   { id: "date", title: "和TA❤", icon: "date" },

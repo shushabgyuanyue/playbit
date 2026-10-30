@@ -12,7 +12,7 @@ function formatTimer(durationMs: number) {
   return { seconds: `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`, tenths: Math.floor(durationMs / 100) % 10 };
 }
 
-export function VoiceRecorderButton({ voice, onChange, onBusyChange, label, hint, recordLabel }: { voice: VoiceNote; onChange: (voice: VoiceNote) => void; onBusyChange: (busy: boolean) => void; label: string; hint: string; recordLabel: string }) {
+export function VoiceRecorderButton({ voice, onChange, onBusyChange, label, hint, recordLabel, compact = false, className = "" }: { voice: VoiceNote; onChange: (voice: VoiceNote) => void; onBusyChange: (busy: boolean) => void; label: string; hint: string; recordLabel: string; compact?: boolean; className?: string }) {
   const hintId = useId();
   const primaryButton = useRef<HTMLButtonElement>(null);
   const wasCapturing = useRef(false);
@@ -36,7 +36,7 @@ export function VoiceRecorderButton({ voice, onChange, onBusyChange, label, hint
     void recorder.start();
   }
 
-  return <div className={`voice-recorder${capturing ? " is-capturing" : ""}`}>
+  return <div className={`voice-recorder${capturing ? " is-capturing" : ""}${compact ? " is-compact" : ""}${className ? ` ${className}` : ""}`}>
     <span id={hintId} className="sr-only">{hint}</span>
     <div className={`voice-composer${capturing ? " is-capturing" : hasVoice ? " has-voice" : ""}`} role="group" aria-label={label} aria-describedby={hintId}>
       {capturing ? <>
@@ -45,7 +45,7 @@ export function VoiceRecorderButton({ voice, onChange, onBusyChange, label, hint
         <button className="voice-composer-cancel" type="button" disabled={recorder.status === "saving"} onClick={recorder.cancel} aria-label={copy.promise.voice.cancelRecording} title={copy.promise.voice.cancelRecording}><Icon name="close" size={16} /></button>
       </> : hasVoice ? <>
         <button className="voice-composer-primary is-playback" ref={primaryButton} type="button" onClick={() => void playback.toggle()} aria-busy={playback.loading} aria-label={`${label} · ${playback.playing ? copy.promise.voice.stopPlaying : copy.promise.voice.play}`} title={playback.playing ? copy.promise.voice.stopPlaying : copy.promise.voice.play}><Icon name={playback.playing ? "stop" : "play"} size={30} /></button>
-        <div className="voice-composer-take"><VoiceWave active={playback.playing} /><span>{formatVoiceDuration(voice.durationMs)}</span></div>
+        <button className="voice-composer-take" type="button" onClick={() => void playback.toggle()} aria-busy={playback.loading} aria-label={`${label} · ${playback.playing ? copy.promise.voice.stopPlaying : copy.promise.voice.play}`} title={playback.playing ? copy.promise.voice.stopPlaying : copy.promise.voice.play}><VoiceWave active={playback.playing} /><span>{formatVoiceDuration(voice.durationMs)}</span></button>
         <button className="voice-composer-rerecord" type="button" onClick={start} aria-label={`${label} · ${copy.promise.voice.recordAgain}`}><Icon name="restart" size={13} />{copy.promise.voice.recordAgain}</button>
       </> : <>
         <button className="voice-composer-primary" ref={primaryButton} type="button" onClick={start} aria-label={`${label} · ${copy.promise.voice.record}`} title={copy.promise.voice.record}><Icon name="mic" size={30} /></button>

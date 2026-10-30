@@ -184,7 +184,7 @@ export function PromisePage() {
     if (!stamping) setRestartOpen(true);
   }
 
-  async function persistBenefit(signature: Signature) {
+  async function persistBenefit(voice: VoiceNote) {
     if (!agreement || issuance || issuingRef.current) return;
     const localIssuanceId = `promise-${agreement.id}`;
     if (isPlayerApiConfigured()) {
@@ -196,7 +196,7 @@ export function PromisePage() {
           description: agreement.text,
           sourceLabel: copy.wallet.issueSourceOptions.promise,
           issuerNickname: state.profileName,
-          signatureDataUrl: signatureToDataUrl(signature),
+          signatureDataUrl: null,
           claimLimit: 1
         });
         const remoteIssuance = result.coupon;
@@ -210,8 +210,8 @@ export function PromisePage() {
               claimToken: remoteIssuance.claimToken ?? undefined,
               title: remoteIssuance.name,
               issuerName: remoteIssuance.issuerNickname,
-              signature,
-              voice: agreement.benefitVoice,
+              signature: [],
+              voice,
               issuedAt: remoteIssuance.createdAt,
               source: "promise",
               sourceNote: agreement.text,
@@ -230,13 +230,13 @@ export function PromisePage() {
         setIssueLoading(false);
       }
     }
-    update(current => ({ ...issueDirectBenefit(current, current.draft.benefit, current.profileName, signature, current.draft.text, new Date().toISOString(), localIssuanceId, "promise", current.draft.benefitVoice), draft: { ...current.draft, step: 3 } }));
+    update(current => ({ ...issueDirectBenefit(current, current.draft.benefit, current.profileName, [], current.draft.text, new Date().toISOString(), localIssuanceId, "promise", voice), draft: { ...current.draft, step: 3 } }));
     notify(copy.promise.issueBenefitSigned);
   }
 
-  function signBenefit(signature: Signature) {
+  function signBenefit(voice: VoiceNote) {
     if (!agreement || issuance) return;
-    void persistBenefit(signature);
+    void persistBenefit(voice);
   }
 
   async function shareBenefit() {
@@ -297,7 +297,7 @@ export function PromisePage() {
       {issuance?.status === "claimed" && <button className="contract-cta issued-share-cta" onClick={openWallet}><span>{copy.promise.viewWallet}</span><Icon name="arrow" /></button>}
       <button className="issued-new-promise" type="button" onClick={startNewPromise}><Icon name="edit" size={14} />{copy.promise.newPromise}</button>
     </div>}
-    {agreement && <IssueStakeSheet open={issueOpen} onClose={() => { if (!issueLoading && !claimLoading) setIssueOpen(false); }} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} source="promise" issuance={issuance} voice={agreement.benefitVoice} submitting={issueLoading} claiming={claimLoading} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={() => void selfClaimBenefit()} canSelfClaim labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.issueBenefit, pending: copy.promise.issueBenefitPending, sign: copy.play.issueStakeSign, signHint: copy.play.issueStakeSignHint, action: copy.promise.issueBenefit, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
+    {agreement && <IssueStakeSheet open={issueOpen} onClose={() => { if (!issueLoading && !claimLoading) setIssueOpen(false); }} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} source="promise" issuance={issuance} voice={agreement.benefitVoice} submitting={issueLoading} claiming={claimLoading} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={() => void selfClaimBenefit()} canSelfClaim labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.issueBenefit, pending: copy.promise.issueBenefitPending, voice: copy.promise.voice.benefitLabel, voiceHint: copy.promise.voice.localShareHint, recordLabel: copy.promise.voice.recordBenefit, action: copy.promise.issueBenefit, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
     <ConfirmDialog open={restartOpen} onClose={() => setRestartOpen(false)} title={copy.promise.restartTitle} description={copy.promise.restartHint} confirmLabel={copy.promise.restartConfirm} onConfirm={cancelPromise} />
     <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSeal(false); setPendingSelfClaim(false); }} onSuccess={() => { const shouldSeal = pendingSeal; const shouldSelfClaim = pendingSelfClaim; setPendingSeal(false); setPendingSelfClaim(false); if (shouldSeal) void sealAfterAuth(true); if (shouldSelfClaim) void selfClaimBenefit(true); }} />
   </section>;

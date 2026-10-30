@@ -7,8 +7,8 @@ import { cardDrafts, sceneCards, scenes } from "./index";
 import { gameplays } from "./gameplays";
 
 it("offers playable scene variants with real, bounded local media", () => {
-  expect(cardDrafts).toHaveLength(30);
-  expect(new Set(cardDrafts.map(card => card.id)).size).toBe(30);
+  expect(cardDrafts).toHaveLength(37);
+  expect(new Set(cardDrafts.map(card => card.id)).size).toBe(37);
   for (const scene of scenes) expect(sceneCards.filter(card => card.sceneIds.includes(scene.id)).length).toBeGreaterThan(1);
   const paths = new Set<string>();
   for (const draft of cardDrafts) {
@@ -27,6 +27,10 @@ it("offers playable scene variants with real, bounded local media", () => {
     }
   }
   expect(new Set(cardDrafts.map(card => card.media?.kind ?? "text"))).toEqual(new Set(["text", "image", "audio", "video"]));
+  const mystery = cardDrafts.filter(card => card.l1 === "yes-no");
+  expect(mystery).toHaveLength(6);
+  expect(mystery.every(card => card.scenes.length === 0)).toBe(true);
+  expect(new Set(mystery.map(card => card.goal)).size).toBe(1);
   let bytes = 0;
   for (const path of paths) {
     expect(path.startsWith("/media/cards/")).toBe(true);

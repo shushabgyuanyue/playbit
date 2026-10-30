@@ -27,7 +27,8 @@
 .voice-composer-primary.is-recording svg { fill: currentColor; }
 .voice-composer-primary:active { transform: scale(.96); }
 .voice-composer-label { margin-top: 3px; color: var(--player-ink); font-size: 12px; font-weight: 700; }
-.voice-composer-take { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 24px; margin-top: 1px; }
+.voice-composer-take { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 24px; margin-top: 1px; padding: 0; border: 0; color: inherit; background: transparent; font: inherit; text-align: inherit; cursor: pointer; }
+.voice-composer-take:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 8px; }
 .voice-composer-take .voice-wave { width: 75px; height: 22px; margin: 0; color: var(--player-ink); }
 .voice-composer-take > span { color: var(--player-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .voice-composer-rerecord { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; padding: 0 5px; color: var(--player-muted); background: transparent; font-size: 11px; }
@@ -42,6 +43,25 @@
 .agreement-voice-inspiration > small { display: block; margin-top: 5px; color: var(--player-muted); font-size: 11px; line-height: 1.6; }
 .bet-create .contract-cta { flex: none; min-height: 50px; margin: 0; gap: 12px; font-size: 13px; letter-spacing: 0; }
 .voice-playback-error { display: block; margin-top: 5px; color: #ae3e3b; font-size: 10px; line-height: 1.4; }
+
+/* Issuance uses a compact voice mark; the larger recorder remains for agreement creation. */
+.issue-voice-block .voice-recorder { min-height: 0; }
+.voice-recorder.is-compact .voice-composer { flex-direction: row; align-items: center; gap: 7px; width: 100%; }
+.voice-recorder.is-compact .voice-composer.has-voice, .voice-recorder.is-compact .voice-composer.is-capturing { display: flex; column-gap: 7px; }
+.voice-recorder.is-compact .voice-composer-primary { width: 26px; height: 26px; flex: none; outline-offset: 1px; box-shadow: 0 2px 6px rgba(125, 84, 255, .1); }
+.voice-recorder.is-compact .voice-composer-primary svg { width: 12px; height: 12px; }
+.voice-recorder.is-compact .voice-composer-primary.is-playback { box-shadow: 0 4px 11px rgba(24, 21, 29, .1); }
+.voice-recorder.is-compact .voice-composer-primary.is-recording { gap: 1px; }
+.voice-recorder.is-compact .voice-composer-primary.is-recording small { font-size: 7px; }
+.voice-recorder.is-compact .voice-composer-label { margin: 0; color: var(--player-muted); font-size: 9px; font-weight: 600; }
+.voice-recorder.is-compact .voice-composer-take { flex: 1; justify-content: flex-start; gap: 5px; min-height: 18px; }
+.voice-recorder.is-compact .voice-composer-take .voice-wave { width: 48px; height: 13px; }
+.voice-recorder.is-compact .voice-composer-take > span { font-size: 8px; }
+.voice-recorder.is-compact .voice-composer-rerecord { min-height: 24px; margin-left: auto; font-size: 8px; white-space: nowrap; }
+.voice-recorder.is-compact .voice-capture-readout { flex: 1; min-height: 25px; gap: 5px; }
+.voice-recorder.is-compact .recording-waveform { width: 48px; height: 18px; }
+.voice-recorder.is-compact .voice-capture-readout > span { font-size: 8px; }
+.voice-recorder.is-compact .voice-composer-cancel { width: 24px; height: 24px; }
 
 @media (max-width: 360px) {
   .bet-module.is-creating { padding-right: 18px; padding-left: 18px; }

@@ -1,7 +1,7 @@
 import { playerCopy as copy } from "@playbit/content/player";
 import type { GameCard, PlayerState, PromiseDraft, VoiceNote } from "./types";
 import { sceneCards } from "./catalog";
-export { scenes } from "./catalog";
+export { EXPLORE_SCENE_ID, scenes } from "./catalog";
 
 const retiredCards: GameCard[] = [
   { id: "truth", label: "暧昧升温", prompt: "如果今晚只能对我说一句真话——", kicker: "你敢说哪句？", rule: "轮流直视对方 10 秒，然后说出此刻最想让对方知道的一件事。也可以选择换个问题。", time: "3 MIN", color: "coral", moment: "两个人 · 气氛刚刚好", payoff: "让一句没说出口的话，被认真听见", action: "先安静对视 10 秒", sceneIds: ["date", "night"] },
@@ -18,7 +18,7 @@ const sampleSignature = [[{ x: 0.08, y: 0.62 }, { x: 0.24, y: 0.3 }, { x: 0.38, 
 export const createInitialState = (): PlayerState => ({
   version: 1, profileName: copy.profile.defaultName, sceneId: "date", deckId: null, cardId: "almost-touch",
   decks: [{ id: "date-deck", name: "和TA的暗号", cardIds: ["almost-touch", "date-deadpan", "date-hum"] }, { id: "friend-deck", name: "等车不无聊", cardIds: ["wait-wrong", "wait-cups", "wait-beat"] }],
-  stakes: {}, stakeRecords: {}, issuedStakes: {}, issuedBenefits: {}, draft: emptyDraft(), agreements: [],
+  stakes: {}, stakeVoices: {}, stakeRecords: {}, issuedStakes: {}, issuedBenefits: {}, draft: emptyDraft(), agreements: [],
   coupons: [
     { id: "sample-drink", displayNo: "677A4DF7", title: "一杯你选的饮料", subtitle: "来自「谁更懂谁」挑战", side: "won", tone: "coral-coupon", status: "available", source: "game", sourceNote: "「谁更懂谁」挑战", issuerName: "林", signature: sampleSignature, issuedAt: "2026-10-25T10:20:00.000Z" },
     { id: "sample-breakfast", displayNo: "8A12D903", title: "周末早餐券", subtitle: "赌约双方已签订", side: "won", tone: "dark-coupon", status: "available", source: "promise", sourceNote: "线下签署的赌约", issuerName: "J", signature: sampleSignature, issuedAt: "2026-10-24T15:40:00.000Z" },

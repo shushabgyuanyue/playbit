@@ -14,6 +14,7 @@ import { AgreementSharePage } from "../pages/AgreementSharePage";
 import { AgreementListPage } from "../pages/AgreementListPage";
 import { CouponClaimPage } from "../pages/CouponClaimPage";
 import { AnnouncementsPage, NotificationsPage } from "../pages/ProfileInfoPages";
+import { StakeNavControl } from "../features/cards/StakeNavControl";
 
 function Shell() {
   const location = useLocation(); const navigate = useNavigate(); const { toast } = usePlayer();
@@ -52,9 +53,9 @@ function Shell() {
         </Routes>
       </div>
       <nav className="bottom-nav" aria-label={copy.nav.label}>
-        <Link className={`nav-item ${location.pathname === "/benefits" ? "active" : ""}`} to="/benefits" {...benefitsEntryProps}><Icon name="gift" /><span>{copy.nav.benefits}</span></Link>
-        <Link className={`nav-item play ${isHome ? "active" : ""}`} to={playTarget}><span className="play-logo">P</span><span>{copy.nav.play}</span></Link>
-        <Link className={`nav-item ${location.pathname === "/me" || location.pathname === "/agreements" || location.pathname.startsWith("/agreements/") || location.pathname === "/notifications" || location.pathname === "/announcements" ? "active" : ""}`} to="/me"><Icon name="user" /><span>{copy.nav.me}</span></Link>
+        <Link className={`nav-item nav-benefits ${location.pathname === "/benefits" ? "active" : ""}`} to="/benefits" {...benefitsEntryProps}><Icon name="gift" /><span>{copy.nav.benefits}</span></Link>
+        {location.pathname === "/" ? <StakeNavControl /> : <Link className={`nav-item nav-play play ${isHome ? "active" : ""}`} to={playTarget}><span className="play-logo">P</span><span>{copy.nav.play}</span></Link>}
+        <Link className={`nav-item nav-me ${location.pathname === "/me" || location.pathname === "/agreements" || location.pathname.startsWith("/agreements/") || location.pathname === "/notifications" || location.pathname === "/announcements" ? "active" : ""}`} to="/me"><Icon name="user" /><span>{copy.nav.me}</span></Link>
       </nav>
       {toast && <div className="toast" role="status"><Icon name="check" size={17} />{toast}</div>}
     </OverlayContainer.Provider>

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { Party } from "../data/types";
+import type { GameplayId } from "../data/catalog/gameplays";
 
 const STORAGE_KEY = "playbit:player:page-memory:v1";
 
@@ -9,6 +10,7 @@ export interface PageMemory {
   playFlippedCardId: string | null;
   promiseWinner: Party | null;
   homePath: "/" | "/promise";
+  playMode: GameplayId | null;
   scrollTop: Partial<Record<PageScrollKey, number>>;
 }
 
@@ -16,6 +18,7 @@ const initialMemory: PageMemory = {
   playFlippedCardId: null,
   promiseWinner: null,
   homePath: "/",
+  playMode: null,
   scrollTop: {}
 };
 

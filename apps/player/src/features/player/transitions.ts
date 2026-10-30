@@ -26,11 +26,11 @@ export function issueGameStake(
   cardTitle: string,
   title: string,
   issuerName: string,
-  signature: Signature,
-  issuedAt = new Date().toISOString()
+  voice: VoiceNote,
+  issuedAt = new Date().toISOString(),
+  issuanceId = createId("stake")
 ): PlayerState {
-  if (!title.trim() || !signature.length || state.issuedStakes[cardId]) return state;
-  const issuanceId = createId("stake");
+  if (!title.trim() || !voice.assetId || state.issuedStakes[cardId]) return state;
   const stakeRecords = { ...state.stakeRecords };
   delete stakeRecords[cardId];
   return {
@@ -44,7 +44,8 @@ export function issueGameStake(
         cardTitle,
         title: title.trim(),
         issuerName,
-        signature,
+        signature: [],
+        voice,
         issuedAt,
         source: "game",
         status: "pending_claim"
@@ -80,6 +81,7 @@ export function claimGameStake(
       issuerName: issuance.issuerName,
       holderName: holderName.trim(),
       signature: issuance.signature,
+      voice: issuance.voice,
       issuedAt: issuance.issuedAt,
       claimedAt
     }, ...state.coupons]
@@ -97,7 +99,7 @@ export function issueDirectBenefit(
   source: CouponSource = "direct",
   voice?: VoiceNote
 ): PlayerState {
-  if (!title.trim() || (!signature.length && !voice?.assetId)) return state;
+  if (!title.trim() || !voice?.assetId) return state;
   return {
     ...state,
     issuedBenefits: {

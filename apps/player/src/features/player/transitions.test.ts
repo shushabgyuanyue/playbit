@@ -22,28 +22,28 @@ describe("player transitions", () => {
   });
 
   it("issues a signed game stake and creates one owned coupon when claimed", () => {
-    const signature = [[{ x: 0.1, y: 0.2 }]];
+    const voice = { id: "stake-voice", assetId: "stake-voice-asset", durationMs: 1200, storage: "indexeddb" as const };
     const initial = createInitialState();
-    const issued = issueGameStake({ ...initial, stakes: { truth: "输的人请喝一杯" }, stakeRecords: { truth: { cardId: "truth", title: "输的人请喝一杯", createdAt: "2026-01-01T00:00:00.000Z" } } }, "truth", "暧昧升温", "输的人请喝一杯", "主持人", signature, "2026-01-01T00:00:00.000Z");
+    const issued = issueGameStake({ ...initial, stakes: { truth: "输的人请喝一杯" }, stakeRecords: { truth: { cardId: "truth", title: "输的人请喝一杯", createdAt: "2026-01-01T00:00:00.000Z" } } }, "truth", "暧昧升温", "输的人请喝一杯", "主持人", voice, "2026-01-01T00:00:00.000Z");
     const issuance = issued.issuedStakes.truth;
     expect(issuance).toMatchObject({ status: "pending_claim", title: "输的人请喝一杯" });
     expect(issued.stakeRecords.truth).toBeUndefined();
     const claimed = claimGameStake(issued, issuance!.id, "获胜方", "2026-01-01T00:01:00.000Z");
-    expect(claimed.coupons[0]).toMatchObject({ source: "game", tone: "coral-coupon", holderName: "获胜方", status: "available" });
+    expect(claimed.coupons[0]).toMatchObject({ source: "game", tone: "coral-coupon", holderName: "获胜方", status: "available", voice });
     expect(claimed.issuedStakes.truth?.status).toBe("claimed");
     expect(claimGameStake(claimed, issuance!.id, "另一个人")).toEqual(claimed);
   });
 
   it("keeps a direct benefit pending until the recipient claims it", () => {
-    const signature = [[{ x: 0.2, y: 0.4 }, { x: 0.7, y: 0.5 }]];
+    const voice = { id: "direct-voice", assetId: "direct-voice-asset", durationMs: 1600, storage: "indexeddb" as const };
     const initial = createInitialState();
     expect(issueDirectBenefit(initial, "周末早餐", "主持人", [], "2026-01-01T00:00:00.000Z")).toEqual(initial);
-    const issued = issueDirectBenefit(initial, "周末早餐", "主持人", signature, "来自线下约定", "2026-01-01T00:00:00.000Z", "benefit-test");
+    const issued = issueDirectBenefit(initial, "周末早餐", "主持人", [], "来自线下约定", "2026-01-01T00:00:00.000Z", "benefit-test", "direct", voice);
     expect(issued.issuedBenefits["benefit-test"]).toMatchObject({ status: "pending_claim", source: "direct", title: "周末早餐" });
     expect(issued.coupons).toHaveLength(initial.coupons.length);
     const claimed = claimDirectBenefit(issued, "benefit-test", "获胜方", "2026-01-01T00:01:00.000Z");
     expect(claimed.issuedBenefits["benefit-test"]?.status).toBe("claimed");
-    expect(claimed.coupons[0]).toMatchObject({ source: "direct", tone: "debt-ticket", holderName: "获胜方", title: "周末早餐" });
+    expect(claimed.coupons[0]).toMatchObject({ source: "direct", tone: "debt-ticket", holderName: "获胜方", title: "周末早餐", voice });
     expect(claimDirectBenefit(claimed, "benefit-test", "另一个人")).toEqual(claimed);
   });
 

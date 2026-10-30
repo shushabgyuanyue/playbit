@@ -3,6 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createInitialState } from "../../data/demo";
+import { cards } from "../../data/demo";
 import type { PlayerState } from "../../data/types";
 import { useCardDeck } from "./useCardDeck";
 
@@ -35,4 +36,38 @@ it("still opens an old card for pending issuance and in a personal deck", async 
   await act(async () => root.render(createElement(Harness)));
   expect(deck.card.id).toBe("truth");
   expect(deck.pool.map(card => card.id)).toEqual(["truth", "memory"]);
+});
+
+it("explores every current card without bringing retired cards into the feed", async () => {
+  player.state.sceneId = "explore";
+  player.state.deckId = null;
+  await act(async () => root.render(createElement(Harness)));
+
+  expect(deck.pool.map(card => card.id)).toEqual(cards.filter(card => card.sceneIds.length > 0 || card.gameplayId).map(card => card.id));
+  expect(deck.pool.some(card => card.sceneIds.includes("date"))).toBe(true);
+  expect(deck.pool.some(card => card.sceneIds.includes("shop"))).toBe(true);
+  expect(deck.pool.some(card => card.id === "truth")).toBe(false);
+});
+
+it("uses every card with the same L1 gameplay while type mode is active", async () => {
+  player.state.sceneId = "explore";
+  player.state.deckId = null;
+  player.state.cardId = "mystery-common-person";
+  await act(async () => root.render(createElement(() => {
+    deck = useCardDeck(null, "yes-no");
+    return createElement("span", null, deck.card.id);
+  })));
+
+  expect(deck.pool).toHaveLength(6);
+  expect(new Set(deck.pool.map(card => card.gameplayId))).toEqual(new Set(["yes-no"]));
+  expect(deck.card.id).toBe("mystery-common-person");
+});
+
+it("starts exploration from its first card when switching modes", async () => {
+  await act(async () => root.render(createElement(Harness)));
+  player.state = { ...player.state, sceneId: "explore", deckId: null, cardId: "truth" };
+  await act(async () => root.render(createElement(Harness)));
+
+  expect(deck.card.id).toBe(cards.find(card => card.sceneIds.length > 0)?.id);
+  expect(player.state.cardId).toBe(deck.card.id);
 });

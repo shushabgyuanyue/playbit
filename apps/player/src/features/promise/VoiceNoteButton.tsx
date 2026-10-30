@@ -4,7 +4,7 @@ import { Icon } from "../../components/ui/Icon";
 import type { VoiceNote } from "../../data/types";
 import { useVoicePlayback } from "./useVoicePlayback";
 
-export function VoiceWave({ tone = "lime", active = false }: { tone?: "lime" | "purple" | "dark"; active?: boolean }) {
+export function VoiceWave({ tone = "lime", active = false }: { tone?: "lime" | "purple" | "dark" | "stake"; active?: boolean }) {
   const heights = [34, 58, 43, 76, 48, 92, 61, 84, 45, 70, 38, 64, 48, 78];
   return <span className={`voice-wave voice-wave-${tone} ${active ? "is-active" : ""}`} aria-hidden="true">{heights.map((height, index) => <i style={{ height: `${height}%`, animationDelay: `${index * 55}ms` }} key={index} />)}</span>;
 }

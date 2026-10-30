@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import { playerCopy as copy } from "@playbit/content/player";
-import type { BenefitIssuance, CouponSource, Signature } from "../../data/types";
+import type { BenefitIssuance, VoiceNote } from "../../data/types";
 import { Icon } from "../../components/ui/Icon";
-import { Sheet } from "../../components/ui/Sheet";
-import { SignaturePad } from "../promise/SignaturePad";
 import { BenefitClaimLink } from "./BenefitClaimLink";
+import { BenefitShareCard } from "./BenefitShareCard";
+import { VoiceRecorderButton } from "../promise/VoiceRecorderButton";
+
+const emptyVoice: VoiceNote = { id: "", durationMs: 0, storage: "demo" };
 
 export function IssueBenefitSheet({
   open,
   onClose,
   issuerName,
   issuance,
+  voice: initialVoice,
   onIssue,
   onShare,
   onSelfClaim,
@@ -22,84 +25,49 @@ export function IssueBenefitSheet({
   onClose: () => void;
   issuerName: string;
   issuance: BenefitIssuance | null;
-  onIssue: (title: string, source: CouponSource, sourceNote: string, signature: Signature) => void;
+  voice?: VoiceNote;
+  onIssue: (voice: VoiceNote) => void;
   onShare: () => void;
   onSelfClaim: () => void;
   submitting?: boolean;
   claiming?: boolean;
   canSelfClaim?: boolean;
 }) {
-  const [title, setTitle] = useState("");
-  const [sourceMode, setSourceMode] = useState<"manual" | "game" | "promise" | "custom">("manual");
-  const [customSource, setCustomSource] = useState("");
-  const [sourceEditing, setSourceEditing] = useState(false);
-  const [signature, setSignature] = useState<Signature>([]);
-  const [custom, setCustom] = useState("");
+  const [voice, setVoice] = useState<VoiceNote>(initialVoice ?? emptyVoice);
+  const [recording, setRecording] = useState(false);
   useEffect(() => {
     if (open && !issuance) {
-      setTitle("");
-      setSourceMode("manual");
-      setCustomSource("");
-      setSourceEditing(false);
-      setCustom("");
-      setSignature([]);
+      setVoice(initialVoice ?? emptyVoice);
+      setRecording(false);
     }
-  }, [open, issuance]);
-  const selected = copy.promise.options.includes(title as (typeof copy.promise.options)[number]);
-  const value = selected ? title : custom;
-  const sourceLabel = sourceMode === "manual" ? copy.wallet.issueSourceOptions.manual : sourceMode === "game" ? copy.wallet.issueSourceOptions.game : sourceMode === "promise" ? copy.wallet.issueSourceOptions.promise : customSource.trim() || copy.wallet.issueSourceOptions.custom;
-  const source: CouponSource = sourceMode === "game" ? "game" : sourceMode === "promise" ? "promise" : "direct";
-  const sourceNote = sourceMode === "manual" ? copy.wallet.issueSourceOptions.manual : sourceMode === "game" ? copy.wallet.issueSourceOptions.game : sourceMode === "promise" ? copy.wallet.issueSourceOptions.promise : customSource.trim() || copy.wallet.issueSourceOptions.manual;
-  function choose(option: string) {
-    setTitle(option);
-    setCustom("");
-  }
-  function changeCustom(next: string) {
-    setCustom(next);
-    setTitle(next);
-  }
-  function chooseSource(next: typeof sourceMode) {
-    setSourceMode(next);
-    if (next !== "custom") setSourceEditing(false);
-  }
+  }, [open, issuance, initialVoice]);
+  const currentVoice = issuance?.voice ?? voice;
+  const issuedSource = issuance?.source ?? "direct";
 
-  return <Sheet open={open} onClose={onClose} title={copy.wallet.issueTitle} eyebrow="MANUAL ISSUE" description={copy.wallet.issueHint}>
+  if (!open) return null;
+  return <section className="benefit-issue-inline" aria-label={copy.wallet.issueTitle}>
+    <header className="benefit-issue-inline-head">
+      <div><small>VOICE ISSUE</small><h2>{copy.wallet.issueTitle}</h2></div>
+      <button className="icon-btn" type="button" onClick={onClose} disabled={submitting || recording || claiming} aria-label={copy.cancel} title={copy.cancel}><Icon name="close" size={16} /></button>
+    </header>
+    <p className="benefit-issue-inline-hint">{copy.wallet.issueHint}</p>
+    <div className="benefit-issue-content">
     {!issuance ? <>
-      <div className="benefit-picker issue-benefit-picker">
-        <span>{copy.wallet.issueContent}</span>
-        <div>{copy.promise.options.map(option => <button type="button" className={selected && title === option ? "selected" : ""} aria-pressed={title === option} onClick={() => choose(option)} key={option}>{option}</button>)}</div>
-        <label><Icon name="spark" size={15} /><input aria-label={copy.promise.custom} value={selected ? "" : custom} onChange={event => changeCustom(event.target.value)} placeholder={copy.promise.custom} maxLength={80} /></label>
+      <div className="issue-voice-block">
+        <div className="issue-voice-heading"><div className="issue-voice-label"><b>{copy.wallet.issueVoice}</b><span className="issue-source-tag">{copy.wallet.issueSourceOptions.manual}</span></div><small>{copy.wallet.issueVoiceHint(issuerName)}</small></div>
+        <VoiceRecorderButton voice={voice} onChange={setVoice} onBusyChange={setRecording} label={copy.wallet.issueVoice} hint={copy.wallet.issueVoiceHint(issuerName)} recordLabel={copy.wallet.issueVoiceRecord} compact />
       </div>
-      <div className="issue-source-field">
-        <div className="issue-source-summary">
-          <span>{copy.wallet.issueSource}</span>
-          <strong>{sourceLabel}</strong>
-          <button className="issue-source-edit" type="button" onClick={() => setSourceEditing(value => !value)} aria-label={copy.wallet.issueSourceEdit} aria-expanded={sourceEditing}><Icon name="edit" size={13} /></button>
-        </div>
-        {sourceEditing && <div className="issue-source-editor" role="group" aria-label={copy.wallet.issueSource}>
-          {(["manual", "game", "promise", "custom"] as const).map(option => <button key={option} type="button" className={sourceMode === option ? "selected" : ""} onClick={() => chooseSource(option)}>{copy.wallet.issueSourceOptions[option]}</button>)}
-          {sourceMode === "custom" && <input value={customSource} onChange={event => setCustomSource(event.target.value)} placeholder={copy.wallet.issueSourcePlaceholder} maxLength={80} />}
-        </div>}
-      </div>
-      <SignaturePad label={copy.wallet.issueSign} value={signature} onChange={setSignature} />
-      <p className="issue-benefit-sign-hint">{copy.wallet.issueSignHint(issuerName)}</p>
-      <button className="primary-button issue-stake-submit" type="button" disabled={submitting || !value.trim() || !signature.length} onClick={() => onIssue(value, source, sourceNote, signature)}>
-        <Icon name="sign" size={17} />{submitting ? copy.sharing.issuing : copy.wallet.issueAction}
+      <button className="primary-button issue-stake-submit" type="button" disabled={submitting || recording || !voice.assetId} onClick={() => onIssue(voice)}>
+        <Icon name="share" size={16} />{submitting ? copy.sharing.issuing : copy.wallet.issueAction}
       </button>
     </> : <>
-      <div className={`issue-pending-ticket ${issuance.source === "promise" ? "dark-coupon" : issuance.source === "game" ? "coral-coupon" : "debt-ticket"}`} role="status">
-        <div className="issue-pending-ticket-body">
-          <small>{issuance.status === "unavailable" ? copy.sharing.closed : issuance.status === "claimed" ? copy.wallet.issueClaimed : copy.wallet.issueIssuedLabel}</small>
-          <strong>{issuance.title}</strong>
-          <span>{issuance.issuerName} · {issuance.status === "unavailable" ? copy.sharing.closed : issuance.status === "claimed" ? copy.wallet.issueClaimed : copy.wallet.issuePending}</span>
-        </div>
-        <div className="issue-pending-ticket-mark"><Icon name="send" size={14} />{sourceLabel}</div>
-      </div>
+      <BenefitShareCard title={issuance.title} context={issuance.sourceNote ?? ""} issuerName={issuance.issuerName} source={issuedSource} voice={currentVoice} active={open} status={issuance.status === "unavailable" ? copy.sharing.closed : issuance.status === "claimed" ? copy.wallet.issueClaimed : copy.wallet.issuePending} />
       {issuance.status === "pending_claim" && <><BenefitClaimLink token={issuance.claimToken} />
       <div className="issue-stake-actions">
         <button className="primary-button" type="button" onClick={onShare} disabled={claiming}><Icon name="send" size={17} />{copy.wallet.issueShare}</button>
         {canSelfClaim && <button className="text-button" type="button" disabled={claiming} onClick={onSelfClaim}>{claiming ? copy.sharing.claiming : copy.wallet.issueSelfClaim}</button>}
       </div></>}
     </>}
-  </Sheet>;
+    </div>
+  </section>;
 }

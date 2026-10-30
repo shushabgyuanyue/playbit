@@ -17,6 +17,7 @@ export const gameplays = {
   "story-relay": { name: "一句话接故事", l0: ["共创接力"], source: "游戏卡评分 / 44、45、46" },
   "visual-memory": { name: "看后回忆", l0: ["信息缺口", "累积负荷"], source: "记忆机制的图像与动态题面变体" },
   "sound-relay": { name: "听觉接力", l0: ["感知动作博弈", "累积负荷"], source: "记忆叠罗汉的听觉变体" },
-  "picture-dub": { name: "看图配音", l0: ["联想重构", "共创接力"], source: "一句话接故事的图片变体" }
+  "picture-dub": { name: "看图配音", l0: ["联想重构", "共创接力"], source: "一句话接故事的图片变体" },
+  "yes-no": { name: "是或不是", l0: ["信息缺口"], source: "contentSeeds / yes-no-person-mysteries" }
 } as const;
 export type GameplayId = keyof typeof gameplays;

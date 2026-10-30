@@ -1,4 +1,5 @@
 import { cards, createInitialState, demoVoice } from "../data/demo";
+import { EXPLORE_SCENE_ID } from "../data/catalog";
 import type { PlayerState } from "../data/types";
 
 export const STORAGE_KEY = "playbit:player:prototype:v1";
@@ -26,6 +27,7 @@ export function decodeState(raw: string | null): PlayerState {
     if (value.draft.step >= 2 && !value.agreements.some(a => a.id === value.draft.agreementId)) return createInitialState();
     return {
       ...value,
+      sceneId: value.sceneId === "mystery" ? EXPLORE_SCENE_ID : value.sceneId,
       // Step 3 is benefit issuance. Older saved sessions already used this step
       // after issuance, so keep it and render the issuance page.
       draft: {
@@ -39,6 +41,7 @@ export function decodeState(raw: string | null): PlayerState {
         challengeVoice: agreement.challengeVoice ?? demoVoice(agreement.text, "challenge"),
         benefitVoice: agreement.benefitVoice ?? demoVoice(agreement.benefit, "benefit")
       })),
+      stakeVoices: value.stakeVoices && typeof value.stakeVoices === "object" ? value.stakeVoices : {},
       stakeRecords: normalizeStakeRecords(value),
       issuedStakes: value.issuedStakes && typeof value.issuedStakes === "object" ? Object.fromEntries(Object.entries(value.issuedStakes).map(([cardId, issuance]) => [cardId, { ...issuance, source: "game" }])) : {},
       issuedBenefits: value.issuedBenefits && typeof value.issuedBenefits === "object" ? value.issuedBenefits : {},
