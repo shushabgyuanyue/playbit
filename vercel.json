@@ -1,8 +1,8 @@
 {
   "framework": "vite",
-  "buildCommand": "pnpm --filter @playbit/web build",
-  "outputDirectory": "apps/web/dist",
-  "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @playbit/player build",
+  "outputDirectory": "apps/player/dist",
+  "installCommand": "pnpm install --frozen-lockfile",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

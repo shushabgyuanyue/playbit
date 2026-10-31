@@ -1,8 +1,7 @@
 import { strict as assert } from "node:assert";
 import { randomUUID } from "node:crypto";
-import { dailyCards, drawCard } from "@playbit/cards";
 import { createPlaybitApp, createRepositories } from "./app.js";
-import { cardSchema, type Agreement, type Coupon, type User } from "@playbit/shared";
+import { type Agreement, type Coupon, type User } from "@playbit/shared";
 
 const app = createPlaybitApp(createRepositories(null));
 
@@ -36,22 +35,6 @@ function auth(token: string) {
 const health = await json<{ ok: boolean }>("/health");
 assert.equal(health.ok, true);
 
-assert.equal(new Set(dailyCards.map((card) => card.id)).size, dailyCards.length);
-assert.ok(dailyCards.some((card) => card.mode === "together" && card.reveal));
-assert.ok(dailyCards.some((card) => card.mode === "versus"));
-for (const card of dailyCards) cardSchema.parse(card);
-for (const card of dailyCards) {
-  assert.notEqual(drawCard([card.id], "versus").mode, "together");
-}
-
-const anonymousCard = await json<{ card: { id: string; content: string; winCondition: string } }>("/cards/draw", {
-  method: "POST",
-  body: JSON.stringify({ previousIds: [] })
-});
-assert.ok(anonymousCard.card.id);
-assert.ok(anonymousCard.card.content);
-assert.ok(anonymousCard.card.winCondition);
-
 const initiator = await register("甲方", "initiator@example.com");
 const profileUser = await register("资料用户", "profile@example.com");
 const profileUpdate = await app.request("/auth/me", {
@@ -61,7 +44,6 @@ const profileUpdate = await app.request("/auth/me", {
 });
 assert.equal(profileUpdate.status, 200);
 assert.equal((await profileUpdate.json() as { user: User }).user.nickname, "花花");
-const togetherCard = dailyCards.find((card) => card.mode === "together");
 // A real one-pixel JPEG exercises the same bounded data URL as the browser upload.
 const profileAvatar = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD8qqKKKAP/2Q==";
 const avatarUpdate = await json<{ user: User }>("/auth/me", {
@@ -103,20 +85,6 @@ const resetProfile = await json<{ user: User }>("/auth/me", {
   body: JSON.stringify({ nickname: "Renamed", avatarDataUrl: null })
 });
 assert.equal(resetProfile.user.avatarDataUrl, null);
-assert.ok(togetherCard);
-const invalidCardAgreement = await app.request("/agreements", {
-  method: "POST",
-  headers: { "Content-Type": "application/json", ...auth(initiator.token) },
-  body: JSON.stringify({
-    source: "card",
-    cardId: togetherCard.id,
-    creatorSignatureDataUrl: "data:image/png;base64,signature",
-    title: togetherCard.name,
-    challenge: togetherCard.content,
-    stake: { type: "coupon", label: "洗碗一次", fulfilled: false, additions: [] }
-  })
-});
-assert.equal(invalidCardAgreement.status, 422);
 const unknownLogin = await app.request("/auth/login", {
   method: "POST",
   headers: { "Content-Type": "application/json" },

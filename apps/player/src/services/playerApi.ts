@@ -1,4 +1,4 @@
-import type { Agreement, Coupon, LoginInput, RegisterInput, User } from "@playbit/shared";
+import { inputLimits, type Agreement, type Coupon, type LoginInput, type RegisterInput, type User } from "@playbit/shared";
 import type { Signature } from "../data/types";
 
 function normalizeApiBaseUrl(value: string | undefined) {
@@ -15,6 +15,16 @@ export class PlayerApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string) {
     super(message);
   }
+}
+
+export function normalizeCouponName(value: string, fallback: string) {
+  const text = value.trim() || fallback.trim();
+  return Array.from(text).slice(0, 80).join("");
+}
+
+export function normalizeCouponDescription(value: string, fallback: string) {
+  const text = value.trim() || fallback.trim();
+  return Array.from(text).slice(0, inputLimits.customEquity).join("");
 }
 
 export function isPlayerApiConfigured() {
@@ -60,6 +70,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function transcribeVoice(blob: Blob): Promise<{ text: string; requestId: string | null }> {
+  if (!apiBaseUrl) throw new PlayerApiError("API is not configured", 0, "API_UNCONFIGURED");
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/speech/transcribe`, {
+      method: "POST",
+      body: blob,
+      signal: AbortSignal.timeout(15_000),
+      cache: "no-store",
+      headers: { "Content-Type": blob.type || "application/octet-stream" }
+    });
+  } catch {
+    throw new PlayerApiError("Network request failed", 0, "NETWORK_ERROR");
+  }
+  if (!response.ok) {
+    let payload: { message?: string; code?: string } = {};
+    try { payload = await response.json() as typeof payload; } catch { /* Keep the HTTP status. */ }
+    throw new PlayerApiError(payload.message ?? `Request failed: ${response.status}`, response.status, payload.code);
+  }
+  return response.json() as Promise<{ text: string; requestId: string | null }>;
+}
+
 export type CouponPage = {
   coupons: Coupon[];
   nextCursor: string | null;
@@ -85,6 +117,7 @@ export const playerApi = {
   me() {
     return request<{ user: User | null }>("/auth/me");
   },
+  transcribeVoice,
   listCoupons(options: { cursor?: string | null; limit?: number; ownedOnly?: boolean } = {}) {
     const query = new URLSearchParams({ limit: String(Math.max(1, Math.min(50, options.limit ?? 10))) });
     if (options.cursor) query.set("cursor", options.cursor);

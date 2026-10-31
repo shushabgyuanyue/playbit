@@ -89,6 +89,44 @@ it("uses left swipe to enter same-type mode and right swipe to exit it", async (
   expect(move).not.toHaveBeenCalled();
 });
 
+it("locks the gesture axis after the first meaningful movement", async () => {
+  const enter = vi.fn();
+  function TypeModeHarness() {
+    const swipe = useFeedSwipe("", "type-mode-axis", move, { onSwipeLeft: enter });
+    return createElement("section", swipe, createElement("p", null, "Content"));
+  }
+  await act(async () => root.render(createElement(TypeModeHarness)));
+  surface = host.querySelector("section")!;
+  Object.defineProperties(surface, {
+    clientHeight: { value: 600 }, clientWidth: { value: 600 },
+    setPointerCapture: { value: () => undefined }, hasPointerCapture: { value: () => false }, releasePointerCapture: { value: () => undefined }
+  });
+  pointerAt(surface.querySelector("p")!, "pointerdown", 420, 300);
+  pointerAt(surface, "pointermove", 390, 285);
+  pointerAt(surface, "pointermove", 395, 220);
+  pointerAt(surface, "pointerup", 395, 220);
+  expect(enter).toHaveBeenCalledOnce();
+  expect(move).not.toHaveBeenCalled();
+});
+
+it("hands an overflowing rule region back to native vertical scrolling", async () => {
+  function ScrollHarness() {
+    const swipe = useFeedSwipe("", "native-scroll", move);
+    return createElement("section", swipe, createElement("div", { className: "is-scrollable" }, "Long rules"));
+  }
+  await act(async () => root.render(createElement(ScrollHarness)));
+  surface = host.querySelector("section")!;
+  Object.defineProperties(surface, {
+    setPointerCapture: { value: () => undefined }, hasPointerCapture: { value: () => false }, releasePointerCapture: { value: () => undefined }
+  });
+  const scrollRegion = surface.querySelector(".is-scrollable")!;
+  pointerAt(scrollRegion, "pointerdown", 100, 300);
+  expect(surface.classList.contains("is-native-scroll")).toBe(true);
+  pointerAt(surface, "pointerup", 100, 200);
+  expect(surface.classList.contains("is-native-scroll")).toBe(false);
+  expect(move).not.toHaveBeenCalled();
+});
+
 it("does not change cards from controls, long rule scrolling, secondary fingers or cancelled drags", () => {
   for (const target of [surface.querySelector("button")!, surface.querySelector(".is-scrollable")!]) {
     pointer(target, "pointerdown", 400);

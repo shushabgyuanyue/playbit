@@ -17,17 +17,18 @@ import { getPendingStakeRecords, StakeRecordsSheet, STAKE_RECORD_TTL_MS } from "
 import { CARD_MOVE_MS, useCardDeck } from "../features/cards/useCardDeck";
 import { useFeedSwipe } from "../features/cards/useFeedSwipe";
 import { usePlayer } from "../features/player/PlayerProvider";
+import { AuthSheet } from "../features/player/AuthSheet";
 import { claimGameStake, createId, issueGameStake } from "../features/player/transitions";
 import type { StakeRecord, VoiceNote } from "../data/types";
 import { usePageMemory } from "../services/pageMemory";
-import { isPlayerApiConfigured, PlayerApiError, playerApi } from "../services/playerApi";
+import { isPlayerApiConfigured, normalizeCouponDescription, normalizeCouponName, PlayerApiError, playerApi } from "../services/playerApi";
 
 type Panel = "scene" | "ai" | "records" | "save" | "issue" | "new" | "new-and-save" | null;
 type ModeTransition = "enter-out" | "enter-in" | "exit-out" | "exit-in" | "";
 
 export function PlayPage() {
   const shareLink = useLinkSharing();
-  const { state, update, notify } = usePlayer();
+  const { state, update, notify, auth } = usePlayer();
   const { memory, remember } = usePageMemory();
   const typeMode = memory.playMode;
   const { card, pool, flipped, setFlipped, slide, go } = useCardDeck(memory.playFlippedCardId, typeMode);
@@ -41,10 +42,11 @@ export function PlayPage() {
   const [showGestureGuide, setShowGestureGuide] = useState(() => {
     try { return localStorage.getItem("playbit-feed-gesture-seen") !== "1"; } catch { return true; }
   });
-  const [issueNudge, setIssueNudge] = useState(false);
-  const pendingMove = useRef<number | null>(null);
-  const ignoredIssueNudges = useRef(new Set<string>());
+  const [issueNudge, setIssueNudge] = useState<StakeRecord | null>(null);
+  const issueNudgeTimer = useRef<number | null>(null);
   const [pendingIssueCardId, setPendingIssueCardId] = useState<string | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [pendingStakeVoice, setPendingStakeVoice] = useState<VoiceNote | null>(null);
   const [modeTransition, setModeTransition] = useState<ModeTransition>("");
   const modeTimer = useRef<number | null>(null);
   const scene = typeMode
@@ -62,6 +64,7 @@ export function PlayPage() {
   const typeModeAvailable = Boolean(card.gameplayId && cards.filter(item => item.gameplayId === card.gameplayId).length > 1);
   useEffect(() => () => {
     if (modeTimer.current) window.clearTimeout(modeTimer.current);
+    if (issueNudgeTimer.current) window.clearTimeout(issueNudgeTimer.current);
   }, []);
   function finishModeTransition() {
     modeTimer.current = window.setTimeout(() => setModeTransition(""), CARD_MOVE_MS);
@@ -96,10 +99,33 @@ export function PlayPage() {
     previousContextKey.current = contextKey;
     if (memory.playMode) remember({ playMode: null });
   }, [contextKey, memory.playMode, remember]);
+  function revealCard() {
+    if (flipped) return;
+    if (stake) {
+      update(current => {
+        const currentRecord = current.stakeRecords[card.id];
+        return {
+          ...current,
+          stakeRecords: {
+            ...(current.stakeRecords ?? {}),
+            [card.id]: {
+              cardId: card.id,
+              title: current.stakes[card.id] ?? stake,
+              createdAt: currentRecord?.createdAt ?? new Date().toISOString(),
+              locked: true
+            }
+          }
+        };
+      });
+    }
+    setFlipped(true);
+  }
   const swipe = useFeedSwipe(slide, card.id, moveCard, {
-    onHoldFlip: () => { if (!flipped) setFlipped(true); },
+    onHoldFlip: revealCard,
     onHoldCollect: collectCard,
-    onTap: () => { if (flipped) setFlipped(false); },
+    onTap: () => {
+      if (flipped) setFlipped(false);
+    },
     onSwipeLeft: typeMode ? undefined : enterTypeMode,
     onSwipeRight: typeMode ? leaveTypeMode : undefined,
     canHold: () => !flipped,
@@ -117,27 +143,38 @@ export function PlayPage() {
   }, [savedInCurrentContext, card.id, pendingSaveCardId]);
   useEffect(() => {
     const now = Date.now();
-    const records = Object.values(state.stakeRecords ?? {});
-    const stale = records.filter(record => {
-      const expired = now - Date.parse(record.createdAt) >= STAKE_RECORD_TTL_MS;
-      return expired || Boolean(state.issuedStakes[record.cardId]) || state.stakes[record.cardId] !== record.title;
-    });
-    if (stale.length) {
+    const stakeIds = new Set([...Object.keys(state.stakes), ...Object.keys(state.stakeVoices), ...Object.keys(state.stakeRecords ?? {})]);
+    const nextExpiry = Object.values(state.stakeRecords ?? {}).map(record => Date.parse(record.createdAt) + STAKE_RECORD_TTL_MS).filter(value => Number.isFinite(value) && value > now).sort((a, b) => a - b)[0];
+    if (stakeIds.size) {
       update(current => {
         const stakeRecords = { ...(current.stakeRecords ?? {}) };
         const stakes = { ...current.stakes };
         const stakeVoices = { ...current.stakeVoices };
-        for (const record of stale) {
-          delete stakeRecords[record.cardId];
-          if (now - Date.parse(record.createdAt) >= STAKE_RECORD_TTL_MS && !current.issuedStakes[record.cardId]) {
-            delete stakes[record.cardId];
-            delete stakeVoices[record.cardId];
+        let changed = false;
+        for (const cardId of stakeIds) {
+          const record = stakeRecords[cardId];
+          const title = stakes[cardId];
+          const voice = stakeVoices[cardId];
+          const issued = Boolean(current.issuedStakes[cardId]);
+          const createdAt = record ? Date.parse(record.createdAt) : NaN;
+          const expired = Boolean(record) && (!Number.isFinite(createdAt) || now - createdAt >= STAKE_RECORD_TTL_MS);
+          if (issued) {
+            if (record) { delete stakeRecords[cardId]; changed = true; }
+          } else if (expired || !title || !voice?.assetId) {
+            if (record) { delete stakeRecords[cardId]; changed = true; }
+            if (title) { delete stakes[cardId]; changed = true; }
+            if (voice) { delete stakeVoices[cardId]; changed = true; }
+          } else if (!record) {
+            stakeRecords[cardId] = { cardId, title, createdAt: new Date().toISOString(), locked: false };
+            changed = true;
+          } else if (record.title !== title) {
+            stakeRecords[cardId] = { ...record, title };
+            changed = true;
           }
         }
-        return { ...current, stakes, stakeVoices, stakeRecords };
+        return changed ? { ...current, stakes, stakeVoices, stakeRecords } : current;
       });
     }
-    const nextExpiry = records.map(record => Date.parse(record.createdAt) + STAKE_RECORD_TTL_MS).filter(value => Number.isFinite(value) && value > now).sort((a, b) => a - b)[0];
     if (!nextExpiry) return;
     const timer = window.setTimeout(() => update(current => ({ ...current })), Math.max(100, nextExpiry - now + 50));
     return () => window.clearTimeout(timer);
@@ -150,14 +187,19 @@ export function PlayPage() {
   useEffect(() => {
     if (!issueNudge) return;
     const timer = window.setTimeout(() => {
-      setIssueNudge(false);
-      pendingMove.current = null;
-    }, 1000);
+      setIssueNudge(null);
+    }, 2200);
     return () => window.clearTimeout(timer);
   }, [issueNudge]);
   useEffect(() => {
     remember({ playFlippedCardId: flipped ? card.id : null });
   }, [card.id, flipped, remember]);
+  function handleStakeDelete(cardId: string) {
+    window.dispatchEvent(new CustomEvent(STAKE_NAV_ACTION, { detail: { action: "clear", cardId } }));
+    if (cardId !== card.id) return;
+    setFlipped(false);
+    remember({ playFlippedCardId: null });
+  }
   function openCollection() {
     if (currentDeck?.cardIds.includes(card.id)) {
       const nextCard = cards.find(item => item.id !== card.id && currentDeck.cardIds.includes(item.id))
@@ -201,24 +243,17 @@ export function PlayPage() {
       text: `${card.prompt}\n${card.kicker}\n${card.payoff}`,
       url: `${window.location.origin}/?card=${encodeURIComponent(card.id)}`
     };
-    try {
-      if (navigator.share) await navigator.share(data);
-      else if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(`${data.text}\n${data.url}`);
-      else throw new Error("Share unavailable");
-      notify(copy.play.sharedCard);
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) notify(copy.sharing.failed);
-    }
+    await shareLink(data);
   }
   function openIssue() {
-    setIssueNudge(false);
-    pendingMove.current = null;
+    setIssueNudge(null);
     if (!stake) return;
     setPanel("issue");
   }
   function openStakeRecord(record: StakeRecord) {
     const target = cards.find(item => item.id === record.cardId);
     if (!target) return;
+    setIssueNudge(null);
     const deck = state.decks.find(item => item.cardIds.includes(record.cardId));
     setPendingIssueCardId(record.cardId);
     update(current => ({ ...current, deckId: deck?.id ?? null, sceneId: deck ? current.sceneId : target.sceneIds[0] ?? current.sceneId, cardId: record.cardId }));
@@ -226,31 +261,27 @@ export function PlayPage() {
   }
   function moveCard(direction: number) {
     if (slide || modeTransition || pool.length < 2) return false;
-    if (stake && !issuance && !ignoredIssueNudges.current.has(card.id)) {
-      pendingMove.current = direction;
-      setIssueNudge(true);
-      return false;
+    if (issueNudgeTimer.current) window.clearTimeout(issueNudgeTimer.current);
+    setIssueNudge(null);
+    if (stake && !issuance) {
+      const record = { cardId: card.id, title: stake, createdAt: state.stakeRecords[card.id]?.createdAt ?? new Date().toISOString(), locked: state.stakeRecords[card.id]?.locked === true };
+      update(current => ({ ...current, stakeRecords: { ...(current.stakeRecords ?? {}), [card.id]: record } }));
+      issueNudgeTimer.current = window.setTimeout(() => {
+        issueNudgeTimer.current = null;
+        setIssueNudge(record);
+      }, CARD_MOVE_MS + 40);
     }
     go(direction);
     return true;
   }
-  function ignoreIssueNudge() {
-    ignoredIssueNudges.current.add(card.id);
-    if (stake && !issuance) {
-      update(current => ({ ...current, stakeRecords: { ...(current.stakeRecords ?? {}), [card.id]: { cardId: card.id, title: stake, createdAt: new Date().toISOString() } } }));
-    }
-    setIssueNudge(false);
-    const direction = pendingMove.current ?? 1;
-    pendingMove.current = null;
-    go(direction);
-  }
   async function persistGameStake(voice: VoiceNote) {
     if (!stake || issuance) return;
+    const displayStake = normalizeCouponName(voice.transcript ?? stake, stake);
     if (isPlayerApiConfigured()) {
       try {
-        const result = await playerApi.createPublicCoupon({
-          name: stake,
-          description: `来自「${card.label}」的游戏彩头`,
+        const result = await playerApi.createIndependentCoupon({
+          name: displayStake,
+          description: normalizeCouponDescription(displayStake, stake),
           sourceLabel: copy.wallet.issueSourceOptions.game,
           gameResultId: null,
           signatureDataUrl: null,
@@ -288,22 +319,38 @@ export function PlayPage() {
         await shareLink(benefitShareData(created, card.label));
         return;
       } catch (error) {
+        if (error instanceof PlayerApiError && error.status === 401) {
+          auth.logout();
+          setPendingStakeVoice(voice);
+          setAuthOpen(true);
+          return;
+        }
         notify(error instanceof PlayerApiError && error.status === 0 ? copy.auth.network : copy.play.issueStake);
         return;
       }
     }
     const issuedAt = new Date().toISOString();
     const issuanceId = createId("stake");
-    const next = issueGameStake({ ...state, stakeVoices: { ...state.stakeVoices, [card.id]: voice } }, card.id, card.label, stake, state.profileName, voice, issuedAt, issuanceId);
+    const next = issueGameStake({ ...state, stakeVoices: { ...state.stakeVoices, [card.id]: voice } }, card.id, card.label, displayStake, state.profileName, voice, issuedAt, issuanceId);
     const created = next.issuedStakes[card.id];
-    update(current => issueGameStake({ ...current, stakeVoices: { ...current.stakeVoices, [card.id]: voice } }, card.id, card.label, stake, current.profileName, voice, issuedAt, issuanceId));
+    update(current => issueGameStake({ ...current, stakeVoices: { ...current.stakeVoices, [card.id]: voice } }, card.id, card.label, displayStake, current.profileName, voice, issuedAt, issuanceId));
     setPanel(null);
     await shareLink(benefitShareData(created ?? null, card.label));
   }
 
   function signStake(voice: VoiceNote) {
     if (!stake || issuance) return;
+    if (isPlayerApiConfigured() && !auth.user) {
+      setPendingStakeVoice(voice);
+      setAuthOpen(true);
+      return;
+    }
     void persistGameStake(voice);
+  }
+  function continuePendingStake() {
+    const voice = pendingStakeVoice;
+    setPendingStakeVoice(null);
+    if (voice) void persistGameStake(voice);
   }
   async function shareStake() {
     await shareLink(benefitShareData(issuance, issuance?.cardTitle));
@@ -332,18 +379,19 @@ export function PlayPage() {
     </div>
     <section className="deck" tabIndex={0} aria-label={copy.nav.play} {...swipe} data-slide={slide} data-mode-transition={modeTransition || undefined} style={{ "--feed-snap-duration": `${CARD_MOVE_MS}ms` } as CSSProperties}
       onKeyDown={e => { if (e.target !== e.currentTarget) return; if (typeMode && e.key === "ArrowRight") { e.preventDefault(); leaveTypeMode(); } else if (!typeMode && e.key === "ArrowLeft") { e.preventDefault(); enterTypeMode(); } else if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); moveCard(e.key === "ArrowUp" ? 1 : -1); } }}>
-      <FeedNeighbors pool={pool} cardId={card.id} stakes={state.stakes} stakeVoices={state.stakeVoices} issuedStakes={state.issuedStakes} />
+      <FeedNeighbors pool={pool} cardId={card.id} stakeVoices={state.stakeVoices} />
       {modeTransition && <div className="feed-mode-neighbor" aria-hidden="true" inert>
-        <GameCard card={card} active={false} flipped={false} slide="" stake={stake} stakeVoice={stakeVoice} stakeIssued={Boolean(issuance)} liked={likedCards.has(card.id)} saved={saved} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={() => {}} onIssue={() => {}} paletteOverride={cardPalette ?? undefined} />
+        <GameCard card={card} active={false} flipped={false} slide="" stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={() => {}} paletteOverride={cardPalette ?? undefined} />
       </div>}
-      <div className="feed-current"><GameCard card={card} flipped={flipped} slide={slide} stake={stake} stakeVoice={stakeVoice} stakeIssued={Boolean(issuance)} liked={likedCards.has(card.id)} saved={saved} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={setFlipped} onIssue={openIssue} onLike={toggleLike} onSave={openCollection} onComment={commentCard} onShare={() => void shareCard()} onPalette={setCardPalette} /></div>
-      {issueNudge && <div className="stake-issue-nudge" role="status"><span><Icon name="sign" size={12} /><b>{copy.play.issueStakeNudge}</b></span><div><button type="button" onClick={openIssue}>{copy.play.issueStakeNudgeAction}</button><button type="button" onClick={ignoreIssueNudge}>{copy.play.issueStakeNudgeIgnore}</button></div></div>}
+      <div className="feed-current"><GameCard card={card} flipped={flipped} slide={slide} stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={setFlipped} onLike={toggleLike} onSave={openCollection} onComment={commentCard} onShare={() => void shareCard()} onPalette={setCardPalette} /></div>
+      {issueNudge && <div className="stake-issue-nudge" role="status" aria-live="polite"><span><Icon name="trophy" size={12} /><b>{copy.play.issueStakeNudge}</b></span><button type="button" onClick={() => openStakeRecord(issueNudge)}>{copy.play.issueStakeNudgeAction}<Icon name="arrow" size={11} /></button></div>}
     </section>
     <SceneDrawer open={panel === "scene"} onClose={close} onCreate={() => setPanel("new")} onSceneChange={() => remember({ playMode: null })} />
     <AiSheet open={panel === "ai"} onClose={close} />
-    <StakeRecordsSheet open={panel === "records"} onClose={close} onIssue={openStakeRecord} />
+    <StakeRecordsSheet open={panel === "records"} onClose={close} onIssue={openStakeRecord} onDelete={handleStakeDelete} />
     <CollectionSheet open={panel === "save"} onClose={close} cardId={card.id} onCreate={() => setPanel("new-and-save")} />
     <CreateDeckSheet open={panel === "new" || panel === "new-and-save"} onClose={close} cardId={panel === "new-and-save" ? card.id : undefined} />
     <IssueStakeSheet open={panel === "issue"} onClose={close} cardTitle={card.label} stake={stake ?? copy.play.defaultStake} issuerName={state.profileName} issuance={issuance} voice={stakeVoice} onIssue={signStake} onShare={() => void shareStake()} onSelfClaim={selfClaimStake} canSelfClaim={!issuance?.claimToken} />
+    <AuthSheet open={authOpen} onClose={() => setAuthOpen(false)} onSuccess={continuePendingStake} />
   </>;
 }

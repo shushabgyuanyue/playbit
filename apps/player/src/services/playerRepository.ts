@@ -6,9 +6,14 @@ export const STORAGE_KEY = "playbit:player:prototype:v1";
 
 function normalizeStakeRecords(value: PlayerState) {
   const records = value.stakeRecords && typeof value.stakeRecords === "object" ? value.stakeRecords : {};
-  const valid = Object.fromEntries(Object.entries(records).filter(([cardId, record]) => record && record.cardId === cardId && typeof record.title === "string" && Number.isFinite(Date.parse(record.createdAt))));
+  const voices = value.stakeVoices && typeof value.stakeVoices === "object" ? value.stakeVoices : {};
+  const valid = Object.fromEntries(Object.entries(records)
+    .filter(([cardId, record]) => record && record.cardId === cardId && record.title === value.stakes[cardId] && voices[cardId]?.assetId && typeof record.title === "string" && Number.isFinite(Date.parse(record.createdAt)))
+    .map(([cardId, record]) => [cardId, { ...record, locked: record.locked === true }]));
   const createdAt = new Date().toISOString();
-  return Object.fromEntries(Object.entries(value.stakes).filter(([, title]) => typeof title === "string" && title.trim()).map(([cardId, title]) => [cardId, valid[cardId] ?? { cardId, title, createdAt }]));
+  return Object.fromEntries(Object.entries(value.stakes)
+    .filter(([cardId, title]) => typeof title === "string" && title.trim() && voices[cardId]?.assetId && !value.issuedStakes?.[cardId])
+    .map(([cardId, title]) => [cardId, valid[cardId] ?? { cardId, title, createdAt }]));
 }
 
 export function decodeState(raw: string | null): PlayerState {

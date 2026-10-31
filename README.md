@@ -4,7 +4,7 @@ Playbit turns tiny real-life bets, challenges, and rewards into lightweight sess
 
 ## Stack
 
-- `apps/web`: Vue 3 + Vite mobile-first H5 app
+- `apps/player`: React 19 + Vite mobile-first player app
 - `apps/api`: Hono API prepared for Railway
 - `packages/shared`: shared types and validation schemas
 - `packages/content`: customer-facing copy and templates
@@ -26,7 +26,7 @@ pnpm build
 pnpm check
 ```
 
-Copy `.env.example` to `.env` for local API/database configuration.
+Copy `.env.example` to `.env` for local API/database configuration. Run `pnpm dev` to start the canonical player and API together.
 
 ## Deployment
 

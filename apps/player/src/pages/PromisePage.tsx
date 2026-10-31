@@ -16,7 +16,7 @@ import { usePlayer } from "../features/player/PlayerProvider";
 import { useLinkSharing } from "../features/player/useLinkSharing";
 import { benefitShareData } from "../services/linkSharing";
 import { usePageMemory } from "../services/pageMemory";
-import { isPlayerApiConfigured, PlayerApiError, playerApi, signatureToDataUrl } from "../services/playerApi";
+import { isPlayerApiConfigured, normalizeCouponDescription, normalizeCouponName, PlayerApiError, playerApi, signatureToDataUrl } from "../services/playerApi";
 import { deleteVoiceAsset } from "../services/voiceRepository";
 
 function toLocalAgreement(agreement: ApiAgreement, signatures: Record<Party, Signature>, voices: { challengeVoice: VoiceNote; benefitVoice: VoiceNote }) {
@@ -191,11 +191,10 @@ export function PromisePage() {
       issuingRef.current = true;
       setIssueLoading(true);
       try {
-        const result = await playerApi.createPublicCoupon({
-          name: agreement.benefit,
-          description: agreement.text,
+        const result = await playerApi.createIndependentCoupon({
+          name: normalizeCouponName(agreement.benefit, copy.wallet.issueVoiceTitle),
+          description: normalizeCouponDescription(agreement.text, agreement.benefit),
           sourceLabel: copy.wallet.issueSourceOptions.promise,
-          issuerNickname: state.profileName,
           signatureDataUrl: null,
           claimLimit: 1
         });

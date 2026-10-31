@@ -1,4 +1,4 @@
-import type { Agreement, Boost, Card, Coupon, CreateAgreementInput, CreateGameInput, CreateOfflineAgreementInput, Flip, Participant, StakeAddition } from "@playbit/shared";
+import type { Agreement, Boost, Card, Coupon, CreateAgreementInput, CreateOfflineAgreementInput, Flip, Participant, StakeAddition } from "@playbit/shared";
 
 function makeId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -67,32 +67,6 @@ export function createOfflineAgreement(input: CreateOfflineAgreementInput, creat
     ],
     status: "active"
   };
-}
-
-export function createGame(input: CreateGameInput, card: Card, user: { id: string; nickname: string }): Agreement {
-  if (card.mode !== "versus") throw new Error("GAME_REQUIRES_VERSUS_CARD");
-  const now = new Date().toISOString();
-  return {
-    id: makeId("game"), ownerUserId: user.id, source: "card", title: card.name,
-    participants: [{ id: makeId("p"), userId: user.id, nickname: user.nickname,
-      role: "initiator", confirmed: true, signatureDataUrl: null }],
-    challenge: `${card.content}\n${card.winCondition}`, cardId: card.id, gameCard: structuredClone(card),
-    stake: { type: "coupon", label: input.stake.label, fulfilled: false, additions: [] },
-    status: "pending_confirmation", winnerId: null, loserId: null, resultRecorderUserId: null,
-    fulfillmentRecorderUserId: null, boosts: [], revision: 1, createdAt: now, updatedAt: now,
-    resultRecordedAt: null, shareCode: makeId("share")
-  };
-}
-
-export function joinGame(agreement: Agreement, user: { id: string; nickname: string }): Agreement {
-  if (agreement.source !== "card" || agreement.status !== "pending_confirmation" || !agreement.gameCard) {
-    throw new Error("GAME_NOT_JOINABLE");
-  }
-  if (agreement.participants.some(person => person.userId === user.id)) throw new Error("GAME_ALREADY_JOINED");
-  return { ...agreement, status: "active", participants: [...agreement.participants, {
-    id: makeId("p"), userId: user.id, nickname: user.nickname, role: "counterparty",
-    confirmed: true, signatureDataUrl: null
-  }] };
 }
 
 export function updateAgreementDraft(

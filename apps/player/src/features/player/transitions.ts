@@ -99,14 +99,15 @@ export function issueDirectBenefit(
   source: CouponSource = "direct",
   voice?: VoiceNote
 ): PlayerState {
-  if (!title.trim() || !voice?.assetId) return state;
+  const displayTitle = voice?.transcript?.trim() || title.trim();
+  if (!displayTitle || !voice?.assetId) return state;
   return {
     ...state,
     issuedBenefits: {
       ...state.issuedBenefits,
       [issuanceId]: {
         id: issuanceId,
-        title: title.trim(),
+        title: displayTitle,
         issuerName,
         signature,
         voice,

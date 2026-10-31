@@ -5,9 +5,9 @@ import { Icon } from "./Icon";
 
 export const OverlayContainer = createContext<HTMLElement | null>(null);
 
-export function Sheet({ open, onClose, title, eyebrow, description, variant = "sheet", children }: {
+export function Sheet({ open, onClose, title, eyebrow, description, variant = "sheet", className = "", children }: {
   open: boolean; onClose: () => void; title: string; eyebrow?: string; description?: string;
-  variant?: "sheet" | "drawer"; children: ReactNode;
+  variant?: "sheet" | "drawer"; className?: string; children: ReactNode;
 }) {
   const container = useContext(OverlayContainer);
   const [present, setPresent] = useState(open);
@@ -31,7 +31,7 @@ export function Sheet({ open, onClose, title, eyebrow, description, variant = "s
     <Dialog.Portal container={container ?? undefined}>
       {(open || present) && <>
         <Dialog.Overlay className={`overlay ${closingClass}`} />
-        <Dialog.Content className={`${variant === "drawer" ? "drawer" : "save-sheet"} dialog-content ${closingClass}`} aria-describedby={description ? undefined : undefined}>
+        <Dialog.Content className={`${variant === "drawer" ? "drawer" : "save-sheet"} dialog-content ${className} ${closingClass}`} aria-describedby={description ? undefined : undefined}>
           <div className="sheet-handle" aria-hidden="true" />
           <div className="drawer-head"><div>{eyebrow && <small>{eyebrow}</small>}<Dialog.Title>{title}</Dialog.Title></div><Dialog.Close className="icon-btn" aria-label={copy.close}><Icon name="close" /></Dialog.Close></div>
           {description ? <Dialog.Description className="muted">{description}</Dialog.Description> : <Dialog.Description className="sr-only">{title}</Dialog.Description>}

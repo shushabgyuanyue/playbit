@@ -8,12 +8,15 @@ function sourceFor(label: string): CouponSource {
   return "direct";
 }
 
-export function toPlayerCoupon(coupon: ApiCoupon, state: Pick<PlayerState, "coupons" | "issuedBenefits" | "agreements">): Coupon {
+export function toPlayerCoupon(coupon: ApiCoupon, state: Pick<PlayerState, "coupons" | "issuedBenefits" | "issuedStakes" | "agreements">): Coupon {
   const source = sourceFor(coupon.sourceLabel);
   // A claimed coupon has its own ID; its parent identifies the original recording.
   const issuanceId = coupon.parentCouponId ?? coupon.id;
   const local = state.coupons.find(item => item.id === coupon.id);
-  const issuance = Object.values(state.issuedBenefits).find(item => (item.remoteId ?? item.id) === issuanceId);
+  const issuance = [
+    ...Object.values(state.issuedBenefits),
+    ...Object.values(state.issuedStakes)
+  ].find(item => (item.remoteId ?? item.id) === issuanceId);
   const agreement = coupon.agreementId ? state.agreements.find(item => item.id === coupon.agreementId) : undefined;
   const voice = [local?.voice, issuance?.voice, agreement?.benefitVoice].find(item => item?.assetId);
   return {

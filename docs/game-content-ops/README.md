@@ -73,10 +73,10 @@ Phase 3 可以在 Phase 2 的少量人工内容上运行。Phase 4 不应在没�
 
 ## 可重复验收
 
-本地启动 Web、API 和 Chrome CDP 后，可从仓库根目录运行：
+本地启动 React player、API 和 Chrome CDP 后，可从仓库根目录运行：
 
 ```bash
 pnpm verify:browser
 ```
 
-该命令会分别验证 `/studio` 的内容草稿流程，以及 390×844 移动视口下的首页、游戏卡、复用工具和结果记录流程，并将截图写入 `artifacts/verification/`。它只验证原型行为，不代表 PostgreSQL 持久化、权限和生产并发门槛已经完成。
+该命令会验证 390×844 移动视口下 React player 的首页、签约、权益中心和用户中心，并将截图写入 `artifacts/`。内容运营的 `/studio` 是 API 工作区，不是当前 player 页面。它只验证原型行为，不代表 PostgreSQL 持久化、权限和生产并发门槛已经完成。

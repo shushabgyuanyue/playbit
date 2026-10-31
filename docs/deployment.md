@@ -2,7 +2,7 @@
 
 Playbit uses two services:
 
-- Vercel for `apps/web`
+- Vercel for `apps/player`
 - Railway for `apps/api` and PostgreSQL
 
 ## 1. Push Code
@@ -60,7 +60,7 @@ Check the API after deployment:
 https://<your-railway-api-domain>/health
 ```
 
-## 3. Deploy Web On Vercel
+## 3. Deploy Player On Vercel
 
 Create a Vercel project from the same GitHub repository.
 
@@ -76,9 +76,9 @@ Vercel reads `vercel.json` from the repository root:
 
 ```json
 {
-  "buildCommand": "pnpm --filter @playbit/web build",
-  "outputDirectory": "apps/web/dist",
-  "installCommand": "pnpm install"
+  "buildCommand": "pnpm --filter @playbit/player build",
+  "outputDirectory": "apps/player/dist",
+  "installCommand": "pnpm install --frozen-lockfile"
 }
 ```
 
@@ -88,11 +88,12 @@ Invitation QR codes use the current frontend URL by default, including its path.
 Set `VITE_PUBLIC_SITE_URL=https://<your-public-domain>/` at build time when preview
 domains should invite people to a canonical production site. Never set it to the
 API domain, localhost, or a deployment protected by a login wall. The canonical
-site must use the same API/database as the app creating the invitation. QR codes
-carry `?share=`, `?game=`, or `?flip=` and require a reachable HTTPS frontend and API.
-Before release, scan all three invitation types from a second phone on mobile data,
-open them logged out, and complete signing/joining after login. Local QR decoding
-does not establish public-network reachability.
+site must use the same API/database as the app creating the invitation. Agreement
+QR codes open `/share/:shareCode`, and benefit links open `/claim/:token`; both
+require a reachable HTTPS frontend and API. Before release, scan both link types
+from a second phone on mobile data, open them logged out, and complete the
+available signing or claim flow after login. Local QR decoding does not establish
+public-network reachability.
 
 Image invitations use Web Share file support on HTTPS. The operating system chooses
 available destinations and the user chooses the recipient. Ordinary web pages cannot

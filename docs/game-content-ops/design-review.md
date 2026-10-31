@@ -50,7 +50,7 @@ L0/L1/L2/Tool 的主分层方向是正确的，不建议增加 L3：
 
 ### 1.7 未来多人模式不应复制一套业务域
 
-当前产品已经有 Agreement(source=card)、Coupon、Flip、邀请和结果登记。游戏卡的目标形态应是“一个主持人本地带玩 + 可选结果/比赛证书”，不需要房间、大厅、座位、准备阶段、卡片二维码传播或平台裁判。证书和结算权益可以通过各自链接传播，但不传播游戏卡。
+当前产品已有正式 Agreement、Coupon、Flip、邀请和结果登记能力。游戏卡的目标形态应是“一个主持人本地带玩 + 可选结果/比赛证书”，不需要房间、大厅、座位、准备阶段、卡片二维码传播或平台裁判。证书和结算权益可以通过各自链接传播，但不传播游戏卡。
 
 游戏卡不承载下注或共享权益。双人和多人都可以只在线下约定权益，Playbit 只提供可选的结果记录、计分榜、排名和证书。结果确认后，输方可以主动给指定胜方发一张独立权益券，每张券有唯一 issuer/provider 和 holder；需要正式签署、履约或翻盘时，再进入现有合约产品。内容运营系统不应新增 stake、claim、coupon、settlement 或 room 表。
 
@@ -193,13 +193,13 @@ Agent 任务有运行状态，但提案本身没有独立状态。一个任务�
 - `apps/api/src/db/schema.ts:55-75` 的 `agreements` 已经包含正式合约的玩法快照、参与者和结果字段。
 - `apps/api/src/db/schema.ts:78-104` 的 `flips`、`151-176` 的 `grace_waivers` 都强依赖正式合约链路。
 - `apps/api/src/db/schema.ts:106-130` 的 `coupons.agreement_id` 是非空外键；`packages/shared/src/index.ts:55-69` 也把 `agreementId` 写成必填。
-- `apps/api/src/routes/games.ts:11-61` 仍是旧的 `Agreement(source=card)` 加入实现；它不是本次轻量游戏目标模型。
+- 旧 `apps/api/src/routes/games.ts` 已删除；当前 API 不再提供游戏卡创建 Agreement 或加入流程。
 - `apps/api/src/routes/coupons.ts:46-49` 核销前无条件读取 Agreement 并检查其状态，因此不能只改数据库可空而不改核销、历史和权益状态逻辑。
 - `docs/game-content-ops-schema.sql` 当前没有 `GameResultRecord`、`Certificate`、`Settlement`、`Coupon` 或 `Claim` 表，只有内容运营和行为数据；这应继续作为领域边界，而不是用重复表“补齐功能”。
 
 ## 8. 数据库未定项
 
-当前业务代码的 `coupons.agreement_id` 是必填字段，`/games` 仍创建 `Agreement(source=card)` 并提供加入流程，Coupon 核销、赖皮券和 Flip 也都假设存在 Agreement。因此“游戏结果后独立发券”目前只能作为产品接口目标，不能直接当作已经成立的数据库设计。
+当前业务代码的 `coupons.agreement_id` 是必填字段，Coupon 核销、赖皮券和 Flip 仍假设存在正式 Agreement。因此“游戏结果后独立发券”目前只能作为产品接口目标，不能直接当作已经成立的数据库设计；旧 `/games` 合约兼容路径已移除。
 
 开发前需要单独完成一次权益域迁移设计，至少比较：
 

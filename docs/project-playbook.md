@@ -33,15 +33,13 @@ certificate after the game. A provider may separately issue one independent
 equity coupon to one specified holder. Certificate sharing and settlement are
 independent actions, and the holder does not need to revisit the game card.
 Do not mint game assets before play or introduce a room lobby, room code, or
-ready/start gate. `useGameFlow` owns card play and result recording;
-`CreateBetScreen` owns signed contracts; direct settlement belongs to the
-existing equity domain.
+ready/start gate. The React player's `PlayPage` and `features/cards` own card
+play; `PromisePage` and `features/promise` own signed contracts; direct
+settlement belongs to the existing equity domain.
 
-The current implementation still contains a legacy `/games` path that creates
-`Agreement(source=card)` and a join flow. Treat that path as migration debt,
-not as the target product contract. Do not extend it with more game stake
-features until the result and direct settlement boundary is implemented and
-the existing Coupon assumptions have been reviewed.
+The player keeps game cards local to the play flow. Game cards do not create
+`Agreement` records or expose an invitation/join API; game results and
+independent equity issuance remain separate backend operations.
 
 Contract invitation sharing is QR-first when a counterparty needs to sign, with
 copy-link as a utility. Invitation cards may contain a QR code and use the OS
@@ -186,8 +184,8 @@ certificates and independent settlement links can be shared after play.
   and ritual in the sequence rather than decorative animation.
 - Cards may feel like a game, but keep their visual system coherent with the
   professional shell. Humor belongs in precise copy and small details.
-- Customer-facing copy lives in `packages/content/src/index.ts`. Do not add
-  display text directly to Vue templates, API responses, or formatter output.
+- Player-facing copy lives in `packages/content/src/player.ts`. Do not add
+  display text directly to React components, API responses, or formatter output.
 - Avoid gambling, enforcement, arbitration, and legal-effect claims. Preferred
   terms are agreement, equity, result record, provider, holder, and redemption.
 - Functional titles, buttons, statuses, errors, and proofs must state exactly

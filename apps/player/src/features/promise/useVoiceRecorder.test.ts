@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useVoiceRecorder } from "./useVoiceRecorder";
 import type { VoiceNote } from "../../data/types";
 import { deleteVoiceAsset, saveVoiceAsset } from "../../services/voiceRepository";
+import { playerApi } from "../../services/playerApi";
 
 vi.mock("../../services/voiceRepository", () => ({ saveVoiceAsset: vi.fn(), deleteVoiceAsset: vi.fn() }));
 
@@ -33,6 +34,7 @@ describe("voice recorder lifecycle", () => {
   let getUserMedia: ReturnType<typeof vi.fn>;
   let stopTrack: ReturnType<typeof vi.fn>;
   let stream: MediaStream;
+  let transcribeVoice: ReturnType<typeof vi.spyOn>;
 
   function Probe() { recorder = useVoiceRecorder(changed); return null; }
 
@@ -47,6 +49,7 @@ describe("voice recorder lifecycle", () => {
     changed = vi.fn();
     vi.mocked(saveVoiceAsset).mockReset().mockResolvedValue(undefined);
     vi.mocked(deleteVoiceAsset).mockReset().mockResolvedValue(undefined);
+    transcribeVoice = vi.spyOn(playerApi, "transcribeVoice").mockResolvedValue({ text: "输的人请喝一杯", requestId: "request-test" });
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
@@ -57,6 +60,7 @@ describe("voice recorder lifecycle", () => {
     await act(async () => root.unmount());
     host.remove();
     vi.unstubAllGlobals();
+    transcribeVoice.mockRestore();
   });
 
   it("saves compressed audio only after stopping and releases the microphone", async () => {
@@ -69,6 +73,27 @@ describe("voice recorder lifecycle", () => {
     expect(changed).toHaveBeenCalledWith(expect.objectContaining({ assetId: expect.stringMatching(/^voice_/), storage: "indexeddb", mimeType: "audio/webm;codecs=opus", byteLength: expect.any(Number) }));
     expect(stopTrack).toHaveBeenCalledOnce();
     expect(recorder.status).toBe("idle");
+  });
+
+  it("writes the ASR transcript back onto the saved voice", async () => {
+    await act(async () => { await recorder.start(); });
+    await act(async () => { recorder.stop(); await Promise.resolve(); await Promise.resolve(); });
+    expect(transcribeVoice).toHaveBeenCalledOnce();
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ transcript: "输的人请喝一杯" }));
+  });
+
+  it("does not write a late transcript after the pending voice is cancelled", async () => {
+    let resolveTranscription!: (value: { text: string; requestId: string | null }) => void;
+    transcribeVoice.mockImplementation(() => new Promise(resolve => { resolveTranscription = resolve; }));
+    await act(async () => { await recorder.start(); });
+    await act(async () => { recorder.stop(); await Promise.resolve(); await Promise.resolve(); });
+    expect(transcribeVoice).toHaveBeenCalledOnce();
+    expect(changed).toHaveBeenCalledOnce();
+
+    await act(async () => recorder.cancel());
+    await act(async () => { resolveTranscription({ text: "不应该回写", requestId: "late" }); await Promise.resolve(); });
+
+    expect(changed).toHaveBeenCalledOnce();
   });
 
   it("cancels a pending permission request and releases a late stream", async () => {

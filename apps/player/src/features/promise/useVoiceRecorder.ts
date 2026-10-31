@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { playerCopy as copy } from "@playbit/content/player";
 import type { VoiceNote } from "../../data/types";
+import { playerApi } from "../../services/playerApi";
+import { prepareSpeechAudio } from "../../services/voiceTranscription";
 import { deleteVoiceAsset, saveVoiceAsset } from "../../services/voiceRepository";
 
 type RecordingStatus = "idle" | "requesting" | "recording" | "saving" | "error";
 
-export function useVoiceRecorder(onChange: (voice: VoiceNote) => void) {
+export function useVoiceRecorder(onChange: (voice: VoiceNote) => void, onTranscriptionError?: () => void) {
   const [status, setStatus] = useState<RecordingStatus>("idle");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -65,7 +67,7 @@ export function useVoiceRecorder(onChange: (voice: VoiceNote) => void) {
         return;
       }
       mediaStream.current = input;
-      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find(type => MediaRecorder.isTypeSupported(type));
+      const mimeType = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg"].find(type => MediaRecorder.isTypeSupported(type));
       const recording = new MediaRecorder(input, { ...(mimeType ? { mimeType } : {}), audioBitsPerSecond: 32000 });
       recorder.current = recording;
       const chunks: Blob[] = [];
@@ -100,7 +102,11 @@ export function useVoiceRecorder(onChange: (voice: VoiceNote) => void) {
             void deleteVoiceAsset(assetId).catch(() => undefined);
             return;
           }
-          onSaved.current({ id: assetId, assetId, durationMs, mimeType: blob.type, byteLength: blob.size, storage: "indexeddb" });
+          const savedVoice: VoiceNote = { id: assetId, assetId, durationMs, mimeType: blob.type, byteLength: blob.size, storage: "indexeddb" };
+          onSaved.current(savedVoice);
+          void prepareSpeechAudio(blob).then(transcriptionBlob => playerApi.transcribeVoice(transcriptionBlob)).then(result => {
+            if (session.current === currentSession && result.text.trim()) onSaved.current({ ...savedVoice, transcript: result.text.trim() });
+          }).catch(() => { onTranscriptionError?.(); });
           setStatus("idle");
         }).catch(() => {
           if (session.current !== currentSession) return;

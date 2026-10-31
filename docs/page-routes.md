@@ -1,35 +1,28 @@
 # Page And Route Map
 
-The web app currently uses a local screen state rather than `vue-router`. These
-paths describe the intended page boundary and can later map to mini-program
-pages without changing the domain model.
+The canonical web app is the React player in `apps/player` and uses
+`react-router-dom`. The routes below are the current page boundaries; they can
+later map to mini-program pages without changing the domain model.
 
 ## Page Map
 
 | Path | Page | Identity |
 | --- | --- | --- |
-| `/` | Home: 立合约 / 开一局, plus history and equity shortcuts | Optional |
-| `/agreements/new` | Create an existing-life agreement and choose equity | Required at submit |
-| `/agreements/:id` | Agreement document, signatures, current state | Participant only |
-| `/s/:shareCode` | Read pending agreement and sign as counterparty | Read public; sign requires account |
-| `/draw` | Draw a curated card and play immediately | Not required |
-| `/games/results/:id` | Host-recorded game result, scoreboard, and certificate | Recorder or public certificate view |
-| `/settlements/new` | Start an independent equity settlement | Provider only |
-| `/settlements/:id` | View, claim, or accept one independent equity coupon | Public claim; provider/holder actions |
-| `/agreements/:id/play` | Active signed agreement, boosts, participant result record | Participant only |
-| `/agreements/:id/proof` | User-issued agreement, result, fulfillment, or waiver certificate | Participant only |
-| `/flips/:id` | Shared replay invitation, card, and participant-submitted outcome | Flip participants |
-| `/vouchers` | Pending fulfillment, available/used equity, and earned waiver tickets | Required |
-| `/vouchers/:id` | Equity details, linked agreement, replay, waiver, and redemption actions | Holder/provider |
-| `/history` | Personal Agreement archive | Required |
-| `/account` | Account and saved signature | Required |
+| `/` | Game card feed and play | Optional |
+| `/promise` | Create and sign an existing-life agreement | Required at submit |
+| `/share/:shareCode` | Read a pending agreement and sign as counterparty | Read public; sign requires account |
+| `/benefits` | Equity center and issued/received benefits | Required for personal records |
+| `/claim/:token` | Claim a public benefit link | Public while claimable |
+| `/me` | Profile, agreements, and account actions | Optional until persistence |
+| `/agreements` | Personal agreement archive | Required |
+| `/agreements/:id` | Agreement document, signatures, and current state | Participant only |
+| `/notifications` | Personal notifications | Required |
+| `/announcements` | Product announcements | Optional |
 
-The Draw page owns only the card currently being played. It does not create an
-Agreement, Coupon, or Flip. When the game supports it, the host may open an
-optional result/scoreboard flow and generate a certificate for sharing. A
-provider may separately start a settlement from the certificate or an
-independent entry point; the coupon is never shared and is not created
-automatically.
+The root player owns only the card currently being played. It does not create
+an Agreement, Coupon, or Flip. Result recording, certificates, and independent
+settlement remain planned backend boundaries and are not represented as legacy
+`/games` compatibility routes.
 
 ## Agreement State
 
@@ -64,11 +57,12 @@ an appeal or mutation of the old result.
 
 | API | Purpose | Identity |
 | --- | --- | --- |
-| `POST /cards/draw` | Draw one public card | None |
-| `POST /games/results` | Record a game result or scoreboard | Account when saving/sharing |
-| `GET /games/results/:id` | Read a result or host-issued certificate | Public when shared |
-| `POST /settlements` | Issue one independent equity coupon, optionally linked to a result/certificate | Provider only |
-| `GET /settlements/:shareCode` | Read and claim an independent settlement coupon | Public while unclaimed |
+| `GET /content/cards/next` | Read the next published card | None |
+| `GET /content/cards/featured` | Read featured cards | None |
+| `POST /content/play-sessions` | Start an optional server-observed play session | None |
+| `POST /content/play-sessions/:id/events` | Record play events | Session owner |
+| `POST /content/play-sessions/:id/complete` | Complete a play session | Session owner |
+| `POST /content/preferences` | Save a card preference | Account or actor key |
 | `POST /agreements`, `GET /agreements` | Create/list personal agreements | Account |
 | `GET /agreements/:id`, `GET /agreements/:id/events` | Read and synchronize an agreement | Participant |
 | `GET /share/:shareCode` | Read a pending shared agreement | Public while pending |
@@ -79,6 +73,7 @@ an appeal or mutation of the old result.
 | `GET /coupons`, `PATCH /coupons/:id/use` | Read or redeem equity | Account; holder redeems |
 | `POST /agreements/:id/flips`, `/flips/:id/*` | Invite, accept/decline, and record a replay | Agreement/Flip participants |
 | `GET /grace`, `POST /grace/:ticketId/waivers`, `PATCH /grace/waivers/:id` | Earn and mutually apply waiver tickets | Account; provider requests, holder responds |
+| `POST /speech/transcribe` | Transcribe a recorded voice note | None; API key stays server-side |
 
 ```mermaid
 flowchart TD

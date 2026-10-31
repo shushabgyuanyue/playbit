@@ -3,7 +3,10 @@ import { useEffect, useLayoutEffect, useRef, type PointerEvent } from "react";
 const interactive = "button, a, input, textarea, audio, video, summary, [role='button']";
 const HOLD_TO_FLIP_MS = 680;
 const HOLD_TO_COLLECT_MS = 2200;
-const MOVE_CANCEL_PX = 14;
+const MOVE_CANCEL_PX = 10;
+const SWIPE_VELOCITY = 0.34;
+
+type GestureAxis = "x" | "y" | null;
 
 interface FeedGestureOptions {
   onHoldFlip?: () => void;
@@ -25,6 +28,7 @@ type PointerState = {
   holdEnabled: boolean;
   holdTriggered: boolean;
   collectTriggered: boolean;
+  axis: GestureAxis;
   flipTimer?: number;
   collectTimer?: number;
   holdFrame?: number;
@@ -71,12 +75,14 @@ function feedback(kind: "flip" | "collect") {
 export function useFeedSwipe(slide: string, cardId: string, move: (direction: number) => boolean, options: FeedGestureOptions = {}) {
   const ref = useRef<HTMLElement>(null);
   const pointer = useRef<PointerState | null>(null);
+  const nativeScrollPointer = useRef<number | null>(null);
   const moving = useRef(move);
   const busy = useRef(slide);
   const gesture = useRef(options);
   useLayoutEffect(() => { moving.current = move; busy.current = slide; gesture.current = options; });
 
   useLayoutEffect(() => {
+    clearNativeScroll();
     if (!slide.startsWith("swipe-")) {
       ref.current?.style.removeProperty("--feed-drag");
       ref.current?.style.removeProperty("--feed-drag-x");
@@ -147,6 +153,10 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     ref.current?.classList.remove("is-holding", "is-hold-ready", "is-hold-complete");
     ref.current?.style.removeProperty("--hold-progress");
   }
+  function clearNativeScroll() {
+    nativeScrollPointer.current = null;
+    ref.current?.classList.remove("is-native-scroll");
+  }
   function updateHoldProgress(current: PointerState) {
     if (pointer.current !== current || !current.holdEnabled || current.moved) return;
     const progress = Math.min(1, Math.max(0, (performance.now() - current.at) / HOLD_TO_FLIP_MS));
@@ -169,11 +179,13 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     const dy = event.clientY - start.y;
     const dx = event.clientX - start.x;
     const elapsed = Math.max(1, performance.now() - start.at);
-    const primary = dy;
-    const cross = dx;
-    const threshold = Math.min(90, event.currentTarget.clientHeight * .13);
-    const committed = !cancelled && Math.abs(primary) > Math.abs(cross) * 1.15 && (Math.abs(primary) > threshold || (Math.abs(primary) > 28 && Math.abs(primary) / elapsed > .45));
-    const horizontal = !cancelled && Math.abs(cross) > Math.abs(primary) * 1.15 && (Math.abs(cross) > Math.min(90, event.currentTarget.clientWidth * .13) || (Math.abs(cross) > 28 && Math.abs(cross) / elapsed > .45));
+    const axis = start.axis ?? (Math.abs(dx) >= Math.abs(dy) ? "x" : "y");
+    const distance = axis === "y" ? Math.abs(dy) : Math.abs(dx);
+    const threshold = axis === "y"
+      ? Math.min(76, event.currentTarget.clientHeight * .1)
+      : Math.min(76, event.currentTarget.clientWidth * .18);
+    const committed = !cancelled && axis === "y" && (distance > threshold || distance / elapsed > SWIPE_VELOCITY);
+    const horizontal = !cancelled && axis === "x" && (distance > threshold || distance / elapsed > SWIPE_VELOCITY);
     if (held) { reset(); return; }
     if (!committed && !horizontal) {
       if (!start.moved) {
@@ -195,8 +207,14 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     ref,
     onPointerDown(event: PointerEvent<HTMLElement>) {
       if (busy.current || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
-      if ((event.target as Element).closest(`${interactive}, .is-scrollable`)) return;
-      const current: PointerState = { id: event.pointerId, x: event.clientX, y: event.clientY, at: performance.now(), moved: false, holdEnabled: gesture.current.canHold?.() ?? true, holdTriggered: false, collectTriggered: false };
+      const target = event.target as Element;
+      if (target.closest(interactive)) return;
+      if (target.closest(".is-scrollable")) {
+        nativeScrollPointer.current = event.pointerId;
+        event.currentTarget.classList.add("is-native-scroll");
+        return;
+      }
+      const current: PointerState = { id: event.pointerId, x: event.clientX, y: event.clientY, at: performance.now(), moved: false, holdEnabled: gesture.current.canHold?.() ?? true, holdTriggered: false, collectTriggered: false, axis: null };
       pointer.current = current;
       gesture.current.onGestureStart?.();
       if (current.holdEnabled) {
@@ -219,25 +237,35 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
         feedback("collect");
         gesture.current.onHoldCollect?.();
       }, HOLD_TO_COLLECT_MS);
-      event.currentTarget.setPointerCapture(event.pointerId);
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional on embedded webviews. */ }
     },
     onPointerMove(event: PointerEvent<HTMLElement>) {
+      if (nativeScrollPointer.current === event.pointerId) return;
       const start = pointer.current;
       if (!start || event.pointerId !== start.id) return;
       const dy = event.clientY - start.y;
       const dx = event.clientX - start.x;
-      if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
+      if (!start.axis && Math.hypot(dx, dy) >= MOVE_CANCEL_PX) {
+        start.axis = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
         start.moved = true;
         cancelHold();
       }
-      const primary = dy;
-      const cross = dx;
+      if (!start.axis) return;
+      event.preventDefault();
+      const primary = start.axis === "y" ? dy : 0;
+      const cross = start.axis === "x" ? dx : 0;
       event.currentTarget.classList.add("is-dragging");
       event.currentTarget.style.setProperty("--feed-drag", `${primary}px`);
       event.currentTarget.style.setProperty("--feed-drag-x", `${cross}px`);
     },
-    onPointerUp: (event: PointerEvent<HTMLElement>) => finish(event),
-    onPointerCancel: (event: PointerEvent<HTMLElement>) => finish(event, true),
-    onLostPointerCapture() { if (pointer.current) { cancelHold(); pointer.current = null; reset(); } }
+    onPointerUp: (event: PointerEvent<HTMLElement>) => {
+      if (nativeScrollPointer.current === event.pointerId) { clearNativeScroll(); return; }
+      finish(event);
+    },
+    onPointerCancel: (event: PointerEvent<HTMLElement>) => {
+      if (nativeScrollPointer.current === event.pointerId) { clearNativeScroll(); return; }
+      finish(event, true);
+    },
+    onLostPointerCapture() { clearNativeScroll(); if (pointer.current) { cancelHold(); pointer.current = null; reset(); } }
   };
 }

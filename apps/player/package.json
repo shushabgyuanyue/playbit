@@ -9,8 +9,7 @@
     "check": "tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0 --port 4174",
     "test": "vitest run",
-    "test:browser": "node ../../scripts/verify-player.mjs",
-    "test:browser:api": "node ../../scripts/verify-player-api.mjs"
+    "test:browser": "node ../../scripts/verify-player.mjs"
   },
   "dependencies": {
     "@playbit/content": "workspace:*",

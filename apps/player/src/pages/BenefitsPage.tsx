@@ -13,7 +13,7 @@ import { VoiceRecorderButton } from "../features/promise/VoiceRecorderButton";
 import { claimDirectBenefit, createId, issueDirectBenefit, redeemCoupon } from "../features/player/transitions";
 import { toPlayerCoupon } from "../features/benefits/couponPresentation";
 import type { VoiceNote } from "../data/types";
-import { isPlayerApiConfigured, PlayerApiError, playerApi } from "../services/playerApi";
+import { isPlayerApiConfigured, normalizeCouponDescription, normalizeCouponName, PlayerApiError, playerApi } from "../services/playerApi";
 import { usePageMemory } from "../services/pageMemory";
 
 type RemotePage = { items: ApiCoupon[]; nextCursor: string | null; hasMore: boolean };
@@ -63,7 +63,7 @@ export function BenefitsPage() {
     setRemoteLoading(true);
     setRemoteError(false);
     try {
-      const page = await playerApi.listCoupons({ cursor, limit: 10, ownedOnly: true });
+      const page = await playerApi.listCoupons({ cursor, limit: 10 });
       setRemote(current => ({
         items: cursor ? [...current.items, ...page.coupons] : page.coupons,
         nextCursor: page.nextCursor,
@@ -116,7 +116,7 @@ export function BenefitsPage() {
 
   async function issue(voice: VoiceNote) {
     if (issuingRef.current) return;
-    const title = copy.wallet.issueVoiceTitle;
+    const title = normalizeCouponName(voice.transcript ?? "", copy.wallet.issueVoiceTitle);
     const source = "direct" as const;
     const sourceNote = copy.wallet.issueSourceOptions.manual;
     if (isPlayerApiConfigured()) {
@@ -125,12 +125,12 @@ export function BenefitsPage() {
       try {
         const payload = {
           name: title,
-          description: copy.wallet.issueVoiceDescription,
+          description: normalizeCouponDescription(voice.transcript ?? "", copy.wallet.issueVoiceDescription),
           sourceLabel: copy.wallet.issueSourceOptions.manual,
           signatureDataUrl: null,
           claimLimit: 1
         };
-        const result = await playerApi.createPublicCoupon({ ...payload, issuerNickname: state.profileName });
+        const result = await playerApi.createIndependentCoupon({ ...payload });
         const remoteIssuance = result.coupon;
         update(current => ({
           ...current,
@@ -151,6 +151,8 @@ export function BenefitsPage() {
             }
           }
         }));
+        setRemote(current => ({ ...current, items: [remoteIssuance, ...current.items.filter(item => item.id !== remoteIssuance.id)], hasMore: current.hasMore }));
+        setRemoteMode(true);
         setIssuanceId(remoteIssuance.id);
         return;
       } catch (error) {

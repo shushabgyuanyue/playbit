@@ -17,7 +17,7 @@
 
 ## 公共入口与边界
 
-| 层级 | 文件（前端路径基于 apps/web/src） | 职责 |
+| 层级 | 文件（前端路径基于 apps/player/src） | 职责 |
 | --- | --- | --- |
 | 基础变量 | styles/tokens.css | 基础色、字号、字重、字体栈、圆角、框架映射 |
 | 产品变量 | styles/product-tokens.css | 明亮画布、卡面色调、券层次、水印、间距、按压 |
@@ -25,7 +25,7 @@
 | 公共组件 | components/ui | 结构、语义、交互和可访问性 |
 | 业务组件 | HomeAgreementOverview、VoucherCard、ContractDocument 等 | 数据和业务结构，不能只因长得像就冒用 |
 | 页面样式 | home*.css 等 | 网格、位置、特殊尺寸；不复制公共皮肤 |
-| 对客文案 | packages/content/src/index.ts（仓库根目录） | 标题、按钮、状态、错误、空态和动态文案 |
+| 对客文案 | packages/content/src/player.ts（仓库根目录） | 标题、按钮、状态、错误、空态和动态文案 |
 
 公共样式只由 main.ts 加载一次，其他页面使用公共组件不需要引入 home.css。
 
@@ -66,7 +66,7 @@
 - `tokens.css` 只保存基础字体、字号、字重、圆角、语义色、焦点和覆盖层变量；`product-tokens.css` 保存产品表面、渐变、阴影和品牌资产变量。页面 CSS 不直接定义同义颜色。
 - `product-primitives.css` 只保存跨页面的轻皮肤和按压反馈；业务状态、权益归属和页面布局留在业务组件或页面样式中。
 - `life-overlays.css` 是底部弹层的公共外壳；登录、分享和权益选择只负责内容，不再各自实现弹层宽度、圆角和安全区。
-- 所有对客标题、按钮、状态、错误、空态和动态提示继续从 `packages/content/src/index.ts` 读取。格式化工具中的规则匹配不是展示文案，不得把用户可见句子重新写回组件。
+- 所有 player 对客标题、按钮、状态、错误、空态和动态提示继续从 `packages/content/src/player.ts` 读取。格式化工具中的规则匹配不是展示文案，不得把用户可见句子重新写回组件。
 - Vant 只承担成熟的弹层、空态、Toast 和确认反馈；不再引入第二套 utility CSS 或按钮变体系统。`BaseButton` 是表单主操作的统一入口。
 
 ## 可直接使用的组件
@@ -80,10 +80,9 @@
 - VoucherCard/StakePicker：复用权益展示和选择；ContractDocument：复用条款、签名和真实状态章。先检查业务含义一致，再复用业务组件。
 
 示例：
-```vue
-<SectionHeading :title="copy.home.gamesTitle" :action-label="copy.home.moreGames" @action="openDraw" />
-<button type="button" class="pb-tinted-surface pb-pressable" data-tone="coral" @click="openCard">
-  <!-- 页面自己的玩法内容，不再嵌套 button -->
+```tsx
+<button className="pb-tinted-surface pb-pressable" data-tone="coral" onClick={openCard}>
+  {/* 页面自己的玩法内容，不再嵌套 button */}
 </button>
 ```
 
@@ -91,7 +90,7 @@
 
 账号头像统一使用 `UserAvatar`：首页和用户中心展示账号保存的头像，未上传时使用兔子默认形象；未登录入口和登录引导使用熊猫。用户照片采用居中圆形裁切，不套用品牌形象的放大比例。上传、预览和恢复默认集中在用户中心编辑资料弹窗，保存前不修改账号，保存后两处同步展示。
 
-HomeAccountBar 位于 hero 外，随页面滚动吸顶；顶部透明、昵称白色，滚动后统一白底、深色标题和昵称，不截取任一轮播海报作为背景。保持单一账号入口，未登录状态点为灰色，已登录为语义绿。功能图片为 32px，触控区域不随图缩小。成对 logo 由 scripts/import-brand-logos.py 裁透明空白并导出 WebP，保持原图比例。
+HomeAccountBar 位于 hero 外，随页面滚动吸顶；顶部透明、昵称白色，滚动后统一白底、深色标题和昵称，不截取任一轮播海报作为背景。保持单一账号入口，未登录状态点为灰色，已登录为语义绿。功能图片为 32px，触控区域不随图缩小。成对 logo 作为 `apps/player` 的静态品牌资源使用，保持原图比例。
 
 白色吸顶栏使用 --pb-shadow-sticky-bar：细底边和短浅投影，保留轻微悬浮层次；只在吸顶状态出现，不加厚重外框。
 
@@ -117,7 +116,7 @@ HomeAccountBar 位于 hero 外，随页面滚动吸顶；顶部透明、昵称�
 
 首次短翻开，重抽采用 220ms 退场 + 440ms 翻面，动画与请求期间禁用重复操作，减少动态效果时取消翻转。游客看完即可玩，不添加无业务意义的开始确认；谜底按需展开。抽卡请求四秒未返回则使用本地卡库，不让普通玩法依赖后台可用性。
 
-游戏卡不展示权益选择或游戏内邀请。`GameRoundScreen` 只承担抽卡、游玩、可选计分和结果记录；`useGameFlow` 管理独立编排，不嵌入 `CreateBetScreen`。需要发券时由输方主动进入独立的权益发放流程，每张券只属于一个履约方和一个领取方。
+游戏卡不展示权益选择或游戏内邀请。React player 的 `PlayPage` 与 `features/cards` 只承担抽卡和游玩；正式签约由 `PromisePage` 与 `features/promise` 管理。需要发券时由输方主动进入独立的权益发放流程，每张券只属于一个履约方和一个领取方。
 
 `ui/MiniEquityTicket` 只服务正式合约和卡券中心。游戏结果页使用证书和排名视觉；发券流程展示单张独立权益券，不展示共享券或待确认加码。
 

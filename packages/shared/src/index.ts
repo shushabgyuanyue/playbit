@@ -221,18 +221,6 @@ export const createOfflineAgreementRequestSchema = createAgreementSchema.extend(
 });
 export const updateAgreementSchema = createAgreementSchema.extend({ revision: z.number().int().positive() });
 
-export const createGameSchema = z.object({
-  requestId: z.string().uuid(),
-  cardId: z.string().min(1),
-  stake: z.object({ type: z.enum(["coupon", "custom"]), label: z.string().trim().min(1).max(80) }).superRefine((value, context) => {
-    if (value.type === "custom" && Array.from(value.label).length > inputLimits.customEquity) {
-      context.addIssue({ code: z.ZodIssueCode.too_big, origin: "string", maximum: inputLimits.customEquity, inclusive: true, message: "Custom equity is too long" });
-    }
-  })
-});
-export const joinGameSchema = z.object({ revision: z.number().int().positive() });
-export type CreateGameInput = z.infer<typeof createGameSchema>;
-
 export const signAgreementSchema = z.object({
   revision: z.number().int().positive(),
   signatureDataUrl: z.string().min(1).max(50000)

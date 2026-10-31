@@ -42,6 +42,7 @@ export interface VoiceNote {
   id: string;
   durationMs: number;
   storage: "demo" | "indexeddb";
+  transcript?: string;
   assetId?: string;
   mimeType?: string;
   byteLength?: number;
@@ -51,6 +52,7 @@ export interface StakeRecord {
   cardId: string;
   title: string;
   createdAt: string;
+  locked?: boolean;
 }
 
 export interface BenefitIssuance {

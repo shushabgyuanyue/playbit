@@ -89,7 +89,7 @@ export function IssueStakeSheet({
 
   return <Sheet open={open} onClose={onClose} title={text.title} eyebrow={text.eyebrow} description={audioBenefit ? copy.promise.voice.issueHint : text.description}>
     <div className="benefit-issue-content">
-    <BenefitShareCard title={issuance?.title ?? stake} context={cardTitle} issuerName={issuance?.issuerName ?? issuerName} source={source} voice={currentVoice} active={open} status={unavailable ? copy.sharing.closed : issuance?.status === "claimed" ? text.claimed : issuance ? text.pending : text.issue} />
+    <BenefitShareCard title={issuance?.title ?? currentVoice?.transcript?.trim() ?? stake} context={cardTitle} issuerName={issuance?.issuerName ?? issuerName} source={source} voice={currentVoice} active={open} status={unavailable ? copy.sharing.closed : issuance?.status === "claimed" ? text.claimed : issuance ? text.pending : text.issue} />
     {!issuance ? <>
       {!audioBenefit ? <div className="issue-voice-block">
         <div className="issue-voice-heading"><b>{text.voice}</b><small>{text.voiceHint}</small></div>

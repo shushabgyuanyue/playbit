@@ -5,8 +5,6 @@ import { createCouponRepository, type CouponRepository } from "./couponRepositor
 import type { AgreementRepository } from "./agreementRepository.js";
 import { createAgreementRepository } from "./agreementRepository.js";
 import { registerAuthRoutes } from "./routes/auth.js";
-import { registerCardRoutes } from "./routes/cards.js";
-import { registerGameRoutes } from "./routes/games.js";
 import { registerCouponRoutes } from "./routes/coupons.js";
 import { registerAgreementRoutes } from "./routes/agreements.js";
 import { AgreementRealtimeHub } from "./agreementRealtime.js";
@@ -16,6 +14,8 @@ import { createGraceRepository, type GraceRepository } from "./graceRepository.j
 import { registerGraceRoutes } from "./routes/grace.js";
 import { createContentRepository, type ContentRepository } from "./contentRepository.js";
 import { registerContentRoutes } from "./routes/content.js";
+import { registerSpeechRoutes } from "./routes/speech.js";
+import { createSpeechTranscriber, type SpeechTranscriber } from "./speech.js";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 export type AppRepositories = {
@@ -42,7 +42,11 @@ export function createRepositories(db: PostgresJsDatabase | null): AppRepositori
   };
 }
 
-export function createPlaybitApp(repositories: AppRepositories, webOrigins: string[] = []) {
+export function createPlaybitApp(
+  repositories: AppRepositories,
+  webOrigins: string[] = [],
+  transcribe: SpeechTranscriber = createSpeechTranscriber()
+) {
   const app = new Hono();
 
   if (webOrigins.length > 0) {
@@ -65,8 +69,6 @@ export function createPlaybitApp(repositories: AppRepositories, webOrigins: stri
   );
 
   registerAuthRoutes(app, repositories.auth);
-  registerCardRoutes(app);
-  registerGameRoutes(app, repositories);
   registerAgreementRoutes(
     app,
     repositories.auth,
@@ -99,6 +101,7 @@ export function createPlaybitApp(repositories: AppRepositories, webOrigins: stri
     repositories.realtime
   );
   registerContentRoutes(app, repositories.content);
+  registerSpeechRoutes(app, transcribe);
 
   return app;
 }
