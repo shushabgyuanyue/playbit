@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { playerCopy as copy } from "@playbit/content/player";
 import { useLinkSharing } from "../features/player/useLinkSharing";
@@ -32,7 +32,7 @@ export function PlayPage() {
   const { memory, remember } = usePageMemory();
   const typeMode = memory.playMode;
   const { card, pool, flipped, setFlipped, slide, go } = useCardDeck(memory.playFlippedCardId, typeMode);
-  const [cardPalette, setCardPalette] = useState<CardPalette | null>(null);
+  const [cardPalette, setCardPalette] = useState<{ cardId: string; palette: CardPalette } | null>(null);
   const navigate = useNavigate();
   const [panel, setPanel] = useState<Panel>(null);
   const [pendingSaveCardId, setPendingSaveCardId] = useState<string | null>(null);
@@ -42,8 +42,7 @@ export function PlayPage() {
   const [showGestureGuide, setShowGestureGuide] = useState(() => {
     try { return localStorage.getItem("playbit-feed-gesture-seen") !== "1"; } catch { return true; }
   });
-  const [issueNudge, setIssueNudge] = useState<StakeRecord | null>(null);
-  const issueNudgeTimer = useRef<number | null>(null);
+  const [recordsPulseKey, setRecordsPulseKey] = useState(0);
   const [pendingIssueCardId, setPendingIssueCardId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingStakeVoice, setPendingStakeVoice] = useState<VoiceNote | null>(null);
@@ -55,17 +54,29 @@ export function PlayPage() {
   const stake = state.stakes[card.id];
   const stakeVoice = state.stakeVoices[card.id];
   const issuance = state.issuedStakes[card.id] ?? null;
-  const feedDark = cardPalette?.dark ?? "#09090c";
+  const activeCardPalette = cardPalette?.cardId === card.id ? cardPalette.palette : null;
+  const feedDark = activeCardPalette?.dark ?? "#09090c";
   const pendingStakeRecords = getPendingStakeRecords(state);
+  const previousPendingRecordCount = useRef(pendingStakeRecords.length);
   const currentDeck = state.decks.find(deck => deck.id === state.deckId) ?? null;
   const alreadySaved = state.decks.some(deck => deck.cardIds.includes(card.id));
   const savedInCurrentContext = currentDeck ? currentDeck.cardIds.includes(card.id) : alreadySaved;
   const saved = savedInCurrentContext || pendingSaveCardId === card.id;
   const typeModeAvailable = Boolean(card.gameplayId && cards.filter(item => item.gameplayId === card.gameplayId).length > 1);
+  useLayoutEffect(() => {
+    setCardPalette(current => current?.cardId === card.id ? current : null);
+  }, [card.id]);
+  const handleCardPalette = useCallback((palette: CardPalette) => {
+    setCardPalette({ cardId: card.id, palette });
+  }, [card.id]);
   useEffect(() => () => {
     if (modeTimer.current) window.clearTimeout(modeTimer.current);
-    if (issueNudgeTimer.current) window.clearTimeout(issueNudgeTimer.current);
   }, []);
+  useEffect(() => {
+    const previousCount = previousPendingRecordCount.current;
+    previousPendingRecordCount.current = pendingStakeRecords.length;
+    if (pendingStakeRecords.length > previousCount) setRecordsPulseKey(current => current + 1);
+  }, [pendingStakeRecords.length]);
   function finishModeTransition() {
     modeTimer.current = window.setTimeout(() => setModeTransition(""), CARD_MOVE_MS);
   }
@@ -121,19 +132,16 @@ export function PlayPage() {
     setFlipped(true);
   }
   const swipe = useFeedSwipe(slide, card.id, moveCard, {
-    onHoldFlip: revealCard,
-    onHoldCollect: collectCard,
     onTap: () => {
-      if (flipped) setFlipped(false);
+      if (flipped) setFlipped(false); else revealCard();
     },
     onSwipeLeft: typeMode ? undefined : enterTypeMode,
     onSwipeRight: typeMode ? leaveTypeMode : undefined,
-    canHold: () => !flipped,
     onGestureStart: () => {
       setShowGestureGuide(false);
       try { localStorage.setItem("playbit-feed-gesture-seen", "1"); } catch { /* local storage is optional */ }
     }
-  });
+  }, modeTransition);
   const close = () => {
     if (panel === "save" && !savedInCurrentContext) setPendingSaveCardId(null);
     setPanel(null);
@@ -185,13 +193,6 @@ export function PlayPage() {
     setPanel("issue");
   }, [card.id, pendingIssueCardId]);
   useEffect(() => {
-    if (!issueNudge) return;
-    const timer = window.setTimeout(() => {
-      setIssueNudge(null);
-    }, 2200);
-    return () => window.clearTimeout(timer);
-  }, [issueNudge]);
-  useEffect(() => {
     remember({ playFlippedCardId: flipped ? card.id : null });
   }, [card.id, flipped, remember]);
   function handleStakeDelete(cardId: string) {
@@ -218,13 +219,6 @@ export function PlayPage() {
     if (!currentDeck && !alreadySaved) setPendingSaveCardId(card.id);
     setPanel("save");
   }
-  function collectCard() {
-    const deck = currentDeck;
-    if (!deck) { openCollection(); return; }
-    if (deck.cardIds.includes(card.id)) { notify(copy.collection.already); return; }
-    update(current => ({ ...current, decks: current.decks.map(item => item.id === deck.id && !item.cardIds.includes(card.id) ? { ...item, cardIds: [...item.cardIds, card.id] } : item) }));
-    notify(copy.collection.saved(deck.name));
-  }
   function toggleLike() {
     setLikedCards(current => {
       const next = new Set(current);
@@ -246,14 +240,12 @@ export function PlayPage() {
     await shareLink(data);
   }
   function openIssue() {
-    setIssueNudge(null);
     if (!stake) return;
     setPanel("issue");
   }
   function openStakeRecord(record: StakeRecord) {
     const target = cards.find(item => item.id === record.cardId);
     if (!target) return;
-    setIssueNudge(null);
     const deck = state.decks.find(item => item.cardIds.includes(record.cardId));
     setPendingIssueCardId(record.cardId);
     update(current => ({ ...current, deckId: deck?.id ?? null, sceneId: deck ? current.sceneId : target.sceneIds[0] ?? current.sceneId, cardId: record.cardId }));
@@ -261,15 +253,9 @@ export function PlayPage() {
   }
   function moveCard(direction: number) {
     if (slide || modeTransition || pool.length < 2) return false;
-    if (issueNudgeTimer.current) window.clearTimeout(issueNudgeTimer.current);
-    setIssueNudge(null);
     if (stake && !issuance) {
       const record = { cardId: card.id, title: stake, createdAt: state.stakeRecords[card.id]?.createdAt ?? new Date().toISOString(), locked: state.stakeRecords[card.id]?.locked === true };
       update(current => ({ ...current, stakeRecords: { ...(current.stakeRecords ?? {}), [card.id]: record } }));
-      issueNudgeTimer.current = window.setTimeout(() => {
-        issueNudgeTimer.current = null;
-        setIssueNudge(record);
-      }, CARD_MOVE_MS + 40);
     }
     go(direction);
     return true;
@@ -375,16 +361,15 @@ export function PlayPage() {
     <div className="feed-toolbar" style={{ "--feed-dark": feedDark } as CSSProperties}>
       <button className="feed-scene" onClick={() => setPanel("scene")} aria-label={`${copy.play.scene}：${scene}`}><Icon name="grid" size={15} /><span>{scene}</span><Icon name="chevronDown" size={12} /></button>
       <button className="feed-tool feed-ai" onClick={() => setPanel("ai")} aria-label={copy.play.ai} title={copy.play.ai}><Icon name="spark" size={14} /><span className="feed-tool-prompt">{copy.play.ai}</span></button>
-      <button className="feed-tool feed-records" onClick={() => setPanel("records")} aria-label={copy.play.stakeRecords} title={copy.play.stakeRecords}><Icon name="trophy" size={16} />{pendingStakeRecords.length > 0 && <i>{pendingStakeRecords.length}</i>}</button>
+      <button className="feed-tool feed-records" onClick={() => setPanel("records")} aria-label={copy.play.stakeRecords} title={copy.play.stakeRecords}><Icon name="trophy" size={16} />{pendingStakeRecords.length > 0 && <i key={recordsPulseKey} className={recordsPulseKey ? "feed-records-count is-pulse" : "feed-records-count"}>{pendingStakeRecords.length}</i>}</button>
     </div>
     <section className="deck" tabIndex={0} aria-label={copy.nav.play} {...swipe} data-slide={slide} data-mode-transition={modeTransition || undefined} style={{ "--feed-snap-duration": `${CARD_MOVE_MS}ms` } as CSSProperties}
       onKeyDown={e => { if (e.target !== e.currentTarget) return; if (typeMode && e.key === "ArrowRight") { e.preventDefault(); leaveTypeMode(); } else if (!typeMode && e.key === "ArrowLeft") { e.preventDefault(); enterTypeMode(); } else if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); moveCard(e.key === "ArrowUp" ? 1 : -1); } }}>
       <FeedNeighbors pool={pool} cardId={card.id} stakeVoices={state.stakeVoices} />
       {modeTransition && <div className="feed-mode-neighbor" aria-hidden="true" inert>
-        <GameCard card={card} active={false} flipped={false} slide="" stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={() => {}} paletteOverride={cardPalette ?? undefined} />
+        <GameCard key={`${card.id}-mode-neighbor`} card={card} active={false} flipped={false} slide="" stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={() => {}} paletteOverride={activeCardPalette ?? undefined} />
       </div>}
-      <div className="feed-current"><GameCard card={card} flipped={flipped} slide={slide} stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={setFlipped} onLike={toggleLike} onSave={openCollection} onComment={commentCard} onShare={() => void shareCard()} onPalette={setCardPalette} /></div>
-      {issueNudge && <div className="stake-issue-nudge" role="status" aria-live="polite"><span><Icon name="trophy" size={12} /><b>{copy.play.issueStakeNudge}</b></span><button type="button" onClick={() => openStakeRecord(issueNudge)}>{copy.play.issueStakeNudgeAction}<Icon name="arrow" size={11} /></button></div>}
+      <div className="feed-current"><GameCard key={card.id} card={card} flipped={flipped} slide={slide} stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={setFlipped} onLike={toggleLike} onSave={openCollection} onComment={commentCard} onShare={() => void shareCard()} onPalette={handleCardPalette} paletteOverride={activeCardPalette ?? undefined} /></div>
     </section>
     <SceneDrawer open={panel === "scene"} onClose={close} onCreate={() => setPanel("new")} onSceneChange={() => remember({ playMode: null })} />
     <AiSheet open={panel === "ai"} onClose={close} />

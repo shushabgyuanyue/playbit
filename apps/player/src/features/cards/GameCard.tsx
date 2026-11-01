@@ -73,7 +73,7 @@ export function GameCard({ card, flipped, slide, stakeVoice, active = true, onFl
   return <article className={`game-card ${card.color} ${card.textStyle === "quote" ? "is-quote" : ""} ${mediaClass} ${flipped ? "is-flipped" : ""} ${slide}`} data-card-id={card.id} aria-label={card.label} onClick={handleCardClick} style={{ "--card-accent": effectivePalette.primary, "--card-accent-primary": effectivePalette.primary, "--card-accent-secondary": effectivePalette.secondary, "--card-surface": effectivePalette.surface, "--card-dark": effectivePalette.dark, "--card-ink": effectivePalette.ink, "--card-media-image": mediaImage } as CSSProperties}>
     <div className="game-card-motion"><div className="card-inner">
       <div className="card-face card-front" inert={flipped} aria-hidden={flipped}>
-        <div className="card-stage">{card.media ? <CardMedia media={card.media} active={active && !slide.startsWith("swipe-")} visible={!flipped} onPalette={active && !slide.startsWith("swipe-") ? applyMediaPalette : undefined} /> : <div className="card-media card-media-default" aria-hidden="true" />}</div>
+        <div className="card-stage">{card.media ? <CardMedia media={card.media} active={active && !slide.startsWith("swipe-")} prefetchPalette={!active} visible={!flipped} onPalette={active && !slide.startsWith("swipe-") ? applyMediaPalette : undefined} /> : <div className="card-media card-media-default" aria-hidden="true" />}</div>
         <div className="feed-story" data-feed-scroll>
           <span className="feed-category">{card.sponsor ? `${card.sponsor.disclosure} · ${card.sponsor.name}` : card.label}</span>
           <div className="prompt"><p>{card.prompt}</p><strong>{card.kicker}</strong></div>

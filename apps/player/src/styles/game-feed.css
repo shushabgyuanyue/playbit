@@ -43,29 +43,20 @@
 .deck { position: relative; width: 100%; height: 100%; flex: 1; min-width: 0; min-height: 0; overflow: clip; outline: none; user-select: none; -webkit-user-select: none; touch-action: none; overscroll-behavior: contain; }
 .deck.is-native-scroll { touch-action: pan-y; }
 .deck:focus-visible { outline: 2px solid var(--player-ink); outline-offset: -3px; }
-.deck::before { content: ""; position: absolute; left: 50%; top: 50%; z-index: 5; width: 56px; height: 56px; box-sizing: content-box; opacity: 0; pointer-events: none; transform: translate(-50%, -50%) rotate(-8deg) skewX(-4deg) scale(.76); border-radius: 15px 9px 14px 10px; background: conic-gradient(from -34deg, rgba(255,255,255,.98) calc(var(--hold-progress, 0) * 1turn), rgba(255,255,255,.12) 0) border-box; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; clip-path: polygon(17% 0, 83% 0, 100% 17%, 100% 83%, 83% 100%, 17% 100%, 0 83%, 0 17%); padding: 2.5px; filter: drop-shadow(0 0 7px rgba(255,255,255,.26)) drop-shadow(0 0 16px rgba(255,255,255,.12)); transition: opacity .16s ease, transform .28s cubic-bezier(.2,.86,.24,1), filter .2s ease; }
-.deck::after { content: ""; position: absolute; left: 50%; top: 50%; z-index: 4; width: 104px; height: 104px; opacity: 0; pointer-events: none; transform: translate(-50%, -50%) rotate(10deg) scale(.62); background: radial-gradient(ellipse at 50% 50%, rgba(255,255,255,.2) 0 10%, rgba(255,255,255,.09) 28%, transparent 64%), conic-gradient(from -34deg, transparent 0 16%, rgba(255,255,255,.12) 20%, transparent 25% 48%, rgba(255,255,255,.08) 53%, transparent 59% 82%, rgba(255,255,255,.1) 87%, transparent 92%); clip-path: polygon(17% 0, 83% 0, 100% 17%, 100% 83%, 83% 100%, 17% 100%, 0 83%, 0 17%); filter: blur(12px); transition: opacity .18s ease, transform .3s cubic-bezier(.2,.86,.24,1), filter .2s ease; }
-.deck.is-holding::before { opacity: .96; transform: translate(-50%, -50%) rotate(-8deg) skewX(-4deg) scale(.94); animation: holdFrameBreath .9s ease-in-out infinite; filter: drop-shadow(0 0 8px rgba(255,255,255,.3)) drop-shadow(0 0 18px rgba(255,255,255,.13)); }
-.deck.is-holding::after { opacity: .44; transform: translate(-50%, -50%) rotate(10deg) scale(.94); animation: holdHaloPulse .9s ease-in-out infinite; }
-.deck.is-hold-ready::before { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) skewX(-4deg) scale(1); filter: drop-shadow(0 0 10px rgba(255,255,255,.38)) drop-shadow(0 0 22px rgba(255,255,255,.16)); animation: holdFrameReady .28s cubic-bezier(.2,.86,.24,1); }
-.deck.is-hold-ready::after { opacity: .72; animation-duration: .28s; }
-.deck.is-hold-complete::before { animation: holdFrameCommit .28s cubic-bezier(.2,.86,.24,1) both; filter: drop-shadow(0 0 13px rgba(255,255,255,.44)) drop-shadow(0 0 24px rgba(255,255,255,.18)); }
-.deck.is-hold-complete::after { animation-duration: .28s; }
 .feed-current, .feed-neighbor { position: absolute; inset: 0; }
 .feed-current { z-index: 1; }
 .feed-neighbor { pointer-events: none; }
-.feed-neighbor .game-card-motion { transform: translate(0, 0); }
+.feed-neighbor .game-card-motion { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
 .feed-next { transform: translateY(100%); }
 .feed-previous { transform: translateY(-100%); }
 .feed-mode-neighbor { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .game-card { position: relative; width: 100%; height: 100%; perspective: 1600px; }
-.game-card-motion { position: relative; width: 100%; height: 100%; transform: translate(var(--feed-drag-x, 0px), var(--feed-drag, 0px)); transition: transform .28s cubic-bezier(.2,.8,.2,1), filter .3s ease; }
-.deck.is-holding .game-card-motion { transform: translate(var(--feed-drag-x, 0px), var(--feed-drag, 0px)) scale(.986); transition: transform .3s cubic-bezier(.2,.8,.2,1), filter .3s ease; }
-.deck.is-holding .game-card-motion { filter: brightness(.985) saturate(1.02); }
-.deck.is-hold-ready .game-card-motion { transform: translate(var(--feed-drag-x, 0px), var(--feed-drag, 0px)) scale(.982); }
-.deck.is-hold-complete .game-card-motion { filter: brightness(1.02) saturate(1.04); }
+.game-card-motion { position: relative; width: 100%; height: 100%; transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); transform-origin: 50% 50%; transition: transform .34s cubic-bezier(.2,.86,.24,1), filter .3s ease; }
 .deck.is-dragging .game-card-motion { transition: none; }
 .deck[data-slide]:not([data-slide=""]) .game-card-motion { transition: none; }
+.feed-next, .feed-previous { transition: transform .34s cubic-bezier(.2,.86,.24,1); }
+.deck.is-dragging[data-drag-axis="y"][data-drag-direction="negative"] .feed-next { transform: translateY(calc((1 - var(--feed-progress, 0)) * 100%)); }
+.deck.is-dragging[data-drag-axis="y"][data-drag-direction="positive"] .feed-previous { transform: translateY(calc((var(--feed-progress, 0) - 1) * 100%)); }
 .card-inner { position: relative; width: 100%; height: 100%; contain: layout paint; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.2,.75,.25,1); }
 .feed-current .card-inner { will-change: transform; }
 .game-card.is-flipped .card-inner { transform: rotateY(180deg); }
@@ -176,10 +167,6 @@
 .feed-result { display: flex; align-items: flex-start; gap: 10px; margin-top: 24px; padding: 15px 0; border-top: 1px solid var(--player-line); border-bottom: 1px solid var(--player-line); }
 .feed-result-mark { display: grid; place-items: center; width: 24px; height: 24px; flex: none; border-radius: 50%; color: var(--player-ink); background: var(--player-lime); }
 .feed-result p { margin: 2px 0 0; font-size: 14px; line-height: 1.6; }
-.stake-issue-nudge { position: absolute; right: var(--feed-gutter); bottom: calc(var(--feed-bottom) + 34px); left: var(--feed-gutter); z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; padding: 4px 5px 4px 8px; border: 1px solid rgba(255,255,255,.24); border-radius: 9px; color: #fff; background: rgba(18,18,22,.42); box-shadow: 0 5px 18px rgba(0,0,0,.08); backdrop-filter: blur(12px); animation: stakeNudgeIn .18s ease; pointer-events: none; }
-.stake-issue-nudge > span { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 9px; }
-.stake-issue-nudge > span b { overflow: hidden; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.stake-issue-nudge button { display: inline-flex; align-items: center; gap: 3px; min-height: 22px; padding: 0 7px; border-radius: 6px; color: var(--player-ink); background: var(--player-lime); font-size: 8px; font-weight: 800; white-space: nowrap; pointer-events: auto; }
 .phone-play button:focus-visible, .phone-play a:focus-visible { outline: 2px solid var(--player-ink); outline-offset: 3px; }
 .feed-toolbar button:active, .card-social-action:active, .feed-clock:active { opacity: .75; }
 
@@ -191,22 +178,19 @@
 .deck[data-mode-transition="enter-out"] .feed-mode-neighbor { transform: translateX(100%); animation: modeInRight var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
 .deck[data-mode-transition="exit-out"] .feed-current .game-card-motion { animation: modeOutRight var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
 .deck[data-mode-transition="exit-out"] .feed-mode-neighbor { transform: translateX(-100%); animation: modeInLeft var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
-@keyframes feedOutUp { from { transform: translate(var(--feed-drag-x, 0px), var(--feed-drag, 0px)); } to { transform: translate(0, -100%); } }
-@keyframes feedOutDown { from { transform: translate(var(--feed-drag-x, 0px), var(--feed-drag, 0px)); } to { transform: translate(0, 100%); } }
-@keyframes feedInUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-@keyframes feedInDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
-@keyframes modeOutLeft { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes feedOutUp { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); } to { transform: translate3d(0, -100%, 0) rotate(-1.2deg) scale(.985); } }
+@keyframes feedOutDown { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); } to { transform: translate3d(0, 100%, 0) rotate(1.2deg) scale(.985); } }
+@keyframes feedInUp { from { transform: translateY(calc((1 - var(--feed-progress, 0)) * 100%)); } to { transform: translateY(0); } }
+@keyframes feedInDown { from { transform: translateY(calc((var(--feed-progress, 0) - 1) * 100%)); } to { transform: translateY(0); } }
+@keyframes modeOutLeft { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); } to { transform: translate3d(-100%, 0, 0) rotate(-1.2deg) scale(.985); } }
 @keyframes modeInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-@keyframes modeOutRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes modeOutRight { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); } to { transform: translate3d(100%, 0, 0) rotate(1.2deg) scale(.985); } }
 @keyframes modeInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes voiceGiftSend { 0% { opacity: 0; transform: translate3d(-5px, 5px, 0) scale(.82); } 62% { opacity: 1; transform: translate3d(2px, -1px, 0) scale(1.03); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes benefitTextReveal { 0% { opacity: 0; transform: translate3d(0, 6px, 0) scale(.96); } 65% { opacity: 1; transform: translate3d(0, -1px, 0) scale(1.01); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes benefitTextShine { 0% { left: -30%; opacity: 0; } 24% { opacity: .55; } 100% { left: 125%; opacity: 0; } }
-@keyframes holdFrameBreath { 0%, 100% { transform: translate(-50%, -50%) rotate(-8deg) skewX(-4deg) scale(.92); } 50% { transform: translate(-50%, -50%) rotate(-6deg) skewX(-4deg) scale(.98); } }
-@keyframes holdFrameReady { 0% { transform: translate(-50%, -50%) rotate(-8deg) skewX(-4deg) scale(.9); } 70% { transform: translate(-50%, -50%) rotate(-8deg) skewX(-4deg) scale(1.04); } 100% { transform: translate(-50%, -50%) rotate(-8deg) skewX(-4deg) scale(1); } }
-@keyframes holdFrameCommit { 0% { transform: translate(-50%, -50%) rotate(-8deg) skewX(-4deg) scale(1); } 45% { transform: translate(-50%, -50%) rotate(-3deg) skewX(-4deg) scale(1.08); } 100% { transform: translate(-50%, -50%) rotate(4deg) skewX(-4deg) scale(.84); opacity: 0; } }
-@keyframes holdHaloPulse { 0%, 100% { transform: translate(-50%, -50%) scale(.88) rotate(10deg); opacity: .2; } 50% { transform: translate(-50%, -50%) scale(1.04) rotate(2deg); opacity: .42; } }
-@keyframes stakeNudgeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes recordsBadgePulse { 0% { transform: scale(.82); opacity: .5; } 55% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+.feed-records-count.is-pulse { animation: recordsBadgePulse .46s cubic-bezier(.2,.86,.24,1); }
 
 @media (max-height: 700px) {
   .phone-play { --feed-top: calc(111px + env(safe-area-inset-top)); --feed-bottom: calc(76px + env(safe-area-inset-bottom)); --feed-gutter: 22px; }

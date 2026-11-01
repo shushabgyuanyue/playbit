@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { playerCopy as copy } from "@playbit/content/player";
 import type { BenefitIssuance, VoiceNote } from "../../data/types";
 import { Icon } from "../../components/ui/Icon";
+import { Sheet } from "../../components/ui/Sheet";
 import { BenefitClaimLink } from "./BenefitClaimLink";
 import { BenefitShareCard } from "./BenefitShareCard";
 import { VoiceRecorderButton } from "../promise/VoiceRecorderButton";
@@ -14,6 +15,7 @@ export function IssueBenefitSheet({
   issuerName,
   issuance,
   voice: initialVoice,
+  onVoiceChange,
   onIssue,
   onShare,
   onSelfClaim,
@@ -26,6 +28,7 @@ export function IssueBenefitSheet({
   issuerName: string;
   issuance: BenefitIssuance | null;
   voice?: VoiceNote;
+  onVoiceChange?: (voice: VoiceNote) => void;
   onIssue: (voice: VoiceNote) => void;
   onShare: () => void;
   onSelfClaim: () => void;
@@ -44,18 +47,12 @@ export function IssueBenefitSheet({
   const currentVoice = issuance?.voice ?? voice;
   const issuedSource = issuance?.source ?? "direct";
 
-  if (!open) return null;
-  return <section className="benefit-issue-inline" aria-label={copy.wallet.issueTitle}>
-    <header className="benefit-issue-inline-head">
-      <div><small>VOICE ISSUE</small><h2>{copy.wallet.issueTitle}</h2></div>
-      <button className="icon-btn" type="button" onClick={onClose} disabled={submitting || recording || claiming} aria-label={copy.cancel} title={copy.cancel}><Icon name="close" size={16} /></button>
-    </header>
-    <p className="benefit-issue-inline-hint">{copy.wallet.issueHint}</p>
+  return <Sheet open={open} onClose={() => { if (!submitting && !recording && !claiming) onClose(); }} eyebrow={copy.wallet.issueEyebrow} title={copy.wallet.issueTitle} description={copy.wallet.issueHint} className="benefit-issue-sheet">
     <div className="benefit-issue-content">
     {!issuance ? <>
       <div className="issue-voice-block">
         <div className="issue-voice-heading"><div className="issue-voice-label"><b>{copy.wallet.issueVoice}</b><span className="issue-source-tag">{copy.wallet.issueSourceOptions.manual}</span></div><small>{copy.wallet.issueVoiceHint(issuerName)}</small></div>
-        <VoiceRecorderButton voice={voice} onChange={setVoice} onBusyChange={setRecording} label={copy.wallet.issueVoice} hint={copy.wallet.issueVoiceHint(issuerName)} recordLabel={copy.wallet.issueVoiceRecord} compact />
+        <VoiceRecorderButton voice={voice} onChange={nextVoice => { setVoice(nextVoice); onVoiceChange?.(nextVoice); }} onBusyChange={setRecording} label={copy.wallet.issueVoice} hint={copy.wallet.issueVoiceHint(issuerName)} recordLabel={copy.wallet.issueVoiceRecord} compact />
       </div>
       <button className="primary-button issue-stake-submit" type="button" disabled={submitting || recording || !voice.assetId} onClick={() => onIssue(voice)}>
         <Icon name="share" size={16} />{submitting ? copy.sharing.issuing : copy.wallet.issueAction}
@@ -69,5 +66,5 @@ export function IssueBenefitSheet({
       </div></>}
     </>}
     </div>
-  </section>;
+  </Sheet>;
 }

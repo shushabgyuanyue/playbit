@@ -55,10 +55,15 @@ it("tracks the finger, keeps the release position for the transition, then reset
   pointer(surface.querySelector("p")!, "pointerdown", 400);
   now = 250;
   pointer(surface, "pointermove", 240);
-  expect(surface.style.getPropertyValue("--feed-drag")).toBe("-160px");
+  const drag = Number.parseFloat(surface.style.getPropertyValue("--feed-drag"));
+  expect(drag).toBeLessThan(-100);
+  expect(drag).toBeGreaterThan(-160);
+  expect(Number.parseFloat(surface.style.getPropertyValue("--feed-progress"))).toBeCloseTo(.2667, 3);
+  expect(surface.dataset.dragAxis).toBe("y");
   pointer(surface, "pointerup", 240);
   expect(move).toHaveBeenCalledExactlyOnceWith(1);
-  expect(surface.style.getPropertyValue("--feed-drag")).toBe("-160px");
+  expect(surface.style.getPropertyValue("--feed-drag")).toBe(`${drag}px`);
+  expect(surface.classList.contains("is-settling")).toBe(true);
   await act(async () => root.render(createElement(Harness, { slide: "enter-up", cardId: "next" })));
   expect(surface.style.getPropertyValue("--feed-drag")).toBe("");
   expect(surface.classList.contains("is-dragging")).toBe(false);
@@ -87,6 +92,32 @@ it("uses left swipe to enter same-type mode and right swipe to exit it", async (
   pointerAt(surface, "pointerup", 440, 300);
   expect(exit).toHaveBeenCalledOnce();
   expect(move).not.toHaveBeenCalled();
+});
+
+it("damps horizontal motion and clears the settling state after the mode transition", async () => {
+  const enter = vi.fn();
+  function TypeModeHarness() {
+    const swipe = useFeedSwipe("", "type-mode-damped", move, { onSwipeLeft: enter });
+    return createElement("section", swipe, createElement("p", null, "Content"));
+  }
+  await act(async () => root.render(createElement(TypeModeHarness)));
+  surface = host.querySelector("section")!;
+  Object.defineProperties(surface, {
+    clientHeight: { value: 600 }, clientWidth: { value: 600 },
+    setPointerCapture: { value: () => undefined }, hasPointerCapture: { value: () => false }, releasePointerCapture: { value: () => undefined }
+  });
+  pointerAt(surface.querySelector("p")!, "pointerdown", 420, 300);
+  pointerAt(surface, "pointermove", 120, 300);
+  const drag = Number.parseFloat(surface.style.getPropertyValue("--feed-drag-x"));
+  expect(drag).toBeLessThan(-150);
+  expect(drag).toBeGreaterThan(-300);
+  expect(Number.parseFloat(surface.style.getPropertyValue("--feed-scale"))).toBeLessThan(1);
+  pointerAt(surface, "pointerup", 120, 300);
+  expect(enter).toHaveBeenCalledOnce();
+  expect(surface.classList.contains("is-settling")).toBe(true);
+  await act(async () => { vi.advanceTimersByTime(340); });
+  expect(surface.classList.contains("is-settling")).toBe(false);
+  expect(surface.style.getPropertyValue("--feed-drag-x")).toBe("");
 });
 
 it("locks the gesture axis after the first meaningful movement", async () => {
@@ -156,60 +187,7 @@ it("returns the card to its position when a pending stake blocks a swipe, and ig
   expect(move).toHaveBeenCalledExactlyOnceWith(1);
 });
 
-it("flips after 680ms and collects after 2200ms of the same hold", async () => {
-  const flip = vi.fn();
-  const collect = vi.fn();
-  let allow = true;
-  function HoldHarness() {
-    const swipe = useFeedSwipe("", "hold", move, { canHold: () => allow, onHoldFlip: () => { allow = false; flip(); }, onHoldCollect: collect });
-    return createElement("section", swipe, createElement("p", null, "Content"));
-  }
-  await act(async () => root.render(createElement(HoldHarness)));
-  surface = host.querySelector("section")!;
-  Object.defineProperties(surface, {
-    clientHeight: { value: 600 },
-    setPointerCapture: { value: () => undefined },
-    hasPointerCapture: { value: () => false },
-    releasePointerCapture: { value: () => undefined }
-  });
-  pointer(surface.querySelector("p")!, "pointerdown", 400);
-  expect(surface.classList.contains("is-holding")).toBe(true);
-  expect(surface.style.getPropertyValue("--hold-progress")).toBe("0");
-  await act(async () => { vi.advanceTimersByTime(680); });
-  expect(flip).toHaveBeenCalledOnce();
-  expect(surface.classList.contains("is-holding")).toBe(false);
-  expect(surface.classList.contains("is-hold-ready")).toBe(false);
-  expect(surface.style.getPropertyValue("--hold-progress")).toBe("");
-  expect(collect).not.toHaveBeenCalled();
-  await act(async () => { vi.advanceTimersByTime(1520); });
-  expect(collect).toHaveBeenCalledOnce();
-  expect(surface.classList.contains("is-hold-complete")).toBe(false);
-  pointer(surface, "pointerup", 400);
-  expect(move).not.toHaveBeenCalled();
-  expect(surface.classList.contains("is-holding")).toBe(false);
-});
-
-it("cancels a pending hold as soon as the finger starts swiping", async () => {
-  const flip = vi.fn();
-  function HoldHarness() {
-    const swipe = useFeedSwipe("", "move", move, { onHoldFlip: flip });
-    return createElement("section", swipe, createElement("p", null, "Content"));
-  }
-  await act(async () => root.render(createElement(HoldHarness)));
-  surface = host.querySelector("section")!;
-  Object.defineProperties(surface, {
-    clientHeight: { value: 600 },
-    setPointerCapture: { value: () => undefined },
-    hasPointerCapture: { value: () => false },
-    releasePointerCapture: { value: () => undefined }
-  });
-  pointer(surface.querySelector("p")!, "pointerdown", 400);
-  pointer(surface, "pointermove", 320);
-  await act(async () => { vi.advanceTimersByTime(1200); });
-  expect(flip).not.toHaveBeenCalled();
-});
-
-it("reports a short tap separately from a swipe", () => {
+it("reports a tap immediately without a hold timer", () => {
   const tap = vi.fn();
   function TapHarness() {
     const swipe = useFeedSwipe("", "tap", move, { onTap: tap });
@@ -218,7 +196,10 @@ it("reports a short tap separately from a swipe", () => {
   act(() => root.render(createElement(TapHarness)));
   surface = host.querySelector("section")!;
   pointer(surface.querySelector("p")!, "pointerdown", 400);
+  vi.advanceTimersByTime(1200);
   pointer(surface, "pointerup", 400);
   expect(tap).toHaveBeenCalledOnce();
   expect(move).not.toHaveBeenCalled();
+  expect(surface.classList.contains("is-holding")).toBe(false);
+  expect(surface.style.getPropertyValue("--hold-progress")).toBe("");
 });

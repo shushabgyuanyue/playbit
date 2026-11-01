@@ -416,21 +416,8 @@ a { color: inherit; text-decoration: none; }
 .stake-voice-actions { display: grid; gap: 4px; }
 .stake-voice-actions .primary-button { min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 7px; border-radius: 11px; font-size: 11px; }
 .stake-voice-actions .text-button { min-height: 30px; font-size: 10px; }
-.benefit-issue-fab { position: absolute; left: 18px; bottom: 91px; z-index: 10; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, .62); border-radius: 50%; color: #fff; background: linear-gradient(135deg, var(--player-violet), #6b45d9); box-shadow: 0 10px 24px rgba(81, 52, 169, .28), inset 0 1px 0 rgba(255, 255, 255, .3); transform: translateZ(0); transition: transform .18s ease, box-shadow .18s ease; will-change: transform; }
+.benefit-issue-fab { position: absolute; left: 18px; bottom: calc(83px + env(safe-area-inset-bottom)); z-index: 10; width: 42px; height: 42px; padding: 0; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, .62); border-radius: 50%; color: #fff; background: linear-gradient(135deg, var(--player-violet), #6b45d9); box-shadow: 0 10px 24px rgba(81, 52, 169, .28), inset 0 1px 0 rgba(255, 255, 255, .3); transform: translateZ(0); transition: transform .18s ease, box-shadow .18s ease; will-change: transform; }
 .benefit-issue-fab:active { transform: translate3d(0, 1px, 0); box-shadow: 0 6px 15px rgba(81, 52, 169, .22), inset 0 1px 0 rgba(255, 255, 255, .3); }
-.benefit-direct-recorder { display: flex; align-items: center; gap: 5px; min-width: 0; margin: 8px 0 10px; padding: 4px 7px; border: 1px solid #e2ddd7; border-radius: 10px; background: rgba(255, 255, 255, .66); }
-.benefit-direct-recorder > .voice-recorder { min-width: 0; flex: 1; }
-.benefit-direct-recorder .voice-composer-label { color: #817985; }
-.benefit-direct-recorder .voice-composer-take { justify-content: flex-start; }
-.benefit-direct-issue { min-height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; flex: none; border-radius: 7px; color: #fff; background: var(--player-violet); font-size: 7.5px; font-weight: 800; white-space: nowrap; }
-.benefit-issue-inline { margin: 10px 0 14px; padding: 12px; border: 1px solid #e1dbee; border-radius: 15px; background: linear-gradient(145deg, #faf8ff, #f2eee8); box-shadow: 0 6px 16px rgba(71, 52, 115, .07); }
-.benefit-issue-inline-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
-.benefit-issue-inline-head small { color: var(--player-violet); font-size: 7px; font-weight: 900; letter-spacing: .16em; }
-.benefit-issue-inline-head h2 { margin: 3px 0 0; color: var(--player-ink); font-size: 16px; letter-spacing: -.03em; }
-.benefit-issue-inline-head .icon-btn { width: 25px; height: 25px; min-height: 25px; color: #8d8495; }
-.benefit-issue-inline-hint { margin: 0 0 8px; color: #8d8490; font-size: 8px; line-height: 1.45; }
-.benefit-issue-inline .benefit-issue-content { gap: 8px; }
-.benefit-issue-inline .issue-voice-block { background: rgba(255, 255, 255, .78); }
 .benefits-guest-state { min-height: 230px; margin-top: 18px; padding: 28px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #ddd8d1; border-radius: 18px; color: #817985; background: rgba(248, 247, 244, .72); text-align: center; }
 .benefits-guest-mark { width: 42px; height: 42px; margin-bottom: 13px; display: grid; place-items: center; border-radius: 14px; color: var(--player-violet); background: #e4ddf8; }
 .benefits-guest-state strong { color: var(--player-ink); font-size: 14px; }
@@ -523,6 +510,7 @@ a { color: inherit; text-decoration: none; }
 /* Remote benefits keep the prototype surface while adding real account states. */
 .remote-list-note { margin: 8px 0 0; color: #9b5d4f; font-size: 9px; line-height: 1.4; }
 .benefits-load-sentinel { min-height: 18px; display: grid; place-items: center; }
+.benefits-list-loading { min-height: 190px; display: grid; place-items: center; }
 .list-loading-dot { width: 15px; height: 15px; display: inline-block; border: 2px solid rgba(125, 84, 255, .22); border-top-color: var(--player-violet); border-radius: 50%; animation: listSpin .7s linear infinite; }
 .signature-image { width: 100%; height: 30px; display: block; object-fit: contain; object-position: right bottom; mix-blend-mode: multiply; }
 .auth-form { gap: 10px; }
@@ -802,10 +790,11 @@ a { color: inherit; text-decoration: none; }
 .benefit-claim-link input { min-width: 0; width: 100%; height: 32px; padding: 0 8px; border: 1px solid var(--player-line); border-radius: 6px; color: var(--player-ink); background: rgba(255,255,255,.45); font-size: 10px; }
 .pending-benefits { margin: 16px 0 22px; }
 .pending-benefits h2 { margin: 0 0 8px; color: var(--player-muted); font-size: 11px; font-weight: 700; }
-.pending-benefits > button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 48px; padding: 8px 0; border-bottom: 1px solid var(--player-line); color: var(--player-ink); background: transparent; text-align: left; }
-.pending-benefits > button > svg { color: var(--player-violet); flex: none; }
+.pending-benefits > .pending-benefit-item { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 48px; padding: 8px 0; border-bottom: 1px solid var(--player-line); color: var(--player-ink); background: transparent; text-align: left; }
+.pending-benefit-item > svg { color: var(--player-violet); flex: none; }
 .pending-benefits strong { min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: 12px; }
-.pending-benefits > button > span { display: flex; align-items: center; gap: 4px; flex: none; color: var(--player-violet); font-size: 10px; }
+.pending-benefit-item > span { display: flex; align-items: center; gap: 4px; flex: none; color: var(--player-violet); font-size: 10px; }
+.pending-benefits-more { min-height: 34px; margin: 3px auto 0; padding: 0 4px; display: flex; align-items: center; justify-content: center; gap: 3px; color: var(--player-violet); background: transparent; font-size: 10px; font-weight: 800; }
 
 
 

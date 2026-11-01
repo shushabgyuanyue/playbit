@@ -54,7 +54,7 @@ export function useCardDeck(rememberedFlippedCardId: string | null = null, mode:
       update(current => ({ ...current, cardId: pool[next]!.id }));
       setFlipped(false);
       sliding.current = false;
-    }, CARD_MOVE_MS + 16));
+    }, CARD_MOVE_MS));
   }, [card.id, pool, update]);
   return { card, pool, flipped, setFlipped, slide, go };
 }

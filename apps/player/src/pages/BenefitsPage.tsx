@@ -9,7 +9,6 @@ import { benefitShareData } from "../services/linkSharing";
 import { AuthSheet } from "../features/player/AuthSheet";
 import { CouponCard } from "../features/benefits/CouponCard";
 import { IssueBenefitSheet } from "../features/benefits/IssueBenefitSheet";
-import { VoiceRecorderButton } from "../features/promise/VoiceRecorderButton";
 import { claimDirectBenefit, createId, issueDirectBenefit, redeemCoupon } from "../features/player/transitions";
 import { toPlayerCoupon } from "../features/benefits/couponPresentation";
 import type { VoiceNote } from "../data/types";
@@ -18,7 +17,6 @@ import { usePageMemory } from "../services/pageMemory";
 
 type RemotePage = { items: ApiCoupon[]; nextCursor: string | null; hasMore: boolean };
 const emptyVoice: VoiceNote = { id: "", durationMs: 0, storage: "demo" };
-const ignoreRecordingState = () => {};
 
 function isApiActionError(error: unknown) {
   return error instanceof PlayerApiError && error.status > 0;
@@ -43,6 +41,7 @@ export function BenefitsPage() {
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteError, setRemoteError] = useState(false);
   const [redeemLoading, setRedeemLoading] = useState(false);
+  const [pendingVisibleCount, setPendingVisibleCount] = useState(3);
   const section = useRef<HTMLElement>(null);
   const initialScrollTop = useRef(memory.scrollTop.benefits ?? 0);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -107,12 +106,12 @@ export function BenefitsPage() {
     : [];
   const remoteById = new Map(remote.items.map(item => [item.id, item]));
   const pendingIssuances = Object.entries(state.issuedBenefits).filter(([, item]) => item.status === "pending_claim").sort((a, b) => Date.parse(b[1].issuedAt) - Date.parse(a[1].issuedAt));
+  const visiblePendingIssuances = pendingIssuances.slice(0, pendingVisibleCount);
+  const hasMorePending = visiblePendingIssuances.length < pendingIssuances.length;
 
-  function captureManualVoice(voice: VoiceNote) {
-    setManualVoice(voice);
-    setIssuanceId(null);
-    setIssuing(true);
-  }
+  useEffect(() => {
+    setPendingVisibleCount(current => Math.max(3, Math.min(current, Math.max(3, pendingIssuances.length))));
+  }, [pendingIssuances.length]);
 
   async function issue(voice: VoiceNote) {
     if (issuingRef.current) return;
@@ -222,14 +221,12 @@ export function BenefitsPage() {
   return <section className="benefits" ref={section}>
     <div className="module-tag">{copy.wallet.eyebrow}</div><div className="benefit-title"><h1>{copy.wallet.title[0]}<br />{copy.wallet.title[1]}</h1></div>
     {remoteError && <p className="remote-list-note" role="status">{copy.auth.network}</p>}
-    <IssueBenefitSheet open={issuing} onClose={() => { if (!issueLoading && !claimLoading) { setIssuing(false); setIssuanceId(null); } }} issuerName={state.profileName} issuance={issuance} voice={manualVoice} submitting={issueLoading} claiming={claimLoading} onIssue={voice => void issue(voice)} onShare={() => void shareIssuance()} onSelfClaim={() => void selfClaimIssuance()} />
-    {!issuing && !issuance && <div className="benefit-direct-recorder" aria-label={copy.wallet.issueTitle}>
-      <VoiceRecorderButton voice={manualVoice} onChange={captureManualVoice} onBusyChange={ignoreRecordingState} label={copy.wallet.issueVoice} hint={copy.wallet.issueVoiceHint(state.profileName)} recordLabel={copy.wallet.issueVoiceRecord} compact />
-      {manualVoice.assetId && <button className="benefit-direct-issue" type="button" onClick={() => setIssuing(true)}><Icon name="share" size={13} />{copy.wallet.issueAction}</button>}
-    </div>}
-    {pendingIssuances.length > 0 && <section className="pending-benefits"><h2>{copy.sharing.pendingTitle}</h2>{pendingIssuances.map(([key, item]) => <button type="button" key={key} onClick={() => { setIssuanceId(key); setIssuing(true); }}><Icon name="send" size={16} /><strong>{item.title}</strong><span>{copy.sharing.resume}<Icon name="arrow" size={13} /></span></button>)}</section>}
+    <IssueBenefitSheet open={issuing} onClose={() => { if (!issueLoading && !claimLoading) { setIssuing(false); setIssuanceId(null); } }} issuerName={state.profileName} issuance={issuance} voice={manualVoice} onVoiceChange={setManualVoice} submitting={issueLoading} claiming={claimLoading} onIssue={voice => void issue(voice)} onShare={() => void shareIssuance()} onSelfClaim={() => void selfClaimIssuance()} />
+    {!issuing && <button className="benefit-issue-fab" type="button" aria-label={copy.wallet.issueTitle} title={copy.wallet.issueTitle} onClick={() => { setIssuanceId(null); setManualVoice(emptyVoice); setIssuing(true); }}><Icon name="share" size={17} /></button>}
+    {pendingIssuances.length > 0 && <section className="pending-benefits"><h2>{copy.sharing.pendingTitle}</h2>{visiblePendingIssuances.map(([key, item]) => <button className="pending-benefit-item" type="button" key={key} onClick={() => { setIssuanceId(key); setIssuing(true); }}><Icon name="send" size={16} /><strong>{item.title}</strong><span>{copy.sharing.resume}<Icon name="arrow" size={13} /></span></button>)}{hasMorePending && <button className="pending-benefits-more" type="button" onClick={() => setPendingVisibleCount(current => current + 3)}>{copy.wallet.pendingMore}<Icon name="chevronDown" size={13} /></button>}</section>}
     {auth.user && <div className="ticket-list ticket-list-won">
       {displayedCoupons.map((coupon, i) => <CouponCard coupon={coupon} index={i} signatureDataUrl={remoteById.get(coupon.id)?.signatureDataUrl} onRedeem={() => { setRedeeming(coupon.id); }} key={coupon.id} />)}
+      {remoteLoading && !displayedCoupons.length && <div className="benefits-list-loading" role="status" aria-label={copy.wallet.loading}><span className="list-loading-dot" /></div>}
       {!displayedCoupons.length && !remoteLoading && <p className="empty-state">{copy.wallet.empty}</p>}
       <div className="benefits-load-sentinel" ref={loadMoreRef} aria-hidden="true">{remoteMode && remoteLoading && <span className="list-loading-dot" />}</div>
     </div>}

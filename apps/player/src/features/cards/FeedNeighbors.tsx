@@ -8,7 +8,7 @@ export function FeedNeighbors({ pool, cardId, stakeVoices }: { pool: Card[]; car
   const index = pool.findIndex(card => card.id === cardId);
   return <>{[-1, 1].map(direction => {
     const card = pool[(index + direction + pool.length) % pool.length]!;
-    return <div className={`feed-neighbor ${direction > 0 ? "feed-next" : "feed-previous"}`} key={direction} aria-hidden="true" inert>
+    return <div className={`feed-neighbor ${direction > 0 ? "feed-next" : "feed-previous"}`} key={`${card.id}-${direction}`} aria-hidden="true" inert>
       <GameCard card={card} active={false} flipped={false} slide="" stakeVoice={stakeVoices[card.id]} onFlip={noop} />
     </div>;
   })}</>;

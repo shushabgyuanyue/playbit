@@ -108,7 +108,7 @@ function extractPalette(source: CanvasImageSource): CardPalette | null {
   }
 }
 
-export function CardMedia({ media, active, visible = true, onPalette }: { media: Media; active: boolean; visible?: boolean; onPalette?: (palette: CardPalette) => void }) {
+export function CardMedia({ media, active, prefetchPalette = false, visible = true, onPalette }: { media: Media; active: boolean; prefetchPalette?: boolean; visible?: boolean; onPalette?: (palette: CardPalette) => void }) {
   const element = useRef<HTMLMediaElement | null>(null);
   const paletteFrame = useRef<number | null>(null);
   const activeRef = useRef(active);
@@ -125,16 +125,16 @@ export function CardMedia({ media, active, visible = true, onPalette }: { media:
     if (paletteFrame.current !== null) window.cancelAnimationFrame(paletteFrame.current);
   }, [mediaKey]);
   function schedulePalette(source: CanvasImageSource) {
-    if (!onPalette) return;
+    if (!onPalette && !prefetchPalette) return;
     const cached = paletteCache.get(mediaKey);
-    if (cached) { onPalette(cached); return; }
+    if (cached) { onPalette?.(cached); return; }
     if (paletteFrame.current !== null) window.cancelAnimationFrame(paletteFrame.current);
     // Let the first decoded frame paint before reading the small palette canvas.
     paletteFrame.current = window.requestAnimationFrame(() => {
       const palette = extractPalette(source);
       if (palette) {
         paletteCache.set(mediaKey, palette);
-        onPalette(palette);
+        onPalette?.(palette);
       }
       paletteFrame.current = null;
     });
