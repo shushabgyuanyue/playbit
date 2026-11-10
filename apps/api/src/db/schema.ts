@@ -63,6 +63,12 @@ export const agreements = pgTable("agreements", {
   participants: jsonb("participants").$type<Participant[]>().notNull(),
   boosts: jsonb("boosts").$type<Boost[]>().default([]).notNull(),
   challenge: text("challenge").notNull(),
+  voice: jsonb("voice").$type<{
+    transcript: string | null;
+    durationMs: number;
+    mimeType: string | null;
+    byteLength: number | null;
+  } | null>(),
   stake: jsonb("stake").$type<Stake>().notNull(),
   cardId: text("card_id"),
   gameCard: jsonb("game_card").$type<Card>(),

@@ -1,4 +1,4 @@
-import { inputLimits, type Agreement, type Coupon, type LoginInput, type RegisterInput, type User } from "@playbit/shared";
+import { inputLimits, type Agreement, type AgreementVoice, type Coupon, type LoginInput, type RegisterInput, type User } from "@playbit/shared";
 import type { Signature } from "../data/types";
 
 function normalizeApiBaseUrl(value: string | undefined) {
@@ -163,6 +163,7 @@ export const playerApi = {
     counterpartySignatureDataUrl: string;
     title: string;
     challenge?: string;
+    voice?: AgreementVoice;
     stake: { type: "coupon" | "custom"; label: string; fulfilled: false; additions: [] };
   }) {
     return request<{ agreement: Agreement }>("/agreements/offline", {
@@ -178,6 +179,9 @@ export const playerApi = {
   },
   claimCoupon(token: string) {
     return request<{ coupon: Coupon }>(`/coupons/share/${encodeURIComponent(token)}/claim`, { method: "POST" });
+  },
+  claimOwnCoupon(id: string) {
+    return request<{ coupon: Coupon }>(`/coupons/${encodeURIComponent(id)}/claim-self`, { method: "POST" });
   },
   useCoupon(id: string) {
     return request<{ coupon: Coupon }>(`/coupons/${encodeURIComponent(id)}/use`, { method: "PATCH" });

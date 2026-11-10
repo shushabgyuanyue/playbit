@@ -8,7 +8,7 @@ export function SigningStep({ draft, stamping, onSignature, onSeal }: { draft: P
   const ready = draft.signatures.a.length > 0 && draft.signatures.b.length > 0;
   return <div className="agreement-signing-flow">
     <div className="agreement-signing-artifact" aria-busy={stamping}>
-      <AgreementCard text={draft.text} benefit={draft.benefit} challengeVoice={draft.challengeVoice} benefitVoice={draft.benefitVoice} status={ready ? copy.promise.shareCard.readyToSeal : copy.promise.shareCard.signing}
+      <AgreementCard text={draft.text} voice={draft.voice} status={ready ? copy.promise.shareCard.readyToSeal : copy.promise.shareCard.signing}
         signatureArea={<fieldset className="agreement-signatures" disabled={stamping}><legend className="sr-only">{copy.promise.signTitle}</legend><SignaturePad label={copy.promise.signA} value={draft.signatures.a} onChange={value => onSignature("a", value)} /><SignaturePad label={copy.promise.signB} value={draft.signatures.b} onChange={value => onSignature("b", value)} /></fieldset>} />
       {stamping && <div className="contract-seal stamping" aria-hidden="true">PLAYBIT<br />{copy.promise.sealText}</div>}
     </div>

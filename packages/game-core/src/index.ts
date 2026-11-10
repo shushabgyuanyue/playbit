@@ -33,6 +33,7 @@ export function createAgreement(input: CreateAgreementInput, creatorUserId: stri
     source: input.source,
     participants,
     challenge: input.challenge ?? input.title,
+    voice: input.voice ?? null,
     stake: input.stake,
     cardId: input.cardId ?? null,
     gameCard: null,
@@ -91,6 +92,7 @@ export function updateAgreementDraft(
     title: input.title,
     source: input.source,
     challenge: input.challenge ?? input.title,
+    voice: input.voice ?? null,
     stake: input.stake,
     cardId: input.cardId ?? null,
     participants: agreement.participants.map((participant) =>

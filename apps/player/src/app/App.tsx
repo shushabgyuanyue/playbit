@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { playerCopy as copy } from "@playbit/content/player";
 import { Icon } from "../components/ui/Icon";
@@ -15,15 +15,16 @@ import { AgreementListPage } from "../pages/AgreementListPage";
 import { CouponClaimPage } from "../pages/CouponClaimPage";
 import { AnnouncementsPage, NotificationsPage } from "../pages/ProfileInfoPages";
 import { StakeNavControl } from "../features/cards/StakeNavControl";
+import { PromiseNavControl } from "../features/promise/PromiseNavControl";
 
 function Shell() {
-  const location = useLocation(); const navigate = useNavigate(); const { toast } = usePlayer();
+  const location = useLocation(); const navigate = useNavigate(); const { state, toast } = usePlayer();
   const { memory, remember } = usePageMemory();
-  const overlay = useRef<HTMLElement>(null);
+  const [overlay, setOverlay] = useState<HTMLElement | null>(null);
   const isHome = location.pathname === "/" || location.pathname === "/promise";
   const isAgreement = location.pathname.startsWith("/agreements/");
   const rememberedHome = memory.homePath;
-  const playTarget = location.pathname === "/benefits" && (location.state?.returnTo === "/" || location.state?.returnTo === "/promise")
+  const playTarget = location.pathname === "/promise" ? "/" : location.pathname === "/benefits" && (location.state?.returnTo === "/" || location.state?.returnTo === "/promise")
     ? location.state.returnTo
     : rememberedHome;
   const mode = (location.pathname === "/promise" || (!isHome && rememberedHome === "/promise")) ? "promise" : "game";
@@ -36,8 +37,8 @@ function Shell() {
     remember({ homePath: next });
     navigate(next);
   }
-  return <main className="app-shell"><section className={`phone${location.pathname === "/" ? " phone-play" : ""}`} ref={overlay}>
-    <OverlayContainer.Provider value={overlay.current}>
+  return <main className="app-shell"><section className={`phone${location.pathname === "/" ? " phone-play" : ""}`} ref={setOverlay}>
+    <OverlayContainer.Provider value={overlay}>
       <header className="topbar">
         <Link className="brand-word" to={location.pathname === "/benefits" ? playTarget : isHome ? location.pathname : rememberedHome}>{copy.brand}<span>.</span></Link>
         {isHome && <div className="top-actions"><button className={`top-action mode-flip flip-${mode}`} type="button" onClick={toggleMode} aria-label={mode === "game" ? copy.nav.toPromise : copy.nav.toPlay} title={mode === "game" ? copy.nav.toPromise : copy.nav.toPlay}><Icon name="switch" size={20} /></button></div>}
@@ -54,7 +55,7 @@ function Shell() {
       </div>
       <nav className="bottom-nav" aria-label={copy.nav.label}>
         <Link className={`nav-item nav-benefits ${location.pathname === "/benefits" ? "active" : ""}`} to="/benefits" {...benefitsEntryProps}><Icon name="gift" /><span>{copy.nav.benefits}</span></Link>
-        {location.pathname === "/" ? <StakeNavControl /> : <Link className={`nav-item nav-play play ${isHome ? "active" : ""}`} to={playTarget}><span className="play-logo">P</span><span>{copy.nav.play}</span></Link>}
+        {location.pathname === "/" ? <StakeNavControl /> : location.pathname === "/promise" && state.draft.step === 0 ? <PromiseNavControl /> : <Link className={`nav-item nav-play play ${isHome ? "active" : ""}`} to={playTarget}><span className="play-logo">P</span><span>{copy.nav.play}</span></Link>}
         <Link className={`nav-item nav-me ${location.pathname === "/me" || location.pathname === "/agreements" || location.pathname.startsWith("/agreements/") || location.pathname === "/notifications" || location.pathname === "/announcements" ? "active" : ""}`} to="/me"><Icon name="user" /><span>{copy.nav.me}</span></Link>
       </nav>
       {toast && <div className="toast" role="status"><Icon name="check" size={17} />{toast}</div>}

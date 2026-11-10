@@ -111,6 +111,7 @@ const created = await json<{ agreement: Agreement }>("/agreements", {
     creatorSignatureDataUrl: "data:image/png;base64,initiator-signature",
     title: "随便触发约定",
     challenge: "未来 10 分钟内第一个说随便的人承担本次权益",
+    voice: { transcript: "未来十分钟内第一个说随便的人承担本次权益，输的人请洗碗。", durationMs: 4200, mimeType: "audio/webm", byteLength: 12345 },
     stake: {
       type: "coupon",
       label: "洗碗一次",
@@ -123,6 +124,12 @@ const created = await json<{ agreement: Agreement }>("/agreements", {
 
 assert.equal(created.agreement.status, "pending_signature");
 assert.equal(created.agreement.participants.length, 1);
+assert.deepEqual(created.agreement.voice, {
+  transcript: "未来十分钟内第一个说随便的人承担本次权益，输的人请洗碗。",
+  durationMs: 4200,
+  mimeType: "audio/webm",
+  byteLength: 12345
+});
 
 const deletableDraft = await json<{ agreement: Agreement }>("/agreements", {
   method: "POST",
@@ -155,6 +162,7 @@ const updatedDraft = await json<{ agreement: Agreement }>(`/agreements/${created
     creatorSignatureDataUrl: "data:image/png;base64,initiator-signature-updated",
     title: "编辑后的约定",
     challenge: "编辑后的约定内容",
+    voice: { transcript: "编辑后的完整赌约原声", durationMs: 3100, mimeType: "audio/ogg", byteLength: 9876 },
     stake: { type: "coupon", label: "洗碗一次", fulfilled: false, additions: [] },
     cardId: null
   })
@@ -163,6 +171,7 @@ assert.equal(updatedDraft.agreement.id, created.agreement.id);
 assert.equal(updatedDraft.agreement.shareCode, created.agreement.shareCode);
 assert.equal(updatedDraft.agreement.title, "编辑后的约定");
 assert.equal(updatedDraft.agreement.participants[0].signatureDataUrl, "data:image/png;base64,initiator-signature-updated");
+assert.equal(updatedDraft.agreement.voice?.transcript, "编辑后的完整赌约原声");
 
 const share = await json<{ agreement: Agreement }>(`/share/${created.agreement.shareCode}`);
 assert.equal(share.agreement.id, created.agreement.id);

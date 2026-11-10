@@ -3,20 +3,34 @@
 .bet-module.is-creating > .page-transition { display: flex; flex: 1; min-height: 0; }
 .is-creating .bet-create { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; gap: 18px; padding: 0; }
 .agreement-editor { display: flex; flex: 1 0 auto; min-width: 0; min-height: 350px; flex-direction: column; color: var(--player-ink); }
-.agreement-edit-header { flex: none; padding: 0 1px 22px; }
+.agreement-edit-header { flex: none; padding: 0 1px 18px; }
 .agreement-edit-header h2 { margin: 0 0 5px; font-size: 25px; line-height: 1.35; letter-spacing: 0; font-weight: 800; }
 .agreement-edit-header p { margin: 0; color: var(--player-muted); font-size: 12px; line-height: 1.6; }
-.agreement-voice-tabs { display: grid; flex: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; border-bottom: 1px solid var(--player-line); }
-.agreement-voice-tabs > button { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 4px; border-bottom: 2px solid transparent; color: var(--player-muted); background: transparent; font-size: 13px; font-weight: 700; }
-.agreement-voice-tabs > button[aria-selected="true"] { border-bottom-color: var(--player-violet); color: var(--player-ink); }
-.voice-stage-number { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: var(--player-muted); background: rgba(24, 21, 29, .05); font-size: 10px; font-variant-numeric: tabular-nums; }
-.voice-stage-number.is-complete { color: var(--player-ink); background: var(--player-lime); }
-.agreement-voice-tabs [aria-selected="true"] .voice-stage-number:not(.is-complete) { color: #fff; background: var(--player-violet); }
-.agreement-voice-workspace { display: flex; flex: 1; min-height: 0; flex-direction: column; padding-top: 24px; outline: none; }
-.agreement-voice-question { flex: none; text-align: center; }
-.agreement-voice-question h3 { margin: 0; font-size: 23px; line-height: 1.4; font-weight: 800; letter-spacing: 0; }
-.agreement-voice-question p { margin: 6px 0 0; color: var(--player-muted); font-size: 12px; line-height: 1.6; }
-.agreement-voice-workspace > .voice-recorder { display: flex; flex: 1; min-height: 155px; flex-direction: column; align-items: center; justify-content: center; padding: 16px 0; }
+.agreement-voice-workspace { display: flex; flex: 1; min-height: 0; flex-direction: column; padding: 25px 1px 0; }
+.agreement-editor .agreement-voice-workspace { border-top: 1px solid var(--player-line); }
+.agreement-voice-question { flex: none; }
+.agreement-voice-question > span { display: block; color: var(--player-muted); font-size: 10px; font-weight: 700; }
+.agreement-voice-question p { max-width: 28em; margin: 7px 0 0; color: var(--player-ink); font-size: 17px; font-weight: 700; line-height: 1.55; }
+.agreement-voice-inspiration { margin: auto 0; padding: 0; text-align: center; }
+.agreement-voice-inspiration-wave { display: block; width: 118px; margin: 0 auto 13px; color: var(--player-violet); opacity: .8; }
+.agreement-voice-inspiration-wave .voice-wave { height: 28px; justify-content: center; gap: 2px; }
+.agreement-voice-inspiration-wave .voice-wave i { width: 2px; min-height: 4px; }
+.agreement-voice-inspiration > span { color: var(--player-muted); font-size: 10px; }
+.agreement-voice-inspiration > p { margin: 7px 0 0; color: var(--player-ink); font-size: 20px; font-weight: 700; line-height: 1.55; }
+.agreement-voice-inspiration > small { display: block; margin-top: 9px; color: var(--player-muted); font-size: 10px; }
+.agreement-voice-workspace.has-voice { justify-content: flex-start; }
+.agreement-voice-result { display: flex; flex: 1; min-height: 0; flex-direction: column; justify-content: center; padding-bottom: 22px; }
+.agreement-voice-transcript { margin: 26px 0 22px; color: var(--player-ink); font-size: 18px; font-weight: 700; line-height: 1.6; overflow-wrap: anywhere; }
+.agreement-voice-transcript.is-pending { color: var(--player-muted); font-size: 12px; font-weight: 500; }
+.agreement-voice-playback { width: 100%; min-height: 46px; display: flex; align-items: center; gap: 10px; padding: 0; color: var(--player-ink); background: transparent; text-align: left; }
+.agreement-voice-playback:disabled { opacity: .55; }
+.agreement-voice-playback:focus-visible { outline: 2px solid var(--player-violet); outline-offset: 4px; border-radius: 8px; }
+.agreement-voice-playback-mark { width: 30px; height: 30px; display: grid; place-items: center; flex: none; border-radius: 50%; color: #fff; background: var(--player-violet); }
+.agreement-voice-playback > .voice-wave { flex: 1; height: 28px; gap: 2px; }
+.agreement-voice-playback > .voice-wave i { width: 2px; min-height: 4px; }
+.agreement-voice-playback > span:nth-last-child(2) { color: var(--player-muted); font-size: 10px; white-space: nowrap; }
+.agreement-voice-playback > small { min-width: 34px; color: var(--player-muted); font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
+.agreement-voice-rerecord-hint { margin-top: 11px; color: var(--player-muted); font-size: 10px; }
 .voice-composer { display: flex; flex-direction: column; align-items: center; gap: 15px; }
 .voice-composer.has-voice, .voice-composer.is-capturing { display: grid; grid-template-columns: auto auto; column-gap: 12px; }
 .voice-composer.has-voice .voice-composer-primary, .voice-composer.is-capturing .voice-composer-primary { grid-column: 1 / -1; justify-self: center; }
@@ -37,10 +51,6 @@
 .voice-capture-readout > span { color: var(--player-muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .voice-capture-readout small { font-size: 10px; }
 .voice-composer-cancel { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; color: var(--player-muted); background: transparent; }
-.agreement-voice-inspiration { flex: none; margin: 0; padding: 14px 0 0; border-top: 1px solid var(--player-line); }
-.agreement-voice-inspiration > span { color: var(--player-muted); font-size: 10px; }
-.agreement-voice-inspiration > p { margin: 6px 0 0; color: var(--player-ink); font-size: 14px; line-height: 1.65; }
-.agreement-voice-inspiration > small { display: block; margin-top: 5px; color: var(--player-muted); font-size: 11px; line-height: 1.6; }
 .bet-create .contract-cta { flex: none; min-height: 50px; margin: 0; gap: 12px; font-size: 13px; letter-spacing: 0; }
 .voice-playback-error { display: block; margin-top: 5px; color: #ae3e3b; font-size: 10px; line-height: 1.4; }
 
@@ -74,13 +84,10 @@
   .agreement-editor { min-height: 304px; }
   .agreement-edit-header { padding-bottom: 13px; }
   .agreement-edit-header h2 { font-size: 23px; }
-  .agreement-voice-tabs > button { min-height: 42px; }
   .agreement-voice-workspace { padding-top: 12px; }
-  .agreement-voice-question h3 { font-size: 21px; }
-  .agreement-voice-workspace > .voice-recorder { min-height: 128px; padding: 10px 0; }
+  .agreement-voice-question p { font-size: 16px; }
   .voice-composer { gap: 12px; }
   .voice-composer-primary { width: 68px; height: 68px; outline-offset: 6px; }
-  .agreement-voice-inspiration { padding-top: 10px; }
   .bet-create .contract-cta { min-height: 48px; }
 }
 @media (max-height: 680px) {
@@ -89,17 +96,12 @@
   .is-creating .bet-create { gap: 12px; }
   .agreement-editor { min-height: 270px; }
   .agreement-edit-header { padding-bottom: 10px; }
-  .agreement-edit-header p { display: none; }
-  .agreement-voice-tabs > button { min-height: 38px; }
   .agreement-voice-workspace { padding-top: 12px; }
-  .agreement-voice-question p { display: none; }
-  .agreement-voice-workspace > .voice-recorder { min-height: 108px; padding: 6px 0; }
+  .agreement-voice-question p { font-size: 15px; }
   .voice-composer { gap: 8px; }
   .voice-composer-primary { width: 60px; height: 60px; }
   .voice-composer-rerecord { min-height: 32px; }
-  .agreement-voice-inspiration > small { display: none; }
   .bet-create .contract-cta { min-height: 46px; }
-  .agreement-voice-workspace > .voice-recorder.is-capturing { padding-top: 0; padding-bottom: 0; }
   .voice-composer.is-capturing { row-gap: 4px; }
 }
 @media (prefers-reduced-motion: reduce) {

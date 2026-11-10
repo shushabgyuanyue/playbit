@@ -338,6 +338,25 @@ class MemoryCouponRepository {
     return fromClaimRow(updated, claim);
   }
 
+  async claimOwnCoupon(couponId: string, holderUserId: string, holderNickname: string): Promise<Coupon | null> {
+    const coupon = this.coupons.get(couponId);
+    if (!coupon || coupon.claimId || coupon.issuerUserId !== holderUserId || coupon.status !== "available" || coupon.claimedCount >= coupon.claimLimit) return null;
+    if (Array.from(this.claims.values()).some((claim) => claim.couponId === coupon.id && claim.holderUserId === holderUserId)) return null;
+    const claim: MemoryCouponClaim = {
+      id: makeId("claim"),
+      couponId: coupon.id,
+      holderUserId,
+      holderNickname,
+      status: "available",
+      claimedAt: new Date().toISOString(),
+      usedAt: null
+    };
+    this.claims.set(claim.id, claim);
+    const updated = { ...coupon, claimedCount: coupon.claimedCount + 1, remainingClaims: Math.max(0, coupon.claimLimit - coupon.claimedCount - 1) };
+    this.coupons.set(coupon.id, updated);
+    return fromClaimRow(updated, claim);
+  }
+
   async deleteIndependent(id: string, issuerUserId: string): Promise<boolean> {
     const coupon = this.coupons.get(id);
     if (!coupon || coupon.agreementId || coupon.sourceFlipId || coupon.issuerUserId !== issuerUserId || coupon.holderUserId || coupon.claimedCount > 0 || coupon.status !== "available") {
@@ -594,6 +613,31 @@ class PostgresCouponRepository {
     return this.db.transaction(async (tx) => {
       const [parent] = await tx.select().from(coupons).where(eq(coupons.claimToken, token)).for("update");
       if (!parent || parent.status !== "available" || parent.claimedCount >= parent.claimLimit) return null;
+      const [existing] = await tx
+        .select({ id: couponClaims.id })
+        .from(couponClaims)
+        .where(and(eq(couponClaims.couponId, parent.id), eq(couponClaims.holderUserId, holderUserId)))
+        .limit(1);
+      if (existing) return null;
+      const [claim] = await tx.insert(couponClaims).values({
+        id: makeId("claim"),
+        couponId: parent.id,
+        holderUserId,
+        holderNickname
+      }).returning();
+      const [updated] = await tx
+        .update(coupons)
+        .set({ claimedCount: sql`${coupons.claimedCount} + 1` })
+        .where(eq(coupons.id, parent.id))
+        .returning();
+      return updated && claim ? fromClaimRow(updated, claim) : null;
+    });
+  }
+
+  async claimOwnCoupon(couponId: string, holderUserId: string, holderNickname: string): Promise<Coupon | null> {
+    return this.db.transaction(async (tx) => {
+      const [parent] = await tx.select().from(coupons).where(eq(coupons.id, couponId)).for("update");
+      if (!parent || parent.issuerUserId !== holderUserId || parent.status !== "available" || parent.claimedCount >= parent.claimLimit) return null;
       const [existing] = await tx
         .select({ id: couponClaims.id })
         .from(couponClaims)

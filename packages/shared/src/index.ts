@@ -127,6 +127,15 @@ export const agreementStatusSchema = z.enum([
   "waived"
 ]);
 
+// Voice media itself stays in the local/browser asset store for now. The
+// agreement only carries metadata that is safe to persist and share.
+export const agreementVoiceSchema = z.object({
+  transcript: z.string().max(180).nullable().default(null),
+  durationMs: z.number().int().min(0).default(0),
+  mimeType: z.string().max(100).nullable().default(null),
+  byteLength: z.number().int().nonnegative().nullable().default(null)
+}).nullable().default(null);
+
 export const flipStatusSchema = z.enum(["pending_acceptance", "active", "declined", "settled"]);
 export const flipSchema = z.object({
   id: z.string(),
@@ -174,6 +183,7 @@ export const agreementSchema = z.object({
   source: z.enum(["custom", "card"]),
   participants: z.array(participantSchema).min(1),
   challenge: z.string(),
+  voice: agreementVoiceSchema,
   stake: stakeSchema,
   cardId: z.string().nullable(),
   gameCard: cardSchema.nullable().default(null),
@@ -206,6 +216,7 @@ export const createAgreementSchema = z.object({
   creatorSignatureDataUrl: z.string().min(1).max(50000),
   title: z.string().trim().min(1).max(inputLimits.agreementTitle),
   challenge: z.string().trim().min(1).max(180).optional(),
+  voice: agreementVoiceSchema.optional(),
   stake: stakeSchema.refine(value => !value.fulfilled && value.additions.length === 0,
     "New stakes cannot include fulfillment or confirmed amendments"),
   cardId: z.string().nullable().optional()
@@ -266,6 +277,7 @@ export type GameEventName = z.infer<typeof gameEventNameSchema>;
 export type GameEvent = z.infer<typeof gameEventSchema>;
 export type Card = z.infer<typeof cardSchema>;
 export type AgreementStatus = z.infer<typeof agreementStatusSchema>;
+export type AgreementVoice = z.infer<typeof agreementVoiceSchema>;
 export type Agreement = z.infer<typeof agreementSchema>;
 export type CreateAgreementInput = z.infer<typeof createAgreementSchema>;
 export type CreateOfflineAgreementInput = z.infer<typeof createOfflineAgreementRequestSchema>;

@@ -129,6 +129,18 @@ export function registerCouponRoutes(
     return context.json({ coupon: couponSchema.parse(claimed) });
   });
 
+  app.post("/coupons/:id/claim-self", async (context) => {
+    const currentUser = await requireCurrentUser(context, auth);
+    if (currentUser instanceof Response) return currentUser;
+    const coupon = await coupons.findById(context.req.param("id"));
+    if (!coupon) return context.json({ message: "Coupon not found" }, 404);
+    if (coupon.claimId || coupon.issuerUserId !== currentUser.id) return context.json({ message: "Only the issuer can claim this coupon" }, 403);
+    if (coupon.status !== "available" || coupon.remainingClaims <= 0) return context.json({ message: "Coupon is no longer available" }, 410);
+    const claimed = await coupons.claimOwnCoupon(coupon.id, currentUser.id, currentUser.nickname);
+    if (!claimed) return context.json({ message: "Coupon was already claimed" }, 409);
+    return context.json({ coupon: couponSchema.parse(claimed) });
+  });
+
   app.delete("/coupons/:id", async (context) => {
     const currentUser = await requireCurrentUser(context, auth);
     if (currentUser instanceof Response) return currentUser;

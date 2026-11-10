@@ -16,7 +16,7 @@ export function settleAgreement(state: PlayerState, party: Party): PlayerState {
     ...state,
     draft: { ...state.draft, step: 3, winner: party },
     agreements: state.agreements.map(a => a.id === agreement.id ? { ...a, winner: party } : a),
-    coupons: [{ id: `coupon-${agreement.id}`, displayNo: agreement.id.slice(-8).toUpperCase(), title: agreement.benefit, subtitle: agreement.text, side: "won", tone: couponTone("promise"), status: "available", source: "promise", sourceNote: agreement.text, agreementId: agreement.id, issuerName: issuerParty === "a" ? "甲方" : "乙方", signature: agreement.signatures[issuerParty], voice: agreement.benefitVoice, issuedAt: new Date().toISOString(), holderName: party === "a" ? "甲方" : "乙方" }, ...state.coupons]
+    coupons: [{ id: `coupon-${agreement.id}`, displayNo: agreement.id.slice(-8).toUpperCase(), title: agreement.benefit, subtitle: agreement.text, side: "won", tone: couponTone("promise"), status: "available", source: "promise", sourceNote: agreement.text, agreementId: agreement.id, issuerName: issuerParty === "a" ? "甲方" : "乙方", signature: agreement.signatures[issuerParty], voice: agreement.voice, issuedAt: new Date().toISOString(), holderName: party === "a" ? "甲方" : "乙方" }, ...state.coupons]
   };
 }
 

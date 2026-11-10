@@ -42,9 +42,7 @@ export function AgreementDetailPage() {
     <div className="agreement-detail-card-wrap">
       <AgreementCard
         text={record.text}
-        benefit={record.benefit}
-        challengeVoice={record.challengeVoice ?? demoVoice(record.text, "challenge")}
-        benefitVoice={record.benefitVoice ?? demoVoice(record.benefit, "benefit")}
+        voice={record.voice ?? demoVoice(record.text, "agreement")}
         status={copy.promise.shareCard.signed}
         participants={[{ role: "initiator", nickname: state.profileName, signed: record.signatures.a.length > 0, signature: record.signatures.a }, { role: "counterparty", nickname: copy.promise.b, signed: record.signatures.b.length > 0, signature: record.signatures.b }]}
         code={record.shareCode ?? record.id}

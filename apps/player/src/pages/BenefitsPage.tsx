@@ -178,8 +178,9 @@ export function BenefitsPage() {
       claimingRef.current = true;
       setClaimLoading(true);
       try {
-        const result = await playerApi.claimCoupon(issuance.claimToken);
-        setRemote(current => ({ ...current, items: [result.coupon, ...current.items.filter(item => item.id !== result.coupon.id)] }));
+        const result = await playerApi.claimOwnCoupon(issuance.remoteId ?? issuance.id);
+        const parentId = result.coupon.parentCouponId ?? issuance.remoteId ?? issuance.id;
+        setRemote(current => ({ ...current, items: [result.coupon, ...current.items.filter(item => item.id !== result.coupon.id && item.id !== parentId)] }));
         setRemoteMode(true);
       } catch (error) {
         notify(error instanceof PlayerApiError && error.status === 410 ? copy.wallet.claimUnavailable : copy.wallet.claimError);

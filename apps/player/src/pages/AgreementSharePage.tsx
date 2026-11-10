@@ -17,8 +17,7 @@ type SharedAgreement = {
   text: string;
   benefit: string;
   createdAt: string;
-  challengeVoice: ReturnType<typeof demoVoice>;
-  benefitVoice: ReturnType<typeof demoVoice>;
+  voice: ReturnType<typeof demoVoice>;
   participants: SharedParticipant[];
 };
 
@@ -29,8 +28,7 @@ function fromLocal(agreement: Agreement, profileName: string): SharedAgreement {
     text: agreement.text,
     benefit: agreement.benefit,
     createdAt: agreement.createdAt,
-    challengeVoice: agreement.challengeVoice ?? demoVoice(agreement.text, "challenge"),
-    benefitVoice: agreement.benefitVoice ?? demoVoice(agreement.benefit, "benefit"),
+    voice: agreement.voice ?? demoVoice(agreement.text, "agreement"),
     participants: [
       { role: "initiator", nickname: profileName, signed: Boolean(agreement.signatures.a.length), signature: agreement.signatures.a },
       { role: "counterparty", nickname: copy.promise.shareCard.counterparty, signed: Boolean(agreement.signatures.b.length), signature: agreement.signatures.b }
@@ -45,8 +43,9 @@ function fromRemote(agreement: ApiAgreement): SharedAgreement {
     text: agreement.challenge || agreement.title,
     benefit: agreement.stake.label,
     createdAt: agreement.createdAt,
-    challengeVoice: demoVoice(agreement.challenge || agreement.title, "challenge"),
-    benefitVoice: demoVoice(agreement.stake.label, "benefit"),
+    voice: agreement.voice
+      ? { id: `remote-${agreement.id}`, durationMs: agreement.voice.durationMs, storage: "demo", transcript: agreement.voice.transcript ?? undefined }
+      : demoVoice(agreement.challenge || agreement.title, "agreement"),
     participants: agreement.participants.map(participant => ({
       role: participant.role,
       nickname: participant.nickname,
@@ -103,7 +102,7 @@ export function AgreementSharePage() {
   if (!agreement || failed) return <section className="agreement-share-page share-state"><Icon name="file" size={28} /><h1>{restricted ? copy.promise.shareCard.restricted : copy.promise.shareCard.unavailable}</h1>{restricted && !auth.user ? <button className="share-open-button" onClick={() => setAuthOpen(true)}>{copy.promise.shareCard.loginToView}<Icon name="arrow" size={16} /></button> : <button className="share-open-button" onClick={() => navigate("/")}>{copy.nav.play}<Icon name="arrow" size={16} /></button>}<AuthSheet open={authOpen} onClose={() => setAuthOpen(false)} /></section>;
 
   return <section className="agreement-share-page page-transition">
-    <AgreementCard text={agreement.text} benefit={agreement.benefit} challengeVoice={agreement.challengeVoice} benefitVoice={agreement.benefitVoice} status={agreement.participants.length >= 2 && agreement.participants.every(participant => participant.signed) ? copy.promise.shareCard.signed : copy.promise.shareCard.signing} participants={agreement.participants} code={agreement.shareCode ?? agreement.id} createdAt={agreement.createdAt} />
+    <AgreementCard text={agreement.text} voice={agreement.voice} status={agreement.participants.length >= 2 && agreement.participants.every(participant => participant.signed) ? copy.promise.shareCard.signed : copy.promise.shareCard.signing} participants={agreement.participants} code={agreement.shareCode ?? agreement.id} createdAt={agreement.createdAt} />
     <button className="share-open-button" onClick={openPlaybit}>{localAgreement ? copy.promise.shareCard.openPlaybit : copy.promise.shareCard.enterPlaybit}<Icon name="arrow" size={17} /></button>
   </section>;
 }

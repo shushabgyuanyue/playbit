@@ -15,7 +15,7 @@ describe("coupon presentation", () => {
 
   it("restores older agreement-linked recordings", () => {
     const state = createInitialState();
-    state.agreements = [{ id: "agreement-1", text: "约定", benefit: remote.name, benefitVoice: voice, signatures: { a: [], b: [] }, createdAt: remote.createdAt, winner: null }];
+    state.agreements = [{ id: "agreement-1", text: "约定", benefit: remote.name, voice, signatures: { a: [], b: [] }, createdAt: remote.createdAt, winner: null }];
     expect(toPlayerCoupon({ ...remote, agreementId: "agreement-1" }, state).voice).toEqual(voice);
   });
 

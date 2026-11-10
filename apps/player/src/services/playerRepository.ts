@@ -35,17 +35,8 @@ export function decodeState(raw: string | null): PlayerState {
       sceneId: value.sceneId === "mystery" ? EXPLORE_SCENE_ID : value.sceneId,
       // Step 3 is benefit issuance. Older saved sessions already used this step
       // after issuance, so keep it and render the issuance page.
-      draft: {
-        ...value.draft,
-        step: draftStep as PlayerState["draft"]["step"],
-        challengeVoice: value.draft.challengeVoice ?? demoVoice(value.draft.text, "challenge"),
-        benefitVoice: value.draft.benefitVoice ?? demoVoice(value.draft.benefit, "benefit")
-      },
-      agreements: value.agreements.map(agreement => ({
-        ...agreement,
-        challengeVoice: agreement.challengeVoice ?? demoVoice(agreement.text, "challenge"),
-        benefitVoice: agreement.benefitVoice ?? demoVoice(agreement.benefit, "benefit")
-      })),
+      draft: migratePromiseDraft(value.draft, draftStep as PlayerState["draft"]["step"]),
+      agreements: value.agreements.map(migrateAgreement),
       stakeVoices: value.stakeVoices && typeof value.stakeVoices === "object" ? value.stakeVoices : {},
       stakeRecords: normalizeStakeRecords(value),
       issuedStakes: value.issuedStakes && typeof value.issuedStakes === "object" ? Object.fromEntries(Object.entries(value.issuedStakes).map(([cardId, issuance]) => [cardId, { ...issuance, source: "game" }])) : {},
@@ -58,6 +49,37 @@ export function decodeState(raw: string | null): PlayerState {
         }))
     };
   } catch { return createInitialState(); }
+}
+
+type LegacyPromiseDraft = PlayerState["draft"] & {
+  challengeVoice?: PlayerState["draft"]["voice"];
+  benefitVoice?: PlayerState["draft"]["voice"];
+};
+
+type LegacyAgreement = PlayerState["agreements"][number] & {
+  challengeVoice?: PlayerState["draft"]["voice"];
+  benefitVoice?: PlayerState["draft"]["voice"];
+};
+
+function migratePromiseDraft(raw: PlayerState["draft"], step: PlayerState["draft"]["step"]): PlayerState["draft"] {
+  const legacy = raw as LegacyPromiseDraft;
+  const { challengeVoice: _challengeVoice, benefitVoice: _benefitVoice, ...draft } = legacy;
+  const voice = legacy.voice?.assetId ? legacy.voice : legacy.challengeVoice?.assetId ? legacy.challengeVoice : legacy.benefitVoice?.assetId ? legacy.benefitVoice : legacy.voice;
+  return {
+    ...draft,
+    step,
+    voice: voice ?? demoVoice(draft.text, "agreement")
+  };
+}
+
+function migrateAgreement(raw: PlayerState["agreements"][number]): PlayerState["agreements"][number] {
+  const legacy = raw as LegacyAgreement;
+  const { challengeVoice: _challengeVoice, benefitVoice: _benefitVoice, ...agreement } = legacy;
+  const voice = legacy.voice?.assetId ? legacy.voice : legacy.challengeVoice?.assetId ? legacy.challengeVoice : legacy.benefitVoice?.assetId ? legacy.benefitVoice : legacy.voice;
+  return {
+    ...agreement,
+    voice: voice ?? demoVoice(agreement.text, "agreement")
+  };
 }
 
 export function readState(): PlayerState {

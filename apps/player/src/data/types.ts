@@ -81,8 +81,7 @@ export interface Agreement {
   id: string;
   text: string;
   benefit: string;
-  challengeVoice?: VoiceNote;
-  benefitVoice?: VoiceNote;
+  voice?: VoiceNote;
   signatures: Record<Party, Signature>;
   createdAt: string;
   winner: Party | null;
@@ -110,8 +109,7 @@ export interface Coupon {
 export interface PromiseDraft {
   text: string;
   benefit: string;
-  challengeVoice: VoiceNote;
-  benefitVoice: VoiceNote;
+  voice: VoiceNote;
   signatures: Record<Party, Signature>;
   step: 0 | 1 | 2 | 3;
   agreementId: string | null;

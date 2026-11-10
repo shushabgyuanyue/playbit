@@ -18,7 +18,7 @@ export function toPlayerCoupon(coupon: ApiCoupon, state: Pick<PlayerState, "coup
     ...Object.values(state.issuedStakes)
   ].find(item => (item.remoteId ?? item.id) === issuanceId);
   const agreement = coupon.agreementId ? state.agreements.find(item => item.id === coupon.agreementId) : undefined;
-  const voice = [local?.voice, issuance?.voice, agreement?.benefitVoice].find(item => item?.assetId);
+  const voice = [local?.voice, issuance?.voice, agreement?.voice].find(item => item?.assetId);
   return {
     id: coupon.id,
     displayNo: coupon.id.slice(-8).toUpperCase(),

@@ -82,6 +82,16 @@ describe("voice recorder lifecycle", () => {
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ transcript: "输的人请喝一杯" }));
   });
 
+  it("keeps the saved recording when transcription is unavailable", async () => {
+    transcribeVoice.mockRejectedValueOnce(new Error("ASR unavailable"));
+    await act(async () => { await recorder.start(); });
+    await act(async () => { recorder.stop(); await Promise.resolve(); await Promise.resolve(); });
+
+    expect(saveVoiceAsset).toHaveBeenCalledOnce();
+    expect(changed).toHaveBeenCalledWith(expect.objectContaining({ assetId: expect.stringMatching(/^voice_/), durationMs: expect.any(Number) }));
+    expect(recorder.status).toBe("idle");
+  });
+
   it("does not write a late transcript after the pending voice is cancelled", async () => {
     let resolveTranscription!: (value: { text: string; requestId: string | null }) => void;
     transcribeVoice.mockImplementation(() => new Promise(resolve => { resolveTranscription = resolve; }));

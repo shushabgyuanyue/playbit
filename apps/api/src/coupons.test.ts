@@ -76,6 +76,28 @@ assert.equal(new Set([...first.coupons, ...second.coupons].map(item => item.id))
 const issued = first.coupons[0]!;
 const issuerOwned = await json<{ coupons: Coupon[] }>("/coupons?limit=10&owned=1", { headers: auth(issuer.token) });
 assert.equal(issuerOwned.coupons.length, 0, "issued coupons do not belong in the issuer's owned wallet");
+const selfIssued = await json<{ coupon: Coupon }>("/coupons/independent", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", ...auth(issuer.token) },
+  body: JSON.stringify({
+    name: "签发人自领测试",
+    description: "验证自己的权益可以正常领取",
+    sourceLabel: "手动签发",
+    claimLimit: 1
+  })
+});
+assert.equal((await app.request(`/coupons/share/${selfIssued.coupon.claimToken}/claim`, {
+  method: "POST",
+  headers: auth(issuer.token)
+})).status, 409, "the public share endpoint still rejects the issuer");
+const selfClaimed = await json<{ coupon: Coupon }>(`/coupons/${selfIssued.coupon.id}/claim-self`, {
+  method: "POST",
+  headers: auth(issuer.token)
+});
+assert.equal(selfClaimed.coupon.claimId !== null, true);
+assert.equal(selfClaimed.coupon.holderUserId, issuer.user.id);
+const issuerOwnedAfterSelfClaim = await json<{ coupons: Coupon[] }>("/coupons?limit=10&owned=1", { headers: auth(issuer.token) });
+assert.equal(issuerOwnedAfterSelfClaim.coupons.some(item => item.claimId === selfClaimed.coupon.claimId), true);
 const share = await json<{ coupon: Coupon }>(`/coupons/share/${issued.claimToken}`);
 assert.equal(share.coupon.remainingClaims, 1);
 const claimed = await json<{ coupon: Coupon }>(`/coupons/share/${issued.claimToken}/claim`, {

@@ -23,7 +23,7 @@ export function AgreementListPage() {
 
   function startNewPromise() {
     const draft = state.draft;
-    if (!draft.agreementId && (draft.text || draft.benefit || draft.challengeVoice?.assetId || draft.benefitVoice?.assetId)) {
+    if (!draft.agreementId && (draft.text || draft.benefit || draft.voice.assetId)) {
       setRestartOpen(true);
       return;
     }

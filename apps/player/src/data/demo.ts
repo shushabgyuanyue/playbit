@@ -10,10 +10,10 @@ const retiredCards: GameCard[] = [
 ];
 // Retired samples remain accessible from existing personal decks and stake records.
 export const cards = [...sceneCards, ...retiredCards.map(card => ({ ...card, sceneIds: [] }))];
-export function demoVoice(text: string, kind: "challenge" | "benefit"): VoiceNote {
+export function demoVoice(text: string, kind: "agreement" | "challenge" | "benefit"): VoiceNote {
   return { id: `demo-${kind}-${text.trim() || "empty"}`, durationMs: 0, storage: "demo" };
 }
-export const emptyDraft = (): PromiseDraft => ({ text: "", benefit: "", challengeVoice: demoVoice("", "challenge"), benefitVoice: demoVoice("", "benefit"), signatures: { a: [], b: [] }, step: 0, agreementId: null, winner: null });
+export const emptyDraft = (): PromiseDraft => ({ text: "", benefit: "", voice: demoVoice("", "agreement"), signatures: { a: [], b: [] }, step: 0, agreementId: null, winner: null });
 const sampleSignature = [[{ x: 0.08, y: 0.62 }, { x: 0.24, y: 0.3 }, { x: 0.38, y: 0.65 }, { x: 0.54, y: 0.34 }, { x: 0.72, y: 0.58 }]];
 export const createInitialState = (): PlayerState => ({
   version: 1, profileName: copy.profile.defaultName, sceneId: "date", deckId: null, cardId: "almost-touch",

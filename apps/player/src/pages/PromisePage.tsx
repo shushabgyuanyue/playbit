@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Agreement as ApiAgreement } from "@playbit/shared";
+import type { Agreement as ApiAgreement, AgreementVoice } from "@playbit/shared";
 import { playerCopy as copy } from "@playbit/content/player";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Icon } from "../components/ui/Icon";
@@ -19,13 +19,21 @@ import { usePageMemory } from "../services/pageMemory";
 import { isPlayerApiConfigured, normalizeCouponDescription, normalizeCouponName, PlayerApiError, playerApi, signatureToDataUrl } from "../services/playerApi";
 import { deleteVoiceAsset } from "../services/voiceRepository";
 
-function toLocalAgreement(agreement: ApiAgreement, signatures: Record<Party, Signature>, voices: { challengeVoice: VoiceNote; benefitVoice: VoiceNote }) {
+function toAgreementVoice(voice: VoiceNote): AgreementVoice {
+  return voice.assetId ? {
+    transcript: voice.transcript?.trim() || null,
+    durationMs: voice.durationMs,
+    mimeType: voice.mimeType ?? null,
+    byteLength: voice.byteLength ?? null
+  } : null;
+}
+
+function toLocalAgreement(agreement: ApiAgreement, signatures: Record<Party, Signature>, voice: VoiceNote) {
   return {
     id: agreement.id,
     text: agreement.challenge || agreement.title,
     benefit: agreement.stake.label,
-    challengeVoice: voices.challengeVoice,
-    benefitVoice: voices.benefitVoice,
+    voice,
     signatures,
     createdAt: agreement.createdAt,
     winner: null as Party | null,
@@ -72,25 +80,6 @@ export function PromisePage() {
     return () => { saveScroll(); element.removeEventListener("scroll", saveScroll); };
   }, [remember]);
 
-  function changeVoice(kind: "challenge" | "benefit", voice: VoiceNote) {
-    sealRequestId.current = null;
-    update(current => {
-      const challengeVoice = kind === "challenge" ? voice : current.draft.challengeVoice;
-      const benefitVoice = kind === "benefit" ? voice : current.draft.benefitVoice;
-      return {
-        ...current,
-        draft: {
-          ...current.draft,
-          text: challengeVoice.assetId ? copy.promise.voice.challengeLabel : "",
-          benefit: benefitVoice.assetId ? copy.promise.voice.benefitLabel : "",
-          challengeVoice,
-          benefitVoice,
-          signatures: { a: [], b: [] }
-        }
-      };
-    });
-  }
-
   function sign(party: Party, value: Signature) {
     update(current => ({ ...current, draft: { ...current.draft, signatures: { ...current.draft.signatures, [party]: value } } }));
   }
@@ -118,13 +107,14 @@ export function PromisePage() {
           counterpartySignatureDataUrl: signatureToDataUrl(signatures.b) ?? "",
           title: draft.text.trim(),
           challenge: draft.text.trim(),
+          voice: toAgreementVoice(draft.voice),
           stake: { type: copy.promise.options.some(option => option === draft.benefit) ? "coupon" : "custom", label: draft.benefit.trim(), fulfilled: false, additions: [] }
         });
         update(current => {
           if (current.draft.step !== 1) return current;
           return {
             ...current,
-            agreements: [toLocalAgreement(result.agreement, signatures, { challengeVoice: current.draft.challengeVoice, benefitVoice: current.draft.benefitVoice }), ...current.agreements.filter(item => item.id !== result.agreement.id)],
+            agreements: [toLocalAgreement(result.agreement, signatures, current.draft.voice), ...current.agreements.filter(item => item.id !== result.agreement.id)],
             draft: { ...current.draft, step: 2, agreementId: result.agreement.id, winner: null }
           };
         });
@@ -133,7 +123,7 @@ export function PromisePage() {
         const createdAt = new Date().toISOString();
         update(current => {
           if (current.draft.step !== 1) return current;
-          return { ...current, agreements: [{ id, text: current.draft.text.trim(), benefit: current.draft.benefit.trim(), challengeVoice: current.draft.challengeVoice, benefitVoice: current.draft.benefitVoice, signatures: current.draft.signatures, createdAt, winner: null }, ...current.agreements], draft: { ...current.draft, step: 2, agreementId: id, winner: null } };
+          return { ...current, agreements: [{ id, text: current.draft.text.trim(), benefit: current.draft.benefit.trim(), voice: current.draft.voice, signatures: current.draft.signatures, createdAt, winner: null }, ...current.agreements], draft: { ...current.draft, step: 2, agreementId: id, winner: null } };
         });
       }
       sealRequestId.current = null;
@@ -167,7 +157,7 @@ export function PromisePage() {
   function cancelPromise() {
     if (stamping) return;
     // Completed agreements and their coupons still reference these recordings.
-    const assetIds = draft.agreementId ? [] : [draft.challengeVoice.assetId, draft.benefitVoice.assetId].filter((id): id is string => Boolean(id));
+    const assetIds = draft.agreementId ? [] : [draft.voice.assetId].filter((id): id is string => Boolean(id));
     clearTimeout(timer.current);
     sealRequestId.current = null;
     setPendingSeal(false);
@@ -253,7 +243,7 @@ export function PromisePage() {
       claimingRef.current = true;
       setClaimLoading(true);
       try {
-        await playerApi.claimCoupon(issuance.claimToken);
+        await playerApi.claimOwnCoupon(issuance.remoteId ?? issuance.id);
         update(current => ({ ...claimDirectBenefit(current, issuance.id, current.profileName), draft: { ...current.draft, step: 3 } }));
         setIssueOpen(false);
         notify(copy.promise.issueBenefitClaimed);
@@ -272,7 +262,7 @@ export function PromisePage() {
 
   return <section className={`bet-module${flowStep === 0 ? " is-creating" : flowStep === 1 ? " is-signing" : ""}`} ref={section}>
     <PromiseProgress activeStep={activeStep} onRestart={requestRestart} disabled={stamping} />
-    {flowStep === 0 && <div className="page-transition" key="promise-create"><PromiseForm draft={draft} onVoiceChange={changeVoice} onContinue={() => { if (draft.challengeVoice.assetId && draft.benefitVoice.assetId) update(current => ({ ...current, draft: { ...current.draft, step: 1 } })); }} /></div>}
+    {flowStep === 0 && <div className="page-transition" key="promise-create"><PromiseForm draft={draft} onContinue={() => { if (draft.voice.assetId) update(current => ({ ...current, draft: { ...current.draft, step: 1 } })); }} /></div>}
     {flowStep === 1 && <div className="page-transition" key="promise-sign"><SigningStep draft={draft} stamping={stamping} onSignature={sign} onSeal={seal} /></div>}
     {flowStep === 2 && <div className="page-transition settlement-flow" key="promise-settlement">
       <div className="ritual-title"><span><Icon name="shield" size={17} /></span><div><small>{copy.promise.resultStep}</small><b>{copy.promise.resultTitle}</b></div></div>
@@ -296,7 +286,7 @@ export function PromisePage() {
       {issuance?.status === "claimed" && <button className="contract-cta issued-share-cta" onClick={openWallet}><span>{copy.promise.viewWallet}</span><Icon name="arrow" /></button>}
       <button className="issued-new-promise" type="button" onClick={startNewPromise}><Icon name="edit" size={14} />{copy.promise.newPromise}</button>
     </div>}
-    {agreement && <IssueStakeSheet open={issueOpen} onClose={() => { if (!issueLoading && !claimLoading) setIssueOpen(false); }} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} source="promise" issuance={issuance} voice={agreement.benefitVoice} submitting={issueLoading} claiming={claimLoading} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={() => void selfClaimBenefit()} canSelfClaim labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.issueBenefit, pending: copy.promise.issueBenefitPending, voice: copy.promise.voice.benefitLabel, voiceHint: copy.promise.voice.localShareHint, recordLabel: copy.promise.voice.recordBenefit, action: copy.promise.issueBenefit, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
+    {agreement && <IssueStakeSheet open={issueOpen} onClose={() => { if (!issueLoading && !claimLoading) setIssueOpen(false); }} cardTitle={agreement.text} stake={agreement.benefit} issuerName={state.profileName} source="promise" issuance={issuance} voice={agreement.voice} submitting={issueLoading} claiming={claimLoading} onIssue={signBenefit} onShare={() => void shareBenefit()} onSelfClaim={() => void selfClaimBenefit()} canSelfClaim labels={{ title: copy.promise.issueBenefitTitle, eyebrow: "AGREEMENT BENEFIT", description: copy.promise.issueBenefitHint, issue: copy.promise.voice.benefitLabel, pending: copy.promise.issueBenefitPending, voice: copy.promise.voice.challengeLabel, voiceHint: copy.promise.voice.localShareHint, recordLabel: copy.promise.voice.recordChallenge, action: copy.promise.issueBenefit, signed: copy.promise.issueBenefitSigned, claimed: copy.promise.issueBenefitClaimed, share: copy.promise.issueBenefitShare, selfClaim: copy.promise.issueBenefitSelfClaim }} />}
     <ConfirmDialog open={restartOpen} onClose={() => setRestartOpen(false)} title={copy.promise.restartTitle} description={copy.promise.restartHint} confirmLabel={copy.promise.restartConfirm} onConfirm={cancelPromise} />
     <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingSeal(false); setPendingSelfClaim(false); }} onSuccess={() => { const shouldSeal = pendingSeal; const shouldSelfClaim = pendingSelfClaim; setPendingSeal(false); setPendingSelfClaim(false); if (shouldSeal) void sealAfterAuth(true); if (shouldSelfClaim) void selfClaimBenefit(true); }} />
   </section>;
