@@ -15,7 +15,7 @@ function Harness({ slide = "", cardId = "first" }) {
   return createElement("section", swipe,
     createElement("p", null, "Content"),
     createElement("button", null, "Flip"),
-    createElement("div", { className: "is-scrollable" }, "Long rules"));
+    createElement("div", { className: "card-back" }, createElement("div", { className: "is-scrollable", "data-feed-scroll": true }, "Long rules")));
 }
 function pointerAt(target: Element, type: string, x: number, y: number, isPrimary = true) {
   target.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1, pointerType: "touch", clientX: x, clientY: y, isPrimary }));
@@ -34,6 +34,7 @@ beforeEach(async () => {
   root = createRoot(host);
   await act(async () => root.render(createElement(Harness, {})));
   surface = host.querySelector("section")!;
+  surface.querySelector("[data-feed-scroll]")?.classList.add("is-scrollable");
   let captured = false;
   Object.defineProperties(surface, {
     clientHeight: { value: 600 },
@@ -56,8 +57,7 @@ it("tracks the finger, keeps the release position for the transition, then reset
   now = 250;
   pointer(surface, "pointermove", 240);
   const drag = Number.parseFloat(surface.style.getPropertyValue("--feed-drag"));
-  expect(drag).toBeLessThan(-100);
-  expect(drag).toBeGreaterThan(-160);
+  expect(drag).toBeCloseTo(-160, 4);
   expect(Number.parseFloat(surface.style.getPropertyValue("--feed-progress"))).toBeCloseTo(.2667, 3);
   expect(surface.dataset.dragAxis).toBe("y");
   pointer(surface, "pointerup", 240);
@@ -94,7 +94,7 @@ it("uses left swipe to enter same-type mode and right swipe to exit it", async (
   expect(move).not.toHaveBeenCalled();
 });
 
-it("damps horizontal motion and clears the settling state after the mode transition", async () => {
+it("damps horizontal motion without scaling the mode surface", async () => {
   const enter = vi.fn();
   function TypeModeHarness() {
     const swipe = useFeedSwipe("", "type-mode-damped", move, { onSwipeLeft: enter });
@@ -109,13 +109,12 @@ it("damps horizontal motion and clears the settling state after the mode transit
   pointerAt(surface.querySelector("p")!, "pointerdown", 420, 300);
   pointerAt(surface, "pointermove", 120, 300);
   const drag = Number.parseFloat(surface.style.getPropertyValue("--feed-drag-x"));
-  expect(drag).toBeLessThan(-150);
-  expect(drag).toBeGreaterThan(-300);
-  expect(Number.parseFloat(surface.style.getPropertyValue("--feed-scale"))).toBeLessThan(1);
+  expect(drag).toBeCloseTo(-300, 4);
+  expect(Number.parseFloat(surface.style.getPropertyValue("--feed-scale"))).toBe(1);
   pointerAt(surface, "pointerup", 120, 300);
   expect(enter).toHaveBeenCalledOnce();
   expect(surface.classList.contains("is-settling")).toBe(true);
-  await act(async () => { vi.advanceTimersByTime(340); });
+  await act(async () => { vi.advanceTimersByTime(360); });
   expect(surface.classList.contains("is-settling")).toBe(false);
   expect(surface.style.getPropertyValue("--feed-drag-x")).toBe("");
 });
@@ -143,14 +142,15 @@ it("locks the gesture axis after the first meaningful movement", async () => {
 it("hands an overflowing rule region back to native vertical scrolling", async () => {
   function ScrollHarness() {
     const swipe = useFeedSwipe("", "native-scroll", move);
-    return createElement("section", swipe, createElement("div", { className: "is-scrollable" }, "Long rules"));
+    return createElement("section", swipe, createElement("div", { className: "card-back" }, createElement("div", { className: "is-scrollable", "data-feed-scroll": true }, "Long rules")));
   }
   await act(async () => root.render(createElement(ScrollHarness)));
   surface = host.querySelector("section")!;
   Object.defineProperties(surface, {
     setPointerCapture: { value: () => undefined }, hasPointerCapture: { value: () => false }, releasePointerCapture: { value: () => undefined }
   });
-  const scrollRegion = surface.querySelector(".is-scrollable")!;
+  const scrollRegion = surface.querySelector("[data-feed-scroll]")!;
+  scrollRegion.classList.add("is-scrollable");
   pointerAt(scrollRegion, "pointerdown", 100, 300);
   expect(surface.classList.contains("is-native-scroll")).toBe(true);
   pointerAt(surface, "pointerup", 100, 200);
@@ -158,8 +158,47 @@ it("hands an overflowing rule region back to native vertical scrolling", async (
   expect(move).not.toHaveBeenCalled();
 });
 
+it("keeps a vertical feed swipe active when it starts in overflowing front content", async () => {
+  function FrontContentHarness() {
+    const swipe = useFeedSwipe("", "front-content", move);
+    return createElement("section", swipe, createElement("div", { className: "card-front" }, createElement("div", { className: "is-scrollable", "data-feed-scroll": true }, "Long content")));
+  }
+  await act(async () => root.render(createElement(FrontContentHarness)));
+  surface = host.querySelector("section")!;
+  Object.defineProperties(surface, {
+    clientHeight: { value: 600 }, clientWidth: { value: 600 },
+    setPointerCapture: { value: () => undefined }, hasPointerCapture: { value: () => false }, releasePointerCapture: { value: () => undefined }
+  });
+  const content = surface.querySelector("[data-feed-scroll]")!;
+  content.classList.add("is-scrollable");
+  pointerAt(content, "pointerdown", 100, 400);
+  pointerAt(surface, "pointermove", 100, 180);
+  pointerAt(surface, "pointerup", 100, 180);
+  expect(move).toHaveBeenCalledExactlyOnceWith(1);
+});
+
+it("keeps a short tap on a scrollable card face available for flipping", () => {
+  const tap = vi.fn();
+  function ScrollTapHarness() {
+    const swipe = useFeedSwipe("", "scroll-tap", move, { onTap: tap });
+    return createElement("section", swipe, createElement("div", { className: "card-back" }, createElement("div", { className: "is-scrollable", "data-feed-scroll": true }, "Long rules")));
+  }
+  act(() => root.render(createElement(ScrollTapHarness)));
+  surface = host.querySelector("section")!;
+  Object.defineProperties(surface, {
+    clientHeight: { value: 600 }, clientWidth: { value: 600 },
+    setPointerCapture: { value: () => undefined }, hasPointerCapture: { value: () => false }, releasePointerCapture: { value: () => undefined }
+  });
+  const scrollRegion = surface.querySelector("[data-feed-scroll]")!;
+  scrollRegion.classList.add("is-scrollable");
+  pointerAt(scrollRegion, "pointerdown", 100, 300);
+  pointerAt(surface, "pointerup", 100, 300);
+  expect(tap).toHaveBeenCalledOnce();
+  expect(move).not.toHaveBeenCalled();
+});
+
 it("does not change cards from controls, long rule scrolling, secondary fingers or cancelled drags", () => {
-  for (const target of [surface.querySelector("button")!, surface.querySelector(".is-scrollable")!]) {
+  for (const target of [surface.querySelector("button")!, surface.querySelector("[data-feed-scroll]")!]) {
     pointer(target, "pointerdown", 400);
     pointer(surface, "pointerup", 100);
   }
@@ -170,6 +209,30 @@ it("does not change cards from controls, long rule scrolling, secondary fingers 
   pointer(surface, "pointercancel", 200);
   expect(move).not.toHaveBeenCalled();
   expect(surface.style.getPropertyValue("--feed-drag")).toBe("");
+});
+
+it("lets media controls keep tap playback while allowing a swipe to start on the media stage", () => {
+  const tap = vi.fn();
+  function MediaHarness() {
+    const swipe = useFeedSwipe("", "media", move, { onTap: tap });
+    return createElement("section", swipe, createElement("button", { className: "card-video" }, "Video"));
+  }
+  act(() => root.render(createElement(MediaHarness)));
+  surface = host.querySelector("section")!;
+  Object.defineProperties(surface, {
+    clientHeight: { value: 600 }, clientWidth: { value: 600 },
+    setPointerCapture: { value: () => undefined }, hasPointerCapture: { value: () => false }, releasePointerCapture: { value: () => undefined }
+  });
+  const media = surface.querySelector(".card-video")!;
+  pointer(media, "pointerdown", 400);
+  pointer(surface, "pointerup", 400);
+  expect(tap).not.toHaveBeenCalled();
+
+  pointer(media, "pointerdown", 400);
+  now = 250;
+  pointer(surface, "pointermove", 200);
+  pointer(surface, "pointerup", 200);
+  expect(move).toHaveBeenCalledExactlyOnceWith(1);
 });
 
 it("returns the card to its position when a pending stake blocks a swipe, and ignores wheel inertia", () => {
@@ -185,6 +248,19 @@ it("returns the card to its position when a pending stake blocks a swipe, and ig
     now += 30;
   }
   expect(move).toHaveBeenCalledExactlyOnceWith(1);
+});
+
+it("finishes a drag when the pointer leaves the deck and keeps the next gesture usable", () => {
+  pointer(surface, "pointerdown", 400);
+  now = 250;
+  pointer(surface, "pointermove", 200);
+  window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, pointerType: "touch", clientX: 100, clientY: 200, isPrimary: true }));
+  expect(move).toHaveBeenCalledExactlyOnceWith(1);
+
+  vi.advanceTimersByTime(340);
+  pointer(surface, "pointerdown", 400);
+  pointer(surface, "pointerup", 400);
+  expect(surface.style.getPropertyValue("--feed-drag")).toBe("");
 });
 
 it("reports a tap immediately without a hold timer", () => {

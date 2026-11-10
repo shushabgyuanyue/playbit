@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 import { playerCopy as copy } from "@playbit/content/player";
 import { Icon } from "../../components/ui/Icon";
 import type { GameCard as Card, VoiceNote } from "../../data/types";
@@ -60,21 +60,21 @@ export function GameCard({ card, flipped, slide, stakeVoice, active = true, onFl
   const voicePlayback = useVoicePlayback(stakeVoice ?? { id: "", durationMs: 0, storage: "demo" });
   useEffect(() => setPalette(fallbackPalette), [card.id]);
   useEffect(() => { if (!card.media) onPalette?.(fallbackPalette); }, [card.id, card.media, onPalette]);
-  function applyMediaPalette(next: CardPalette) {
+  const applyMediaPalette = useCallback((next: CardPalette) => {
     setPalette(next);
     onPalette?.(next);
-  }
+  }, [onPalette]);
   function handleCardClick(event: MouseEvent<HTMLElement>) {
-    if (!flipped || (event.target as Element).closest("button, a, input, textarea, audio, video, summary, [role='button']")) return;
-    onFlip(false);
+    if ((event.target as Element).closest("button, a, input, textarea, audio, video, summary, [role='button']")) return;
+    onFlip(!flipped);
   }
   const mediaClass = `has-media media-${card.media?.kind ?? "default"}`;
   const mediaImage = card.media?.kind === "image" ? `url("${card.media.src}")` : card.media?.kind === "video" ? `url("${card.media.poster}")` : undefined;
   return <article className={`game-card ${card.color} ${card.textStyle === "quote" ? "is-quote" : ""} ${mediaClass} ${flipped ? "is-flipped" : ""} ${slide}`} data-card-id={card.id} aria-label={card.label} onClick={handleCardClick} style={{ "--card-accent": effectivePalette.primary, "--card-accent-primary": effectivePalette.primary, "--card-accent-secondary": effectivePalette.secondary, "--card-surface": effectivePalette.surface, "--card-dark": effectivePalette.dark, "--card-ink": effectivePalette.ink, "--card-media-image": mediaImage } as CSSProperties}>
     <div className="game-card-motion"><div className="card-inner">
       <div className="card-face card-front" inert={flipped} aria-hidden={flipped}>
-        <div className="card-stage">{card.media ? <CardMedia media={card.media} active={active && !slide.startsWith("swipe-")} prefetchPalette={!active} visible={!flipped} onPalette={active && !slide.startsWith("swipe-") ? applyMediaPalette : undefined} /> : <div className="card-media card-media-default" aria-hidden="true" />}</div>
-        <div className="feed-story" data-feed-scroll>
+        <div className="card-stage">{card.media ? <CardMedia key={card.id} media={card.media} active={active && !slide.startsWith("swipe-")} prefetchPalette={!active} visible={!flipped} onPalette={active && !slide.startsWith("swipe-") ? applyMediaPalette : undefined} /> : <div className="card-media card-media-default" aria-hidden="true" />}</div>
+        <div className="feed-story">
           <span className="feed-category">{card.sponsor ? `${card.sponsor.disclosure} · ${card.sponsor.name}` : card.label}</span>
           <div className="prompt"><p>{card.prompt}</p><strong>{card.kicker}</strong></div>
           <CardVoicePlayer key={stakeVoice?.assetId ?? "empty"} voice={stakeVoice} playback={voicePlayback} />

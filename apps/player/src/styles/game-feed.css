@@ -6,14 +6,16 @@
   background: var(--player-paper);
 }
 .phone-play::before { display: none; }
-.phone-play > .page-view { position: absolute; inset: 0; background: transparent; }
+.phone-play > .page-view { position: absolute; inset: 0; background: transparent; pointer-events: none; }
+.phone-play > .page-view > .feed-toolbar,
+.phone-play > .page-view > .deck { pointer-events: auto; }
 .phone-play .topbar {
   position: absolute; inset: 0 0 auto; z-index: 5;
   border-bottom-color: transparent; background: transparent; box-shadow: none; backdrop-filter: none; color: #fff; text-shadow: 0 1px 12px rgba(12,16,31,.24);
 }
 .phone-play .brand-word, .phone-play .top-action.mode-flip { color: #fff; }
 .phone-play .bottom-nav {
-  position: absolute; inset: auto 0 0; z-index: 5;
+  position: absolute; inset: auto 0 0; z-index: 6; pointer-events: auto;
   height: calc(76px + env(safe-area-inset-bottom)); min-height: 76px;
   padding: 8px 35px calc(8px + env(safe-area-inset-bottom));
   border: 0; background: transparent; backdrop-filter: none;
@@ -40,23 +42,28 @@
 .feed-ai, .feed-records { color: inherit; }
 .feed-tool-prompt { position: absolute; top: -9px; right: -14px; min-width: max-content; padding: 2px 4px; border-radius: 5px; color: #fff; background: var(--player-coral); box-shadow: 0 3px 8px rgba(255,101,77,.22); font-size: 7px; font-weight: 800; line-height: 1; white-space: nowrap; text-shadow: none; }
 .feed-records > i { position: absolute; top: 0; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; color: #fff; background: var(--player-violet); font-size: 9px; font-style: normal; line-height: 16px; }
-.deck { position: relative; width: 100%; height: 100%; flex: 1; min-width: 0; min-height: 0; overflow: clip; outline: none; user-select: none; -webkit-user-select: none; touch-action: none; overscroll-behavior: contain; }
+.deck { position: relative; width: 100%; height: 100%; flex: 1; min-width: 0; min-height: 0; overflow: clip; outline: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; overscroll-behavior: contain; background: var(--feed-dark, var(--player-ink)); }
 .deck.is-native-scroll { touch-action: pan-y; }
 .deck:focus-visible { outline: 2px solid var(--player-ink); outline-offset: -3px; }
-.feed-current, .feed-neighbor { position: absolute; inset: 0; }
-.feed-current { z-index: 1; }
-.feed-neighbor { pointer-events: none; }
+.feed-current, .feed-neighbor { position: absolute; inset: -1px 0; height: calc(100% + 2px); will-change: transform; }
+.feed-current { z-index: 2; }
+.feed-neighbor { z-index: 3; pointer-events: none; }
 .feed-neighbor .game-card-motion { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
 .feed-next { transform: translateY(100%); }
 .feed-previous { transform: translateY(-100%); }
-.feed-mode-neighbor { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.feed-mode-neighbor { position: absolute; inset: -1px 0; z-index: 1; visibility: hidden; pointer-events: none; overflow: hidden; transform: translate3d(0, 0, 0); opacity: 0; will-change: opacity; }
+.deck[data-mode-transition] .feed-mode-neighbor { visibility: visible; }
 .game-card { position: relative; width: 100%; height: 100%; perspective: 1600px; }
-.game-card-motion { position: relative; width: 100%; height: 100%; transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); transform-origin: 50% 50%; transition: transform .34s cubic-bezier(.2,.86,.24,1), filter .3s ease; }
+.game-card-motion { position: relative; width: 100%; height: 100%; transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); transform-origin: 50% 50%; transition: transform .34s cubic-bezier(.2,.86,.24,1), filter .3s ease; will-change: transform; }
 .deck.is-dragging .game-card-motion { transition: none; }
+.deck.is-dragging .feed-next,
+.deck.is-dragging .feed-previous,
+.deck.is-dragging .feed-mode-neighbor { transition: none; }
 .deck[data-slide]:not([data-slide=""]) .game-card-motion { transition: none; }
 .feed-next, .feed-previous { transition: transform .34s cubic-bezier(.2,.86,.24,1); }
-.deck.is-dragging[data-drag-axis="y"][data-drag-direction="negative"] .feed-next { transform: translateY(calc((1 - var(--feed-progress, 0)) * 100%)); }
-.deck.is-dragging[data-drag-axis="y"][data-drag-direction="positive"] .feed-previous { transform: translateY(calc((var(--feed-progress, 0) - 1) * 100%)); }
+.deck.is-dragging[data-drag-axis="y"][data-drag-direction="negative"] .feed-next { transform: translateY(calc((1 - var(--feed-visual-progress, 0)) * 100%)); }
+.deck.is-dragging[data-drag-axis="y"][data-drag-direction="positive"] .feed-previous { transform: translateY(calc((var(--feed-visual-progress, 0) - 1) * 100%)); }
+.deck.is-dragging[data-drag-axis="x"] .feed-mode-neighbor { visibility: visible; opacity: calc(.12 + var(--feed-visual-progress, 0) * .88); }
 .card-inner { position: relative; width: 100%; height: 100%; contain: layout paint; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.2,.75,.25,1); }
 .feed-current .card-inner { will-change: transform; }
 .game-card.is-flipped .card-inner { transform: rotateY(180deg); }
@@ -174,18 +181,21 @@
 .deck[data-slide="swipe-down"] .feed-current .game-card-motion { animation: feedOutDown var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
 .deck[data-slide="swipe-up"] .feed-next { animation: feedInUp var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
 .deck[data-slide="swipe-down"] .feed-previous { animation: feedInDown var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
-.deck[data-mode-transition="enter-out"] .feed-current .game-card-motion { animation: modeOutLeft var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
-.deck[data-mode-transition="enter-out"] .feed-mode-neighbor { transform: translateX(100%); animation: modeInRight var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
-.deck[data-mode-transition="exit-out"] .feed-current .game-card-motion { animation: modeOutRight var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
-.deck[data-mode-transition="exit-out"] .feed-mode-neighbor { transform: translateX(-100%); animation: modeInLeft var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
-@keyframes feedOutUp { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); } to { transform: translate3d(0, -100%, 0) rotate(-1.2deg) scale(.985); } }
-@keyframes feedOutDown { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); } to { transform: translate3d(0, 100%, 0) rotate(1.2deg) scale(.985); } }
-@keyframes feedInUp { from { transform: translateY(calc((1 - var(--feed-progress, 0)) * 100%)); } to { transform: translateY(0); } }
-@keyframes feedInDown { from { transform: translateY(calc((var(--feed-progress, 0) - 1) * 100%)); } to { transform: translateY(0); } }
-@keyframes modeOutLeft { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); } to { transform: translate3d(-100%, 0, 0) rotate(-1.2deg) scale(.985); } }
-@keyframes modeInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-@keyframes modeOutRight { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0) rotate(var(--feed-rotate, 0deg)) scale(var(--feed-scale, 1)); } to { transform: translate3d(100%, 0, 0) rotate(1.2deg) scale(.985); } }
-@keyframes modeInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+.deck[data-mode-transition="enter-out"] .feed-current .game-card-motion { animation: modeCoverOutLeft var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
+.deck[data-mode-transition="enter-out"] .feed-mode-neighbor { animation: modeReveal .42s cubic-bezier(.2,.8,.2,1) forwards; }
+.deck[data-mode-transition="exit-out"] .feed-current .game-card-motion { animation: modeCoverOutRight var(--feed-snap-duration) cubic-bezier(.2,.8,.2,1) forwards; }
+.deck[data-mode-transition="exit-out"] .feed-mode-neighbor { animation: modeReveal .42s cubic-bezier(.2,.8,.2,1) forwards; }
+.deck[data-mode-transition="enter-in"] .feed-current,
+.deck[data-mode-transition="exit-in"] .feed-current { opacity: 0; }
+.deck[data-mode-transition="enter-in"] .feed-mode-neighbor,
+.deck[data-mode-transition="exit-in"] .feed-mode-neighbor { visibility: visible; transform: translate3d(0, 0, 0); opacity: 1; }
+@keyframes feedOutUp { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0); } to { transform: translate3d(0, -100%, 0); } }
+@keyframes feedOutDown { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0); } to { transform: translate3d(0, 100%, 0); } }
+@keyframes feedInUp { from { transform: translateY(calc((1 - var(--feed-visual-progress, 0)) * 100%)); } to { transform: translateY(0); } }
+@keyframes feedInDown { from { transform: translateY(calc((var(--feed-visual-progress, 0) - 1) * 100%)); } to { transform: translateY(0); } }
+@keyframes modeCoverOutLeft { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0); opacity: 1; } to { transform: translate3d(-100%, 0, 0); opacity: .98; } }
+@keyframes modeCoverOutRight { from { transform: translate3d(var(--feed-drag-x, 0px), var(--feed-drag, 0px), 0); opacity: 1; } to { transform: translate3d(100%, 0, 0); opacity: .98; } }
+@keyframes modeReveal { from { transform: translate3d(0, 0, 0); opacity: .08; } to { transform: translate3d(0, 0, 0); opacity: 1; } }
 @keyframes voiceGiftSend { 0% { opacity: 0; transform: translate3d(-5px, 5px, 0) scale(.82); } 62% { opacity: 1; transform: translate3d(2px, -1px, 0) scale(1.03); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes benefitTextReveal { 0% { opacity: 0; transform: translate3d(0, 6px, 0) scale(.96); } 65% { opacity: 1; transform: translate3d(0, -1px, 0) scale(1.01); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes benefitTextShine { 0% { left: -30%; opacity: 0; } 24% { opacity: .55; } 100% { left: 125%; opacity: 0; } }

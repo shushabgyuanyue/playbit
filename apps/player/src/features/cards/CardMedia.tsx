@@ -111,6 +111,7 @@ function extractPalette(source: CanvasImageSource): CardPalette | null {
 export function CardMedia({ media, active, prefetchPalette = false, visible = true, onPalette }: { media: Media; active: boolean; prefetchPalette?: boolean; visible?: boolean; onPalette?: (palette: CardPalette) => void }) {
   const element = useRef<HTMLMediaElement | null>(null);
   const paletteFrame = useRef<number | null>(null);
+  const paletteNotified = useRef<string | null>(null);
   const activeRef = useRef(active);
   activeRef.current = active;
   const [playing, setPlaying] = useState(false);
@@ -119,22 +120,29 @@ export function CardMedia({ media, active, prefetchPalette = false, visible = tr
   const mediaKey = `${media.kind}:${media.src}`;
   useEffect(() => {
     const cached = paletteCache.get(mediaKey);
-    if (cached) onPalette?.(cached);
+    if (cached) notifyPalette(cached);
   }, [mediaKey, onPalette]);
   useEffect(() => () => {
     if (paletteFrame.current !== null) window.cancelAnimationFrame(paletteFrame.current);
   }, [mediaKey]);
+  function notifyPalette(palette: CardPalette) {
+    if (!onPalette) return;
+    const signature = `${mediaKey}|${palette.primary}|${palette.secondary}|${palette.surface}|${palette.dark}|${palette.ink}`;
+    if (paletteNotified.current === signature) return;
+    paletteNotified.current = signature;
+    onPalette(palette);
+  }
   function schedulePalette(source: CanvasImageSource) {
     if (!onPalette && !prefetchPalette) return;
     const cached = paletteCache.get(mediaKey);
-    if (cached) { onPalette?.(cached); return; }
+    if (cached) { notifyPalette(cached); return; }
     if (paletteFrame.current !== null) window.cancelAnimationFrame(paletteFrame.current);
     // Let the first decoded frame paint before reading the small palette canvas.
     paletteFrame.current = window.requestAnimationFrame(() => {
       const palette = extractPalette(source);
       if (palette) {
         paletteCache.set(mediaKey, palette);
-        onPalette?.(palette);
+        notifyPalette(palette);
       }
       paletteFrame.current = null;
     });
@@ -188,9 +196,9 @@ export function CardMedia({ media, active, prefetchPalette = false, visible = tr
     onError: () => { setPlaying(false); setError(true); }
   };
   return <div className={`card-media card-media-${media.kind}`}>
-    {media.kind === "image" ? <img key={attempt} src={media.src} alt={media.alt} loading={active ? "eager" : "lazy"} fetchPriority={active ? "high" : "auto"} decoding="async" width={640} height={480} onError={() => setError(true)} onLoad={event => { setError(false); schedulePalette(event.currentTarget); }} />
+    {media.kind === "image" ? <img key={attempt} src={media.src} alt={media.alt} loading={active || prefetchPalette ? "eager" : "lazy"} fetchPriority={active ? "high" : "auto"} decoding="async" width={640} height={480} onError={() => setError(true)} onLoad={event => { setError(false); schedulePalette(event.currentTarget); }} />
       : media.kind === "video" ? <button className="card-video" type="button" onClick={() => void toggle()} aria-label={`${playing ? copy.play.mediaPause : copy.play.mediaResume}：${media.title}`} aria-pressed={playing}>
-        <video key={attempt} ref={node => { element.current = node; }} src={active ? media.src : undefined} poster={media.poster} muted loop autoPlay playsInline preload={active ? "auto" : "none"} aria-hidden="true" {...mediaEvents} />
+        <video key={attempt} ref={node => { element.current = node; }} src={media.src} poster={media.poster} muted loop autoPlay playsInline preload={active ? "auto" : prefetchPalette ? "metadata" : "none"} aria-hidden="true" {...mediaEvents} />
       </button>
       : <>
         <audio key={attempt} ref={node => { element.current = node; }} src={active ? media.src : undefined} preload={active ? "metadata" : "none"} {...mediaEvents} />

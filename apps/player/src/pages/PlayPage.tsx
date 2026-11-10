@@ -81,7 +81,11 @@ export function PlayPage() {
     modeTimer.current = window.setTimeout(() => setModeTransition(""), CARD_MOVE_MS);
   }
   function enterTypeMode() {
-    if (!card.gameplayId || !typeModeAvailable || typeMode || modeTransition) return;
+    if (typeMode || modeTransition) return;
+    if (!card.gameplayId || !typeModeAvailable) {
+      notify(copy.play.typeModeUnavailable);
+      return;
+    }
     const gameplayId = card.gameplayId as GameplayId;
     setModeTransition("enter-out");
     modeTimer.current = window.setTimeout(() => {
@@ -131,10 +135,11 @@ export function PlayPage() {
     }
     setFlipped(true);
   }
+  function handleCardFlip(value: boolean) {
+    if (value) revealCard();
+    else setFlipped(false);
+  }
   const swipe = useFeedSwipe(slide, card.id, moveCard, {
-    onTap: () => {
-      if (flipped) setFlipped(false); else revealCard();
-    },
     onSwipeLeft: typeMode ? undefined : enterTypeMode,
     onSwipeRight: typeMode ? leaveTypeMode : undefined,
     onGestureStart: () => {
@@ -363,13 +368,13 @@ export function PlayPage() {
       <button className="feed-tool feed-ai" onClick={() => setPanel("ai")} aria-label={copy.play.ai} title={copy.play.ai}><Icon name="spark" size={14} /><span className="feed-tool-prompt">{copy.play.ai}</span></button>
       <button className="feed-tool feed-records" onClick={() => setPanel("records")} aria-label={copy.play.stakeRecords} title={copy.play.stakeRecords}><Icon name="trophy" size={16} />{pendingStakeRecords.length > 0 && <i key={recordsPulseKey} className={recordsPulseKey ? "feed-records-count is-pulse" : "feed-records-count"}>{pendingStakeRecords.length}</i>}</button>
     </div>
-    <section className="deck" tabIndex={0} aria-label={copy.nav.play} {...swipe} data-slide={slide} data-mode-transition={modeTransition || undefined} style={{ "--feed-snap-duration": `${CARD_MOVE_MS}ms` } as CSSProperties}
+    <section className="deck" tabIndex={0} aria-label={copy.nav.play} {...swipe} data-slide={slide} data-mode-transition={modeTransition || undefined} style={{ "--feed-snap-duration": `${CARD_MOVE_MS}ms`, "--feed-dark": feedDark } as CSSProperties}
       onKeyDown={e => { if (e.target !== e.currentTarget) return; if (typeMode && e.key === "ArrowRight") { e.preventDefault(); leaveTypeMode(); } else if (!typeMode && e.key === "ArrowLeft") { e.preventDefault(); enterTypeMode(); } else if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); moveCard(e.key === "ArrowUp" ? 1 : -1); } }}>
       <FeedNeighbors pool={pool} cardId={card.id} stakeVoices={state.stakeVoices} />
-      {modeTransition && <div className="feed-mode-neighbor" aria-hidden="true" inert>
+      {(typeMode || typeModeAvailable) && <div className="feed-mode-neighbor" aria-hidden="true" inert>
         <GameCard key={`${card.id}-mode-neighbor`} card={card} active={false} flipped={false} slide="" stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={() => {}} paletteOverride={activeCardPalette ?? undefined} />
       </div>}
-      <div className="feed-current"><GameCard key={card.id} card={card} flipped={flipped} slide={slide} stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={setFlipped} onLike={toggleLike} onSave={openCollection} onComment={commentCard} onShare={() => void shareCard()} onPalette={handleCardPalette} paletteOverride={activeCardPalette ?? undefined} /></div>
+      <div className="feed-current"><GameCard key={card.id} card={card} flipped={flipped} slide={slide} stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={handleCardFlip} onLike={toggleLike} onSave={openCollection} onComment={commentCard} onShare={() => void shareCard()} onPalette={handleCardPalette} paletteOverride={activeCardPalette ?? undefined} /></div>
     </section>
     <SceneDrawer open={panel === "scene"} onClose={close} onCreate={() => setPanel("new")} onSceneChange={() => remember({ playMode: null })} />
     <AiSheet open={panel === "ai"} onClose={close} />

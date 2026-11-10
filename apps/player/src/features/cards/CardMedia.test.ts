@@ -52,11 +52,11 @@ it("plays on demand, stops on the second tap, and resets when the card flips", a
   expect(element.getAttribute("src")).toBeNull();
 });
 
-it("keeps neighboring video cards unloaded and stops current playback when navigating away", async () => {
+it("prefetches neighboring video metadata without starting playback", async () => {
   const video: Media = { kind: "video", src: "/cups.mp4", poster: "/cups.webp", title: "Cups" };
-  await render(video, false);
-  expect(host.querySelector("video")?.getAttribute("src")).toBeNull();
-  expect(host.querySelector("video")?.preload).toBe("none");
+  await act(async () => root.render(createElement(CardMedia, { media: video, active: false, prefetchPalette: true })));
+  expect(host.querySelector("video")?.getAttribute("src")).toBe("/cups.mp4");
+  expect(host.querySelector("video")?.preload).toBe("metadata");
   expect(host.querySelector("video")?.controls).toBe(false);
   await render(video);
   expect(host.querySelector("video")?.controls).toBe(false);

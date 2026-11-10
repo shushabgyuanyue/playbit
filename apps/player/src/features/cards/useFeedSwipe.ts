@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, type PointerEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 
 const interactive = "button, a, input, textarea, audio, video, summary, [role='button']";
-const MOVE_CANCEL_PX = 10;
-const SWIPE_VELOCITY = 0.34;
-const SETTLE_FALLBACK_MS = 340;
+const swipeableMedia = ".card-video, .card-audio";
+const MOVE_CANCEL_PX = 8;
+const SWIPE_VELOCITY = 0.42;
+const SETTLE_FALLBACK_MS = 360;
 
 type GestureAxis = "x" | "y" | null;
 
@@ -22,7 +23,12 @@ type PointerState = {
   at: number;
   moved: boolean;
   axis: GestureAxis;
+  tapBlocked: boolean;
+  nativeScroll: boolean;
+  viewport: { width: number; height: number };
 };
+
+type PointerLike = Pick<globalThis.PointerEvent, "pointerId" | "clientX" | "clientY">;
 
 function feedback() {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -63,7 +69,8 @@ function feedback() {
 export function useFeedSwipe(slide: string, cardId: string, move: (direction: number) => boolean, options: FeedGestureOptions = {}, busySignal = "") {
   const ref = useRef<HTMLElement>(null);
   const pointer = useRef<PointerState | null>(null);
-  const nativeScrollPointer = useRef<number | null>(null);
+  const windowPointer = useRef<number | null>(null);
+  const windowPointerCleanup = useRef<(() => void) | null>(null);
   const settleTimer = useRef<number | null>(null);
   const moving = useRef(move);
   const busy = useRef(slide);
@@ -72,6 +79,8 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
 
   useLayoutEffect(() => {
     clearNativeScroll();
+    stopWindowPointerTracking();
+    releasePointerCapture(pointer.current?.id);
     if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
     settleTimer.current = null;
     if (!slide.startsWith("swipe-")) {
@@ -79,6 +88,11 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     }
     pointer.current = null;
   }, [slide, cardId]);
+
+  useEffect(() => () => {
+    stopWindowPointerTracking();
+    releasePointerCapture(pointer.current?.id);
+  }, []);
 
   useEffect(() => {
     const element = ref.current;
@@ -123,8 +137,34 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
   }, []);
 
   function clearNativeScroll() {
-    nativeScrollPointer.current = null;
     ref.current?.classList.remove("is-native-scroll");
+  }
+  function releasePointerCapture(pointerId: number | undefined) {
+    const element = ref.current;
+    if (pointerId === undefined || !element?.hasPointerCapture?.(pointerId)) return;
+    element.releasePointerCapture(pointerId);
+  }
+  function stopWindowPointerTracking() {
+    windowPointerCleanup.current?.();
+    windowPointerCleanup.current = null;
+    windowPointer.current = null;
+  }
+  function startWindowPointerTracking(pointerId: number) {
+    if (typeof window === "undefined") return;
+    stopWindowPointerTracking();
+    windowPointer.current = pointerId;
+    const handleUp = (event: globalThis.PointerEvent) => {
+      if (windowPointer.current === event.pointerId) finish(event);
+    };
+    const handleCancel = (event: globalThis.PointerEvent) => {
+      if (windowPointer.current === event.pointerId) finish(event, true);
+    };
+    window.addEventListener("pointerup", handleUp, true);
+    window.addEventListener("pointercancel", handleCancel, true);
+    windowPointerCleanup.current = () => {
+      window.removeEventListener("pointerup", handleUp, true);
+      window.removeEventListener("pointercancel", handleCancel, true);
+    };
   }
   function reset() {
     const element = ref.current;
@@ -135,6 +175,7 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     element.style.removeProperty("--feed-drag");
     element.style.removeProperty("--feed-drag-x");
     element.style.removeProperty("--feed-progress");
+    element.style.removeProperty("--feed-visual-progress");
     element.style.removeProperty("--feed-rotate");
     element.style.removeProperty("--feed-scale");
     delete element.dataset.dragAxis;
@@ -150,37 +191,62 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
   }
   function setDragVisual(element: HTMLElement, axis: Exclude<GestureAxis, null>, distance: number, viewport: number) {
     const amount = Math.abs(distance);
-    const max = Math.min(Math.max(viewport * .56, 180), 300);
-    const response = max * (1 - Math.exp(-amount / (max * .72)));
-    const visual = Math.sign(distance) * Math.min(amount * .92, response);
+    const resistanceStart = viewport * .62;
+    const extra = Math.max(0, amount - resistanceStart);
+    const rubberAmount = resistanceStart + extra * .28;
+    // A short cubic blend keeps the finger one-to-one, then eases into the
+    // rubber band without the slope jump that makes a feed feel sticky.
+    const blendProgress = Math.min(1, extra / Math.max(1, viewport * .12));
+    const blend = blendProgress * blendProgress * (3 - 2 * blendProgress);
+    const visualAmount = amount + (rubberAmount - amount) * blend;
+    const visual = Math.sign(distance) * visualAmount;
+    // Keep short drags one-to-one. The rubber-band only starts once most of
+    // the next surface is revealed, which is the usual feed interaction.
     const progress = Math.min(1, amount / Math.max(1, viewport));
-    const rotate = axis === "x" ? (visual / Math.max(1, viewport)) * 4.2 : 0;
-    const scale = 1 - progress * .018;
+    const visualProgress = Math.min(1, Math.abs(visual) / Math.max(1, viewport));
+    // Horizontal swipes change the play mode, rather than browsing a second
+    // card rail. Keep the surface square and full-bleed so the mode handoff
+    // never exposes the deck background at a rotated or scaled edge.
+    const rotate = 0;
+    const scale = 1;
     element.dataset.dragAxis = axis;
     element.dataset.dragDirection = distance < 0 ? "negative" : "positive";
     element.style.setProperty("--feed-drag", `${axis === "y" ? visual : 0}px`);
     element.style.setProperty("--feed-drag-x", `${axis === "x" ? visual : 0}px`);
     element.style.setProperty("--feed-progress", `${progress}`);
+    element.style.setProperty("--feed-visual-progress", `${visualProgress}`);
     element.style.setProperty("--feed-rotate", `${rotate}deg`);
     element.style.setProperty("--feed-scale", `${scale}`);
   }
-  function finish(event: PointerEvent<HTMLElement>, cancelled = false) {
+  function finish(event: PointerLike, cancelled = false) {
     const start = pointer.current;
     if (!start || event.pointerId !== start.id) return;
     pointer.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    stopWindowPointerTracking();
+    releasePointerCapture(event.pointerId);
+    const element = ref.current;
+    if (!element) return;
     const dy = event.clientY - start.y;
     const dx = event.clientX - start.x;
+    if (start.nativeScroll) {
+      clearNativeScroll();
+      if (!cancelled && Math.hypot(dx, dy) < MOVE_CANCEL_PX) {
+        if (gesture.current.onTap) feedback();
+        gesture.current.onTap?.();
+      }
+      reset();
+      return;
+    }
     const elapsed = Math.max(1, performance.now() - start.at);
     const axis = start.axis ?? (Math.abs(dx) >= Math.abs(dy) ? "x" : "y");
     const distance = axis === "y" ? Math.abs(dy) : Math.abs(dx);
     const threshold = axis === "y"
-      ? Math.min(76, event.currentTarget.clientHeight * .1)
-      : Math.min(76, event.currentTarget.clientWidth * .18);
+      ? Math.min(76, element.clientHeight * .1)
+      : Math.min(76, element.clientWidth * .18);
     const committed = !cancelled && axis === "y" && (distance > threshold || distance / elapsed > SWIPE_VELOCITY);
     const horizontal = !cancelled && axis === "x" && (distance > threshold || distance / elapsed > SWIPE_VELOCITY);
     if (!committed && !horizontal) {
-      if (!start.moved) {
+      if (!start.moved && !start.tapBlocked) {
         if (gesture.current.onTap) feedback();
         gesture.current.onTap?.();
       }
@@ -200,43 +266,66 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
   }
   return {
     ref,
-    onPointerDown(event: PointerEvent<HTMLElement>) {
+    onPointerDown(event: ReactPointerEvent<HTMLElement>) {
       if (busy.current || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
       const target = event.target as Element;
-      if (target.closest(interactive)) return;
-      if (target.closest(".is-scrollable")) {
-        nativeScrollPointer.current = event.pointerId;
+      const mediaTarget = Boolean(target.closest(swipeableMedia));
+      if (target.closest(interactive) && !mediaTarget) return;
+      // Only the rules face owns a real inner scroll. The content face is the
+      // feed surface, even when its text happens to be taller than the viewport.
+      const nativeScroll = Boolean(target.closest(".card-back [data-feed-scroll].is-scrollable"));
+      if (nativeScroll) {
         event.currentTarget.classList.add("is-native-scroll");
-        return;
       }
-      const current: PointerState = { id: event.pointerId, x: event.clientX, y: event.clientY, at: performance.now(), moved: false, axis: null };
+      const current: PointerState = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        at: performance.now(),
+        moved: false,
+        axis: null,
+        tapBlocked: mediaTarget,
+        nativeScroll,
+        viewport: { width: event.currentTarget.clientWidth, height: event.currentTarget.clientHeight }
+      };
       pointer.current = current;
       gesture.current.onGestureStart?.();
-      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional on embedded webviews. */ }
+      startWindowPointerTracking(event.pointerId);
     },
-    onPointerMove(event: PointerEvent<HTMLElement>) {
-      if (nativeScrollPointer.current === event.pointerId) return;
+    onPointerMove(event: ReactPointerEvent<HTMLElement>) {
       const start = pointer.current;
       if (!start || event.pointerId !== start.id) return;
       const dy = event.clientY - start.y;
       const dx = event.clientX - start.x;
+      if (start.nativeScroll && !start.axis) {
+        if (Math.hypot(dx, dy) < MOVE_CANCEL_PX) return;
+        if (Math.abs(dy) > Math.abs(dx)) {
+          pointer.current = null;
+          stopWindowPointerTracking();
+          clearNativeScroll();
+          return;
+        }
+        start.nativeScroll = false;
+      }
       if (!start.axis && Math.hypot(dx, dy) >= MOVE_CANCEL_PX) {
-        start.axis = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+        const horizontal = Math.abs(dx) > Math.abs(dy) * 1.08;
+        const vertical = Math.abs(dy) > Math.abs(dx) * 1.08;
+        if (!horizontal && !vertical) return;
+        start.axis = horizontal ? "x" : "y";
         start.moved = true;
+        try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is optional on embedded webviews. */ }
       }
       if (!start.axis) return;
       event.preventDefault();
       event.currentTarget.classList.add("is-dragging");
-      setDragVisual(event.currentTarget, start.axis, start.axis === "y" ? dy : dx, start.axis === "y" ? event.currentTarget.clientHeight : event.currentTarget.clientWidth);
+      setDragVisual(event.currentTarget, start.axis, start.axis === "y" ? dy : dx, start.axis === "y" ? start.viewport.height : start.viewport.width);
     },
-    onPointerUp: (event: PointerEvent<HTMLElement>) => {
-      if (nativeScrollPointer.current === event.pointerId) { clearNativeScroll(); return; }
+    onPointerUp: (event: ReactPointerEvent<HTMLElement>) => {
       finish(event);
     },
-    onPointerCancel: (event: PointerEvent<HTMLElement>) => {
-      if (nativeScrollPointer.current === event.pointerId) { clearNativeScroll(); return; }
+    onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => {
       finish(event, true);
     },
-    onLostPointerCapture() { clearNativeScroll(); if (pointer.current) { pointer.current = null; reset(); } }
+    onLostPointerCapture() { clearNativeScroll(); }
   };
 }
