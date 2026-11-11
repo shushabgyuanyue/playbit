@@ -60,3 +60,36 @@ it("keeps media and card controls out of the flip gesture", async () => {
   expect(onLike).toHaveBeenCalledOnce();
   expect(onFlip).not.toHaveBeenCalled();
 });
+
+it("runs each social action without bubbling into the card flip", async () => {
+  const onFlip = vi.fn();
+  const onLike = vi.fn();
+  const onComment = vi.fn();
+  const onSave = vi.fn();
+  const onShare = vi.fn();
+  await act(async () => root.render(createElement(GameCardView, {
+    card, flipped: false, slide: "", onFlip, onLike, onComment, onSave, onShare
+  })));
+  const actions = host.querySelectorAll<HTMLButtonElement>(".card-social-action");
+  await act(async () => actions[0]!.click());
+  await act(async () => actions[1]!.click());
+  await act(async () => actions[2]!.click());
+  await act(async () => actions[3]!.click());
+  expect(onLike).toHaveBeenCalledOnce();
+  expect(onComment).toHaveBeenCalledOnce();
+  expect(onSave).toHaveBeenCalledOnce();
+  expect(onShare).toHaveBeenCalledOnce();
+  expect(onFlip).not.toHaveBeenCalled();
+});
+
+it("does not flip when the icon inside a social action is tapped", async () => {
+  const onFlip = vi.fn();
+  const onLike = vi.fn();
+  await act(async () => root.render(createElement(GameCardView, {
+    card, flipped: false, slide: "", onFlip, onLike
+  })));
+  const icon = host.querySelector<SVGElement>(".card-social-action svg");
+  icon?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  expect(onLike).toHaveBeenCalledOnce();
+  expect(onFlip).not.toHaveBeenCalled();
+});

@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 const interactive = "button, a, input, textarea, audio, video, summary, [role='button']";
-const swipeableMedia = ".card-video, .card-audio";
+const gestureInteractive = ".card-video, .card-audio, .card-voice-player, .card-social, .card-social-action";
 const MOVE_CANCEL_PX = 8;
 const SWIPE_VELOCITY = 0.42;
+const HORIZONTAL_SWIPE_VELOCITY = 0.18;
 const SETTLE_FALLBACK_MS = 280;
 
 type GestureAxis = "x" | "y" | null;
@@ -265,9 +266,9 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     const distance = axis === "y" ? Math.abs(dy) : Math.abs(dx);
     const threshold = axis === "y"
       ? Math.min(76, element.clientHeight * .1)
-      : Math.min(76, element.clientWidth * .18);
+      : Math.max(30, Math.min(48, element.clientWidth * .1));
     const committed = !cancelled && axis === "y" && (distance > threshold || distance / elapsed > SWIPE_VELOCITY);
-    const horizontal = !cancelled && axis === "x" && (distance > threshold || distance / elapsed > SWIPE_VELOCITY);
+    const horizontal = !cancelled && axis === "x" && (distance > threshold || distance / elapsed > HORIZONTAL_SWIPE_VELOCITY);
     if (!committed && !horizontal) {
       if (!start.moved && !start.tapBlocked) {
         if (gesture.current.onTap) feedback();
@@ -294,12 +295,12 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     ref,
     onPointerDown(event: ReactPointerEvent<HTMLElement>) {
       if (busy.current || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
-      const target = event.target as Element;
-      const mediaTarget = Boolean(target.closest(swipeableMedia));
-      if (target.closest(interactive) && !mediaTarget) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const gestureTarget = Boolean(target?.closest(gestureInteractive));
+      if (target?.closest(interactive) && !gestureTarget) return;
       // Only the rules face owns a real inner scroll. The content face is the
       // feed surface, even when its text happens to be taller than the viewport.
-      const nativeScroll = Boolean(target.closest(".card-back [data-feed-scroll].is-scrollable"));
+      const nativeScroll = Boolean(target?.closest(".card-back [data-feed-scroll].is-scrollable"));
       if (nativeScroll) {
         event.currentTarget.classList.add("is-native-scroll");
       }
@@ -310,7 +311,7 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
         at: performance.now(),
         moved: false,
         axis: null,
-        tapBlocked: mediaTarget,
+        tapBlocked: gestureTarget,
         nativeScroll,
         viewport: { width: event.currentTarget.clientWidth, height: event.currentTarget.clientHeight }
       };

@@ -106,7 +106,7 @@
 .card-front { position: relative; isolation: isolate; overflow: hidden; contain: paint; transform-style: preserve-3d; perspective: 1300px; color: #fff; background: radial-gradient(105% 58% at 65% 27%, color-mix(in srgb, var(--card-accent-secondary, #b8b0b0) 22%, transparent), transparent 70%), radial-gradient(90% 48% at 8% 78%, color-mix(in srgb, var(--card-accent-primary, #a9a0a0) 16%, transparent), transparent 72%), linear-gradient(145deg, color-mix(in srgb, var(--card-dark, #09090c) 80%, var(--card-accent-primary, #a9a0a0) 20%) 0%, color-mix(in srgb, var(--card-dark, #09090c) 64%, var(--card-accent-primary, #a9a0a0) 36%) 46%, color-mix(in srgb, var(--card-dark, #09090c) 58%, var(--card-accent-secondary, #b8b0b0) 42%) 100%); }
 .card-front::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--card-dark, #09090c) 40%, transparent) 0%, transparent 32%), linear-gradient(105deg, color-mix(in srgb, var(--card-dark, #09090c) 20%, transparent) 0%, transparent 62%), linear-gradient(180deg, transparent 42%, color-mix(in srgb, var(--card-dark, #09090c) 34%, transparent) 100%); opacity: .68; }
 .card-front .feed-story, .card-front .feed-footer { position: relative; z-index: 1; }
-.card-front .feed-footer { z-index: 2; }
+.card-front .feed-footer { z-index: 3; }
 .media-image .card-front::after, .media-video .card-front::after { content: ""; position: absolute; top: calc(52px + env(safe-area-inset-top)); right: -13%; bottom: 28%; left: -13%; z-index: 0; background-image: var(--card-media-image); background-position: center top; background-size: cover; filter: blur(46px) saturate(.92) brightness(1.22); opacity: .46; transform: translateZ(0) scale(1.14); will-change: transform, opacity; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 8%, #000 82%, transparent 100%); mask-image: linear-gradient(to bottom, transparent 0, #000 8%, #000 82%, transparent 100%); pointer-events: none; }
 .card-back { color: var(--player-lime); background: var(--player-ink); transform: rotateY(180deg); }
 .card-back .feed-rule-content { color: var(--player-lime); }
@@ -180,7 +180,7 @@
 .prompt { margin-top: 14px; max-width: 100%; }
 .prompt p { margin: 0 0 13px; max-width: 18em; font-size: 23px; line-height: 1.32; font-weight: 520; overflow-wrap: anywhere; }
 .prompt strong { display: block; max-width: 9em; margin: 0; font-size: 48px; line-height: 1.02; font-weight: 900; text-wrap: balance; overflow-wrap: anywhere; }
-.feed-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; flex: none; gap: 8px 12px; margin-top: auto; margin-bottom: 18px; }
+.feed-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; flex: none; gap: 8px; margin-top: auto; margin-bottom: 18px; }
 .feed-teaser { grid-column: 1 / -1; margin: 0; max-width: 88%; color: color-mix(in srgb, var(--card-ink, var(--player-ink)) 72%, transparent); font-size: 12px; line-height: 1.48; overflow-wrap: anywhere; }
 .violet .feed-teaser, .lime .feed-teaser { color: color-mix(in srgb, var(--card-ink, var(--player-ink)) 68%, transparent); }
 .card-voice-player { display: inline-flex; align-items: center; align-self: flex-start; max-width: 100%; margin-top: clamp(16px, 2.6vh, 28px); margin-bottom: clamp(6px, 1.2vh, 10px); padding: 0; border: 0; border-radius: 11px; color: #fff; background: transparent; text-align: left; transition: opacity .18s ease, transform .18s ease; animation: voiceGiftSend .34s cubic-bezier(.2,.86,.24,1); pointer-events: auto; }
@@ -206,14 +206,14 @@
 .card-back .card-voice-gift { color: var(--player-lime); }
 .game-card.has-media .card-voice-player { color: #fff; text-shadow: none; }
 .game-card.has-media .card-voice-gift { color: #fff; }
-.card-social { display: flex; align-items: center; gap: 8px; min-height: 30px; padding-top: 0; border-top: 0; }
-.card-social-action { display: grid; place-items: center; width: 32px; height: 30px; padding: 0; border-radius: 50%; color: color-mix(in srgb, var(--card-ink, var(--player-ink)) 68%, transparent); background: color-mix(in srgb, var(--card-ink, var(--player-ink)) 7%, transparent); }
+.card-social { position: relative; z-index: 4; display: flex; align-items: center; gap: 4px; min-height: 40px; padding-top: 0; border-top: 0; pointer-events: auto; touch-action: none; transform: translateZ(8px); transform-style: preserve-3d; }
+.card-social-action { position: relative; display: grid; place-items: center; width: 40px; height: 40px; flex: none; padding: 0; border: 0; border-radius: 50%; color: color-mix(in srgb, var(--card-ink, var(--player-ink)) 68%, transparent); background: color-mix(in srgb, var(--card-ink, var(--player-ink)) 7%, transparent); touch-action: none; -webkit-tap-highlight-color: transparent; }
 .card-front .card-social-action { color: rgba(255,255,255,.96); background: rgba(255,255,255,.2); }
 .card-social-action.is-liked { color: var(--player-coral); }
 .card-social-action.is-liked svg { fill: currentColor; }
 .card-social-action.is-saved { color: var(--player-violet); }
 .card-social-action.is-saved svg { fill: currentColor; }
-.swipe-tip { display: block; max-width: 92px; text-align: right; color: color-mix(in srgb, var(--card-ink, var(--player-ink)) 58%, transparent); font-size: 9px; line-height: 1.35; }
+.swipe-tip { display: block; width: max-content; max-width: none; text-align: right; color: color-mix(in srgb, var(--card-ink, var(--player-ink)) 70%, transparent); font-size: 8px; line-height: 1.35; white-space: nowrap; }
 .feed-rule-kicker { margin: 0 0 25px; color: #7e655a; font-size: 9px; line-height: 1.2; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
 .feed-rule { position: relative; margin: 0; font-size: 29px; line-height: 1.58; font-weight: 700; overflow-wrap: anywhere; }
 .rule-reserve { display: block; visibility: hidden; }

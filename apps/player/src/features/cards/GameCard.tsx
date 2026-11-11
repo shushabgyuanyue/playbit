@@ -69,7 +69,9 @@ export function GameCard({ card, flipped, slide, stakeVoice, active = true, onFl
     onPalette?.(next);
   }, [onPalette]);
   function handleCardClick(event: MouseEvent<HTMLElement>) {
-    if ((event.target as Element).closest("button, a, input, textarea, audio, video, summary, [role='button']")) return;
+    if (event.defaultPrevented) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest("button, a, input, textarea, audio, video, summary, [role='button'], .card-social")) return;
     onFlip(!flipped);
   }
   const mediaClass = `has-media media-${card.media?.kind ?? "default"}`;
@@ -87,11 +89,11 @@ export function GameCard({ card, flipped, slide, stakeVoice, active = true, onFl
         </div>
         <div className="feed-footer">
           <p className="feed-teaser">{card.payoff}</p>
-          <div className="card-social" aria-label={copy.play.socialLabel}>
-            <button type="button" className={`card-social-action ${liked ? "is-liked" : ""}`} onClick={onLike} aria-label={liked ? copy.play.unliked : copy.play.liked} aria-pressed={liked}><Icon name="heart" size={17} /></button>
-            <button type="button" className="card-social-action" onClick={onComment} aria-label={copy.play.comment} title={copy.play.comment}><Icon name="comment" size={17} /></button>
-            <button type="button" className={`card-social-action ${saved ? "is-saved" : ""}`} onClick={onSave} aria-label={saved && canRemoveSaved ? copy.play.removeCollection : copy.play.collect} title={saved && canRemoveSaved ? copy.play.removeCollection : copy.play.collect}><Icon name="bookmark" size={17} /></button>
-            <button type="button" className="card-social-action" onClick={onShare} aria-label={copy.play.share} title={copy.play.share}><Icon name="share" size={17} /></button>
+          <div className="card-social" aria-label={copy.play.socialLabel} onClick={event => event.stopPropagation()}>
+            <button type="button" className={`card-social-action ${liked ? "is-liked" : ""}`} onClick={event => { event.stopPropagation(); onLike?.(); }} aria-label={liked ? copy.play.unliked : copy.play.liked} aria-pressed={liked}><Icon name="heart" size={17} /></button>
+            <button type="button" className="card-social-action" onClick={event => { event.stopPropagation(); onComment?.(); }} aria-label={copy.play.comment} title={copy.play.comment}><Icon name="comment" size={17} /></button>
+            <button type="button" className={`card-social-action ${saved ? "is-saved" : ""}`} onClick={event => { event.stopPropagation(); onSave?.(); }} aria-label={saved && canRemoveSaved ? copy.play.removeCollection : copy.play.collect} title={saved && canRemoveSaved ? copy.play.removeCollection : copy.play.collect}><Icon name="bookmark" size={17} /></button>
+            <button type="button" className="card-social-action" onClick={event => { event.stopPropagation(); onShare?.(); }} aria-label={copy.play.share} title={copy.play.share}><Icon name="share" size={17} /></button>
           </div>
           <span className="swipe-tip">{gestureGuide ? copy.play.gestureGuide : swipeHint ?? copy.play.swipe}</span>
         </div>

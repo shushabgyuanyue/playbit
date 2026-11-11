@@ -94,6 +94,47 @@ it("uses left swipe to enter same-type mode and right swipe to exit it", async (
   expect(move).not.toHaveBeenCalled();
 });
 
+it("accepts a short horizontal flick that starts on a social control", async () => {
+  const enter = vi.fn();
+  const tap = vi.fn();
+  function SocialControlHarness() {
+    const swipe = useFeedSwipe("", "social-control-flick", move, { onSwipeLeft: enter, onTap: tap });
+    return createElement("section", swipe, createElement("button", { className: "card-social-action" }, "Like"));
+  }
+  await act(async () => root.render(createElement(SocialControlHarness)));
+  surface = host.querySelector("section")!;
+  Object.defineProperties(surface, {
+    clientHeight: { value: 600 }, clientWidth: { value: 330 },
+    setPointerCapture: { value: () => undefined }, hasPointerCapture: { value: () => false }, releasePointerCapture: { value: () => undefined }
+  });
+  const like = surface.querySelector(".card-social-action")!;
+  pointerAt(like, "pointerdown", 210, 300);
+  now = 140;
+  pointerAt(surface, "pointermove", 178, 300);
+  pointerAt(surface, "pointerup", 178, 300);
+  expect(enter).toHaveBeenCalledOnce();
+  expect(tap).not.toHaveBeenCalled();
+});
+
+it("keeps a social-control tap from invoking the card tap callback", async () => {
+  const tap = vi.fn();
+  function SocialControlHarness() {
+    const swipe = useFeedSwipe("", "social-control-tap", move, { onTap: tap });
+    return createElement("section", swipe, createElement("button", { className: "card-social-action" }, "Like"));
+  }
+  await act(async () => root.render(createElement(SocialControlHarness)));
+  surface = host.querySelector("section")!;
+  Object.defineProperties(surface, {
+    clientHeight: { value: 600 }, clientWidth: { value: 330 },
+    setPointerCapture: { value: () => undefined }, hasPointerCapture: { value: () => false }, releasePointerCapture: { value: () => undefined }
+  });
+  const like = surface.querySelector(".card-social-action")!;
+  pointerAt(like, "pointerdown", 210, 300);
+  pointerAt(surface, "pointerup", 210, 300);
+  expect(tap).not.toHaveBeenCalled();
+  expect(move).not.toHaveBeenCalled();
+});
+
 it("suppresses the synthetic click that follows a committed swipe", () => {
   const tap = vi.fn();
   function ClickHarness() {
