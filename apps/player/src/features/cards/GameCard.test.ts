@@ -19,6 +19,8 @@ const card: GameCard = {
   sceneIds: ["date"]
 };
 
+const birdCard: GameCard = { ...card, id: "metal-bird", media: { kind: "image", src: "/media/cards/metal-bird.jpg", alt: "金属鸟" } };
+
 let root: Root;
 let host: HTMLDivElement;
 
@@ -46,6 +48,16 @@ it("gives a card without uploaded media the same material stage", async () => {
   expect(host.querySelector(".game-card")?.classList.contains("has-media")).toBe(true);
   expect(host.querySelector(".game-card")?.classList.contains("media-default")).toBe(true);
   expect(host.querySelector(".card-stage .card-media-default")).not.toBeNull();
+});
+
+it("scopes the 2.5D stage experiment to the metal bird card", async () => {
+  const onFlip = vi.fn();
+  await act(async () => root.render(createElement(GameCardView, { card: birdCard, flipped: false, slide: "", onFlip })));
+  expect(host.querySelector<HTMLElement>(".game-card")?.classList.contains("is-bird-2-5d")).toBe(true);
+
+  const otherCard = { ...birdCard, id: "another-card" };
+  await act(async () => root.render(createElement(GameCardView, { card: otherCard, flipped: false, slide: "", onFlip })));
+  expect(host.querySelector<HTMLElement>(".game-card")?.classList.contains("is-bird-2-5d")).toBe(false);
 });
 
 it("wraps a recorded stake waveform as the gift surface", async () => {

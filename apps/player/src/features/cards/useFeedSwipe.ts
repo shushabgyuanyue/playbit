@@ -1,10 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 const interactive = "button, a, input, textarea, audio, video, summary, [role='button']";
 const swipeableMedia = ".card-video, .card-audio";
 const MOVE_CANCEL_PX = 8;
 const SWIPE_VELOCITY = 0.42;
-const SETTLE_FALLBACK_MS = 360;
+const SETTLE_FALLBACK_MS = 280;
 
 type GestureAxis = "x" | "y" | null;
 
@@ -72,6 +72,7 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
   const windowPointer = useRef<number | null>(null);
   const windowPointerCleanup = useRef<(() => void) | null>(null);
   const settleTimer = useRef<number | null>(null);
+  const suppressClick = useRef(false);
   const moving = useRef(move);
   const busy = useRef(slide);
   const gesture = useRef(options);
@@ -178,6 +179,12 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     element.style.removeProperty("--feed-visual-progress");
     element.style.removeProperty("--feed-rotate");
     element.style.removeProperty("--feed-scale");
+    element.style.removeProperty("--feed-stage-depth-x");
+    element.style.removeProperty("--feed-stage-depth-y");
+    element.style.removeProperty("--feed-story-depth-x");
+    element.style.removeProperty("--feed-story-depth-y");
+    element.style.removeProperty("--feed-footer-depth-x");
+    element.style.removeProperty("--feed-footer-depth-y");
     delete element.dataset.dragAxis;
     delete element.dataset.dragDirection;
   }
@@ -189,16 +196,21 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(reset, SETTLE_FALLBACK_MS);
   }
+  function suppressSyntheticClick() {
+    suppressClick.current = true;
+    window.setTimeout(() => { suppressClick.current = false; }, 0);
+  }
   function setDragVisual(element: HTMLElement, axis: Exclude<GestureAxis, null>, distance: number, viewport: number) {
     const amount = Math.abs(distance);
     const resistanceStart = viewport * .62;
     const extra = Math.max(0, amount - resistanceStart);
-    const rubberAmount = resistanceStart + extra * .28;
-    // A short cubic blend keeps the finger one-to-one, then eases into the
-    // rubber band without the slope jump that makes a feed feel sticky.
+    // Keep the finger one-to-one until most of the surface is revealed, then
+    // smoothly reduce the slope. The resisted distance must stay monotonic;
+    // otherwise a fast drag can visibly jump backwards near the threshold.
     const blendProgress = Math.min(1, extra / Math.max(1, viewport * .12));
     const blend = blendProgress * blendProgress * (3 - 2 * blendProgress);
-    const visualAmount = amount + (rubberAmount - amount) * blend;
+    const resistance = 1 - .72 * blend;
+    const visualAmount = amount <= resistanceStart ? amount : resistanceStart + extra * resistance;
     const visual = Math.sign(distance) * visualAmount;
     // Keep short drags one-to-one. The rubber-band only starts once most of
     // the next surface is revealed, which is the usual feed interaction.
@@ -217,6 +229,15 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     element.style.setProperty("--feed-visual-progress", `${visualProgress}`);
     element.style.setProperty("--feed-rotate", `${rotate}deg`);
     element.style.setProperty("--feed-scale", `${scale}`);
+    const depthDistance = -visual;
+    const depthX = axis === "x" ? depthDistance : 0;
+    const depthY = axis === "y" ? depthDistance : 0;
+    element.style.setProperty("--feed-stage-depth-x", `${(depthX * .04).toFixed(2)}px`);
+    element.style.setProperty("--feed-stage-depth-y", `${(depthY * .04).toFixed(2)}px`);
+    element.style.setProperty("--feed-story-depth-x", `${(depthX * .016).toFixed(2)}px`);
+    element.style.setProperty("--feed-story-depth-y", `${(depthY * .016).toFixed(2)}px`);
+    element.style.setProperty("--feed-footer-depth-x", `${(depthX * .006).toFixed(2)}px`);
+    element.style.setProperty("--feed-footer-depth-y", `${(depthY * .006).toFixed(2)}px`);
   }
   function finish(event: PointerLike, cancelled = false) {
     const start = pointer.current;
@@ -233,6 +254,8 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
       if (!cancelled && Math.hypot(dx, dy) < MOVE_CANCEL_PX) {
         if (gesture.current.onTap) feedback();
         gesture.current.onTap?.();
+      } else if (start.moved) {
+        suppressSyntheticClick();
       }
       reset();
       return;
@@ -249,10 +272,13 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
       if (!start.moved && !start.tapBlocked) {
         if (gesture.current.onTap) feedback();
         gesture.current.onTap?.();
+      } else if (start.moved) {
+        suppressSyntheticClick();
       }
       reset();
       return;
     }
+    suppressSyntheticClick();
     if (horizontal) {
       const callback = dx < 0 ? gesture.current.onSwipeLeft : (gesture.current.onSwipeRight ?? gesture.current.onExit);
       if (callback) {
@@ -325,6 +351,12 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     },
     onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => {
       finish(event, true);
+    },
+    onClickCapture(event: ReactMouseEvent<HTMLElement>) {
+      if (!suppressClick.current) return;
+      suppressClick.current = false;
+      event.preventDefault();
+      event.stopPropagation();
     },
     onLostPointerCapture() { clearNativeScroll(); }
   };

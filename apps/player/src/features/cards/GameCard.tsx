@@ -23,6 +23,15 @@ function TypedRule({ text, active }: { text: string; active: boolean }) {
   return <p className="feed-rule"><span className="sr-only">{text}</span><span className="rule-reserve" aria-hidden="true">{text}</span><span className="rule-reveal" aria-hidden="true">{typed}</span></p>;
 }
 
+export function fallbackPaletteForColor(color: Card["color"]): CardPalette {
+  const fallbackInk = "#fff";
+  return color === "violet"
+    ? { primary: "#9286a3", secondary: "#b8aec4", surface: "#e9e6ee", dark: "#302a38", ink: fallbackInk }
+    : color === "lime"
+      ? { primary: "#8e9a78", secondary: "#b6c09f", surface: "#e8ede2", dark: "#30372b", ink: fallbackInk }
+      : { primary: "#a17f79", secondary: "#c2aaa4", surface: "#eee7e4", dark: "#3e3030", ink: fallbackInk };
+}
+
 function CardVoicePlayer({ voice, playback }: { voice?: VoiceNote; playback: ReturnType<typeof useVoicePlayback> }) {
   if (!voice?.assetId) return null;
   const label = playback.playing ? copy.promise.voice.stopPlaying : copy.promise.voice.play;
@@ -49,12 +58,7 @@ export function GameCard({ card, flipped, slide, stakeVoice, active = true, onFl
   liked?: boolean; saved?: boolean; canRemoveSaved?: boolean; gestureGuide?: boolean; swipeHint?: string; returnHint?: string; onLike?: () => void; onSave?: () => void; onComment?: () => void; onShare?: () => void;
   onPalette?: (palette: CardPalette) => void; paletteOverride?: CardPalette;
 }) {
-  const fallbackInk = "#fff";
-  const fallbackPalette: CardPalette = card.color === "violet"
-    ? { primary: "#9286a3", secondary: "#b8aec4", surface: "#e9e6ee", dark: "#302a38", ink: fallbackInk }
-    : card.color === "lime"
-      ? { primary: "#8e9a78", secondary: "#b6c09f", surface: "#e8ede2", dark: "#30372b", ink: fallbackInk }
-      : { primary: "#a17f79", secondary: "#c2aaa4", surface: "#eee7e4", dark: "#3e3030", ink: fallbackInk };
+  const fallbackPalette = fallbackPaletteForColor(card.color);
   const [palette, setPalette] = useState<CardPalette>(fallbackPalette);
   const effectivePalette = paletteOverride ?? palette;
   const voicePlayback = useVoicePlayback(stakeVoice ?? { id: "", durationMs: 0, storage: "demo" });
@@ -70,10 +74,12 @@ export function GameCard({ card, flipped, slide, stakeVoice, active = true, onFl
   }
   const mediaClass = `has-media media-${card.media?.kind ?? "default"}`;
   const mediaImage = card.media?.kind === "image" ? `url("${card.media.src}")` : card.media?.kind === "video" ? `url("${card.media.poster}")` : undefined;
-  return <article className={`game-card ${card.color} ${card.textStyle === "quote" ? "is-quote" : ""} ${mediaClass} ${flipped ? "is-flipped" : ""} ${slide}`} data-card-id={card.id} aria-label={card.label} onClick={handleCardClick} style={{ "--card-accent": effectivePalette.primary, "--card-accent-primary": effectivePalette.primary, "--card-accent-secondary": effectivePalette.secondary, "--card-surface": effectivePalette.surface, "--card-dark": effectivePalette.dark, "--card-ink": effectivePalette.ink, "--card-media-image": mediaImage } as CSSProperties}>
+  const stageMotion = card.id === "metal-bird" ? "bird-2-5d" as const : undefined;
+  const stageExperimentClass = stageMotion ? "is-bird-2-5d" : "";
+  return <article className={`game-card ${card.color} ${card.textStyle === "quote" ? "is-quote" : ""} ${mediaClass} ${stageExperimentClass} ${flipped ? "is-flipped" : ""} ${slide}`} data-card-id={card.id} aria-label={card.label} onClick={handleCardClick} style={{ "--card-accent": effectivePalette.primary, "--card-accent-primary": effectivePalette.primary, "--card-accent-secondary": effectivePalette.secondary, "--card-surface": effectivePalette.surface, "--card-dark": effectivePalette.dark, "--card-ink": effectivePalette.ink, "--card-media-image": mediaImage } as CSSProperties}>
     <div className="game-card-motion"><div className="card-inner">
       <div className="card-face card-front" inert={flipped} aria-hidden={flipped}>
-        <div className="card-stage">{card.media ? <CardMedia key={card.id} media={card.media} active={active && !slide.startsWith("swipe-")} prefetchPalette={!active} visible={!flipped} onPalette={active && !slide.startsWith("swipe-") ? applyMediaPalette : undefined} /> : <div className="card-media card-media-default" aria-hidden="true" />}</div>
+        <div className="card-stage">{card.media ? <CardMedia key={card.id} media={card.media} active={active && !slide.startsWith("swipe-")} prefetchPalette={!active} visible={!flipped} onPalette={onPalette ? applyMediaPalette : undefined} stageMotion={stageMotion} /> : <div className="card-media card-media-default" aria-hidden="true" />}</div>
         <div className="feed-story">
           <span className="feed-category">{card.sponsor ? `${card.sponsor.disclosure} · ${card.sponsor.name}` : card.label}</span>
           <div className="prompt"><p>{card.prompt}</p><strong>{card.kicker}</strong></div>

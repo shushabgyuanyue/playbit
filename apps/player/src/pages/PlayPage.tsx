@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { playerCopy as copy } from "@playbit/content/player";
 import { useLinkSharing } from "../features/player/useLinkSharing";
@@ -8,7 +8,7 @@ import { EXPLORE_SCENE_ID } from "../data/catalog";
 import { gameplays, type GameplayId } from "../data/catalog/gameplays";
 import { Icon } from "../components/ui/Icon";
 import { AiSheet, CollectionSheet, CreateDeckSheet, SceneDrawer } from "../features/cards/DeckSheets";
-import { GameCard } from "../features/cards/GameCard";
+import { fallbackPaletteForColor, GameCard } from "../features/cards/GameCard";
 import type { CardPalette } from "../features/cards/CardMedia";
 import { FeedNeighbors } from "../features/cards/FeedNeighbors";
 import { IssueStakeSheet } from "../features/cards/IssueStakeSheet";
@@ -24,7 +24,11 @@ import { usePageMemory } from "../services/pageMemory";
 import { isPlayerApiConfigured, normalizeCouponDescription, normalizeCouponName, PlayerApiError, playerApi } from "../services/playerApi";
 
 type Panel = "scene" | "ai" | "records" | "save" | "issue" | "new" | "new-and-save" | null;
-type ModeTransition = "enter-out" | "enter-in" | "exit-out" | "exit-in" | "";
+type ModeTransition = "enter" | "exit" | "";
+
+function samePalette(first: CardPalette | undefined, second: CardPalette) {
+  return Boolean(first && first.primary === second.primary && first.secondary === second.secondary && first.surface === second.surface && first.dark === second.dark && first.ink === second.ink);
+}
 
 export function PlayPage() {
   const shareLink = useLinkSharing();
@@ -32,7 +36,7 @@ export function PlayPage() {
   const { memory, remember } = usePageMemory();
   const typeMode = memory.playMode;
   const { card, pool, flipped, setFlipped, slide, go } = useCardDeck(memory.playFlippedCardId, typeMode);
-  const [cardPalette, setCardPalette] = useState<{ cardId: string; palette: CardPalette } | null>(null);
+  const [cardPalettes, setCardPalettes] = useState<Record<string, CardPalette>>({});
   const navigate = useNavigate();
   const [panel, setPanel] = useState<Panel>(null);
   const [pendingSaveCardId, setPendingSaveCardId] = useState<string | null>(null);
@@ -54,8 +58,8 @@ export function PlayPage() {
   const stake = state.stakes[card.id];
   const stakeVoice = state.stakeVoices[card.id];
   const issuance = state.issuedStakes[card.id] ?? null;
-  const activeCardPalette = cardPalette?.cardId === card.id ? cardPalette.palette : null;
-  const feedDark = activeCardPalette?.dark ?? "#09090c";
+  const activeCardPalette = cardPalettes[card.id] ?? null;
+  const feedDark = activeCardPalette?.dark ?? fallbackPaletteForColor(card.color).dark;
   const pendingStakeRecords = getPendingStakeRecords(state);
   const previousPendingRecordCount = useRef(pendingStakeRecords.length);
   const currentDeck = state.decks.find(deck => deck.id === state.deckId) ?? null;
@@ -63,12 +67,12 @@ export function PlayPage() {
   const savedInCurrentContext = currentDeck ? currentDeck.cardIds.includes(card.id) : alreadySaved;
   const saved = savedInCurrentContext || pendingSaveCardId === card.id;
   const typeModeAvailable = Boolean(card.gameplayId && cards.filter(item => item.gameplayId === card.gameplayId).length > 1);
-  useLayoutEffect(() => {
-    setCardPalette(current => current?.cardId === card.id ? current : null);
-  }, [card.id]);
   const handleCardPalette = useCallback((palette: CardPalette) => {
-    setCardPalette({ cardId: card.id, palette });
+    setCardPalettes(current => samePalette(current[card.id], palette) ? current : { ...current, [card.id]: palette });
   }, [card.id]);
+  const handleNeighborPalette = useCallback((cardId: string, palette: CardPalette) => {
+    setCardPalettes(current => samePalette(current[cardId], palette) ? current : { ...current, [cardId]: palette });
+  }, []);
   useEffect(() => () => {
     if (modeTimer.current) window.clearTimeout(modeTimer.current);
   }, []);
@@ -78,7 +82,10 @@ export function PlayPage() {
     if (pendingStakeRecords.length > previousCount) setRecordsPulseKey(current => current + 1);
   }, [pendingStakeRecords.length]);
   function finishModeTransition() {
-    modeTimer.current = window.setTimeout(() => setModeTransition(""), CARD_MOVE_MS);
+    // The swipe hook clears its inline drag transform at the end of the same
+    // animation. Keep the incoming surface mounted until that reset is done,
+    // so removing it cannot expose a stale transform for one frame.
+    modeTimer.current = window.setTimeout(() => setModeTransition(""), CARD_MOVE_MS + 24);
   }
   function enterTypeMode() {
     if (typeMode || modeTransition) return;
@@ -87,25 +94,19 @@ export function PlayPage() {
       return;
     }
     const gameplayId = card.gameplayId as GameplayId;
-    setModeTransition("enter-out");
-    modeTimer.current = window.setTimeout(() => {
-      remember({ playMode: gameplayId });
-      setFlipped(false);
-      setModeTransition("enter-in");
-      finishModeTransition();
-      notify(copy.play.typeModeEntered(gameplays[gameplayId].name));
-    }, CARD_MOVE_MS);
+    setModeTransition("enter");
+    remember({ playMode: gameplayId });
+    setFlipped(false);
+    finishModeTransition();
+    notify(copy.play.typeModeEntered(gameplays[gameplayId].name));
   }
   function leaveTypeMode() {
     if (!typeMode || modeTransition) return;
-    setModeTransition("exit-out");
-    modeTimer.current = window.setTimeout(() => {
-      remember({ playMode: null });
-      setFlipped(false);
-      setModeTransition("exit-in");
-      finishModeTransition();
-      notify(copy.play.typeModeExited);
-    }, CARD_MOVE_MS);
+    setModeTransition("exit");
+    remember({ playMode: null });
+    setFlipped(false);
+    finishModeTransition();
+    notify(copy.play.typeModeExited);
   }
   const contextKey = `${state.sceneId}:${state.deckId ?? ""}`;
   const previousContextKey = useRef(contextKey);
@@ -370,8 +371,8 @@ export function PlayPage() {
     </div>
     <section className="deck" tabIndex={0} aria-label={copy.nav.play} {...swipe} data-slide={slide} data-mode-transition={modeTransition || undefined} style={{ "--feed-snap-duration": `${CARD_MOVE_MS}ms`, "--feed-dark": feedDark } as CSSProperties}
       onKeyDown={e => { if (e.target !== e.currentTarget) return; if (typeMode && e.key === "ArrowRight") { e.preventDefault(); leaveTypeMode(); } else if (!typeMode && e.key === "ArrowLeft") { e.preventDefault(); enterTypeMode(); } else if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); moveCard(e.key === "ArrowUp" ? 1 : -1); } }}>
-      <FeedNeighbors pool={pool} cardId={card.id} stakeVoices={state.stakeVoices} />
-      {(typeMode || typeModeAvailable) && <div className="feed-mode-neighbor" aria-hidden="true" inert>
+      <FeedNeighbors pool={pool} cardId={card.id} stakeVoices={state.stakeVoices} onPalette={handleNeighborPalette} />
+      {(modeTransition || typeMode || typeModeAvailable) && <div className="feed-mode-neighbor" aria-hidden="true" inert>
         <GameCard key={`${card.id}-mode-neighbor`} card={card} active={false} flipped={false} slide="" stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={() => {}} paletteOverride={activeCardPalette ?? undefined} />
       </div>}
       <div className="feed-current"><GameCard key={card.id} card={card} flipped={flipped} slide={slide} stakeVoice={stakeVoice} liked={likedCards.has(card.id)} saved={saved} canRemoveSaved={Boolean(currentDeck?.cardIds.includes(card.id))} gestureGuide={showGestureGuide} swipeHint={typeMode ? copy.play.typeModeHint : typeModeAvailable ? copy.play.typeModeEntryHint : undefined} returnHint={typeMode ? copy.play.typeModeHint : undefined} onFlip={handleCardFlip} onLike={toggleLike} onSave={openCollection} onComment={commentCard} onShare={() => void shareCard()} onPalette={handleCardPalette} paletteOverride={activeCardPalette ?? undefined} /></div>

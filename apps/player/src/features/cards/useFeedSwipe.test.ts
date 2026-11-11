@@ -94,6 +94,27 @@ it("uses left swipe to enter same-type mode and right swipe to exit it", async (
   expect(move).not.toHaveBeenCalled();
 });
 
+it("suppresses the synthetic click that follows a committed swipe", () => {
+  const tap = vi.fn();
+  function ClickHarness() {
+    const swipe = useFeedSwipe("", "synthetic-click", move, { onSwipeLeft: () => move(-1), onTap: tap });
+    return createElement("section", { ...swipe, onClick: tap }, createElement("p", null, "Content"));
+  }
+  act(() => root.render(createElement(ClickHarness)));
+  surface = host.querySelector("section")!;
+  Object.defineProperties(surface, {
+    clientHeight: { value: 600 }, clientWidth: { value: 600 },
+    setPointerCapture: { value: () => undefined }, hasPointerCapture: { value: () => false }, releasePointerCapture: { value: () => undefined }
+  });
+  pointerAt(surface.querySelector("p")!, "pointerdown", 420, 300);
+  pointerAt(surface, "pointermove", 220, 300);
+  pointerAt(surface, "pointerup", 220, 300);
+  surface.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  expect(move).toHaveBeenCalledTimes(1);
+  expect(move).toHaveBeenCalledWith(-1);
+  expect(tap).not.toHaveBeenCalled();
+});
+
 it("damps horizontal motion without scaling the mode surface", async () => {
   const enter = vi.fn();
   function TypeModeHarness() {
@@ -110,6 +131,8 @@ it("damps horizontal motion without scaling the mode surface", async () => {
   pointerAt(surface, "pointermove", 120, 300);
   const drag = Number.parseFloat(surface.style.getPropertyValue("--feed-drag-x"));
   expect(drag).toBeCloseTo(-300, 4);
+  expect(Number.parseFloat(surface.style.getPropertyValue("--feed-stage-depth-x"))).toBeCloseTo(12, 1);
+  expect(Number.parseFloat(surface.style.getPropertyValue("--feed-story-depth-x"))).toBeCloseTo(4.8, 1);
   expect(Number.parseFloat(surface.style.getPropertyValue("--feed-scale"))).toBe(1);
   pointerAt(surface, "pointerup", 120, 300);
   expect(enter).toHaveBeenCalledOnce();
@@ -117,6 +140,17 @@ it("damps horizontal motion without scaling the mode surface", async () => {
   await act(async () => { vi.advanceTimersByTime(360); });
   expect(surface.classList.contains("is-settling")).toBe(false);
   expect(surface.style.getPropertyValue("--feed-drag-x")).toBe("");
+  expect(surface.style.getPropertyValue("--feed-stage-depth-x")).toBe("");
+});
+
+it("keeps rubber-band resistance monotonic after the threshold", () => {
+  pointerAt(surface.querySelector("p")!, "pointerdown", 100, 300);
+  pointerAt(surface, "pointermove", 500, 300);
+  const first = Number.parseFloat(surface.style.getPropertyValue("--feed-drag-x"));
+  pointerAt(surface, "pointermove", 560, 300);
+  const second = Number.parseFloat(surface.style.getPropertyValue("--feed-drag-x"));
+  expect(Math.abs(first)).toBeLessThan(400);
+  expect(Math.abs(second)).toBeGreaterThan(Math.abs(first));
 });
 
 it("locks the gesture axis after the first meaningful movement", async () => {

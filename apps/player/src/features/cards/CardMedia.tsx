@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { playerCopy as copy } from "@playbit/content/player";
 import type { CardMedia as Media } from "../../data/types";
 import { Icon } from "../../components/ui/Icon";
@@ -12,6 +12,8 @@ export interface CardPalette {
   ink: string;
 }
 
+export type CardStageMotion = "bird-2-5d";
+
 interface Rgb {
   red: number;
   green: number;
@@ -24,6 +26,37 @@ interface ColorCluster extends Rgb {
 }
 
 const paletteCache = new Map<string, CardPalette>();
+
+function BirdParallaxImage({ src, alt, attempt, active, prefetchPalette, onLoad, onError }: {
+  src: string; alt: string; attempt: number; active: boolean; prefetchPalette: boolean;
+  onLoad: (event: SyntheticEvent<HTMLImageElement>) => void; onError: () => void;
+}) {
+  const loading = active || prefetchPalette ? "eager" : "lazy";
+  const fetchPriority = active ? "high" : "auto";
+  const [loadedLayers, setLoadedLayers] = useState(0);
+  const [layerFailed, setLayerFailed] = useState(false);
+  const sceneRef = useRef<HTMLDivElement | null>(null);
+  const layersReady = loadedLayers >= 4 && !layerFailed;
+  useEffect(() => {
+    setLoadedLayers(0);
+    setLayerFailed(false);
+    const timer = window.setTimeout(() => {
+      const layers = Array.from(sceneRef.current?.querySelectorAll<HTMLImageElement>(".bird-layer:not(.bird-layer-source)") ?? []);
+      if (layers.length === 4 && layers.every(layer => layer.complete && layer.naturalWidth > 0)) setLoadedLayers(4);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [attempt, src]);
+  function markLayerLoaded() {
+    setLoadedLayers(value => Math.min(4, value + 1));
+  }
+  return <div ref={sceneRef} className="bird-parallax-scene">
+    <img className="bird-layer bird-layer-background" src="/media/cards/metal-bird-layer-background.webp" alt={alt} loading={loading} fetchPriority={fetchPriority} decoding="async" width={680} height={1200} onLoad={markLayerLoaded} onError={() => setLayerFailed(true)} />
+    <img className="bird-layer bird-layer-finger" src="/media/cards/metal-bird-layer-finger.webp" alt="" aria-hidden="true" loading={loading} decoding="async" width={680} height={1200} onLoad={markLayerLoaded} onError={() => setLayerFailed(true)} />
+    <img className="bird-layer bird-layer-body" src="/media/cards/metal-bird-layer-body.webp" alt="" aria-hidden="true" loading={loading} decoding="async" width={680} height={1200} onLoad={markLayerLoaded} onError={() => setLayerFailed(true)} />
+    <img className="bird-layer bird-layer-eye" src="/media/cards/metal-bird-layer-eye.webp" alt="" aria-hidden="true" loading={loading} decoding="async" width={680} height={1200} onLoad={markLayerLoaded} onError={() => setLayerFailed(true)} />
+    <img key={attempt} className={`bird-layer bird-layer-source ${layersReady ? "is-layer-ready" : ""}`} src={src} alt="" aria-hidden="true" loading={loading} fetchPriority={fetchPriority} decoding="async" width={680} height={1200} onError={onError} onLoad={onLoad} />
+  </div>;
+}
 
 function toRgb({ red, green, blue }: Rgb): string {
   return `rgb(${red}, ${green}, ${blue})`;
@@ -108,7 +141,7 @@ function extractPalette(source: CanvasImageSource): CardPalette | null {
   }
 }
 
-export function CardMedia({ media, active, prefetchPalette = false, visible = true, onPalette }: { media: Media; active: boolean; prefetchPalette?: boolean; visible?: boolean; onPalette?: (palette: CardPalette) => void }) {
+export function CardMedia({ media, active, prefetchPalette = false, visible = true, onPalette, stageMotion }: { media: Media; active: boolean; prefetchPalette?: boolean; visible?: boolean; onPalette?: (palette: CardPalette) => void; stageMotion?: CardStageMotion }) {
   const element = useRef<HTMLMediaElement | null>(null);
   const paletteFrame = useRef<number | null>(null);
   const paletteNotified = useRef<string | null>(null);
@@ -195,8 +228,9 @@ export function CardMedia({ media, active, prefetchPalette = false, visible = tr
     onLoadedData: () => { if (media.kind === "video") { const video = element.current as HTMLVideoElement | null; if (video) schedulePalette(video); } },
     onError: () => { setPlaying(false); setError(true); }
   };
-  return <div className={`card-media card-media-${media.kind}`}>
-    {media.kind === "image" ? <img key={attempt} src={media.src} alt={media.alt} loading={active || prefetchPalette ? "eager" : "lazy"} fetchPriority={active ? "high" : "auto"} decoding="async" width={640} height={480} onError={() => setError(true)} onLoad={event => { setError(false); schedulePalette(event.currentTarget); }} />
+  const isBirdParallax = media.kind === "image" && stageMotion === "bird-2-5d";
+  return <div className={`card-media card-media-${media.kind} ${isBirdParallax ? "card-media-bird-2-5d" : ""}`}>
+    {media.kind === "image" ? isBirdParallax ? <BirdParallaxImage src={media.src} alt={media.alt} attempt={attempt} active={active} prefetchPalette={prefetchPalette} onError={() => setError(true)} onLoad={event => { setError(false); schedulePalette(event.currentTarget); }} /> : <img key={attempt} src={media.src} alt={media.alt} loading={active || prefetchPalette ? "eager" : "lazy"} fetchPriority={active ? "high" : "auto"} decoding="async" width={640} height={480} onError={() => setError(true)} onLoad={event => { setError(false); schedulePalette(event.currentTarget); }} />
       : media.kind === "video" ? <button className="card-video" type="button" onClick={() => void toggle()} aria-label={`${playing ? copy.play.mediaPause : copy.play.mediaResume}：${media.title}`} aria-pressed={playing}>
         <video key={attempt} ref={node => { element.current = node; }} src={media.src} poster={media.poster} muted loop autoPlay playsInline preload={active ? "auto" : prefetchPalette ? "metadata" : "none"} aria-hidden="true" {...mediaEvents} />
       </button>
