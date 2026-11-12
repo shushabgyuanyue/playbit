@@ -30,6 +30,11 @@ export function decodeState(raw: string | null): PlayerState {
     if (value.issuedBenefits && (typeof value.issuedBenefits !== "object" || Object.values(value.issuedBenefits).some(item => !item || typeof item.id !== "string" || typeof item.title !== "string" || typeof item.issuerName !== "string" || !Array.isArray(item.signature) || !["direct", "promise", "game"].includes(item.source) || !["pending_claim", "claimed", "unavailable"].includes(item.status)))) return createInitialState();
     if (value.agreements.some(a => !a || typeof a.id !== "string" || typeof a.text !== "string" || typeof a.benefit !== "string" || !Number.isFinite(Date.parse(a.createdAt)) || !Array.isArray(a.signatures?.a) || !Array.isArray(a.signatures?.b))) return createInitialState();
     if (value.draft.step >= 2 && !value.agreements.some(a => a.id === value.draft.agreementId)) return createInitialState();
+    const issuedStakes = value.issuedStakes && typeof value.issuedStakes === "object"
+      ? Object.fromEntries(Object.entries(value.issuedStakes).map(([cardId, issuance]) => [cardId, { ...issuance, source: "game" as const }]))
+      : {};
+    const stakeVoices = value.stakeVoices && typeof value.stakeVoices === "object" ? { ...value.stakeVoices } : {};
+    for (const cardId of Object.keys(issuedStakes)) delete stakeVoices[cardId];
     return {
       ...value,
       sceneId: value.sceneId === "mystery" ? EXPLORE_SCENE_ID : value.sceneId,
@@ -37,9 +42,9 @@ export function decodeState(raw: string | null): PlayerState {
       // after issuance, so keep it and render the issuance page.
       draft: migratePromiseDraft(value.draft, draftStep as PlayerState["draft"]["step"]),
       agreements: value.agreements.map(migrateAgreement),
-      stakeVoices: value.stakeVoices && typeof value.stakeVoices === "object" ? value.stakeVoices : {},
+      stakeVoices,
       stakeRecords: normalizeStakeRecords(value),
-      issuedStakes: value.issuedStakes && typeof value.issuedStakes === "object" ? Object.fromEntries(Object.entries(value.issuedStakes).map(([cardId, issuance]) => [cardId, { ...issuance, source: "game" }])) : {},
+      issuedStakes,
       issuedBenefits: value.issuedBenefits && typeof value.issuedBenefits === "object" ? value.issuedBenefits : {},
       coupons: value.coupons
         .filter(coupon => coupon.side === "won")

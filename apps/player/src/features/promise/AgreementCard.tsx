@@ -19,7 +19,6 @@ type AgreementCardProps = {
   status: string;
   participants?: AgreementCardParticipant[];
   signatureArea?: ReactNode;
-  code?: string;
   createdAt?: string;
 };
 
@@ -31,39 +30,41 @@ function formatDate(value?: string) {
     : "";
 }
 
-export function AgreementCard({ text, voice, status, participants, signatureArea, code, createdAt }: AgreementCardProps) {
+export function AgreementCard({ text, voice, status, participants, signatureArea, createdAt }: AgreementCardProps) {
   const playback = useVoicePlayback(voice);
   const labels = copy.promise.shareCard;
   const voiceOnly = text === copy.promise.voice.challengeLabel || !text;
   return <article className={`agreement-card ${signatureArea ? "is-signing" : "is-shared"}`}>
     <header className="agreement-card-head">
-      <strong>PLAYBIT<sup>®</sup></strong>
-      <span>{status}</span>
+      <strong>{labels.brand}</strong>
+      {!signatureArea && <span>{status}</span>}
     </header>
     <section className="agreement-card-challenge">
       <small>{labels.promiseEyebrow}</small>
       <h1>{voiceOnly ? labels.promiseTitle : text}</h1>
-      <p>{voiceOnly ? labels.voiceAgreement : copy.promise.voice.contractHint}</p>
     </section>
     <div className="agreement-audio-pair">
       <div className={`agreement-audio challenge-audio ${playback.playing ? "is-playing" : ""}`}>
-        <span className="agreement-audio-label"><Icon name="volume" size={15} />{copy.promise.voice.challengeLabel}</span>
-        <VoiceWave tone="dark" active={playback.playing} />
         <button className="agreement-audio-play" type="button" disabled={!voice.assetId} aria-busy={playback.loading} aria-label={playback.playing ? copy.promise.voice.stopPlaying : labels.listenChallenge} onClick={() => void playback.toggle()}>
           <span>{playback.loading ? labels.audioLoading : playback.playing ? copy.promise.voice.playing : voice.assetId ? labels.listenChallenge : labels.noVoice}</span>
+          <VoiceWave tone="dark" active={playback.playing} />
+          <small>{formatVoiceDuration(voice.durationMs)}</small>
           <Icon name={playback.playing ? "stop" : "play"} size={17} />
         </button>
-        <span className="agreement-audio-duration">{formatVoiceDuration(voice.durationMs)}</span>
       </div>
     </div>
     {playback.error && <p className="agreement-audio-error" role="alert">{playback.error}</p>}
-    <p className="agreement-tear-hint"><Icon name="arrow" size={13} /><span>{labels.tearHint}</span><Icon name="arrow" size={13} /></p>
     {signatureArea ?? (participants && <div className="agreement-card-participants">
       {participants.map(participant => <div className="agreement-card-participant" key={participant.role}>
-        {participant.signature?.length ? <SignatureMark value={participant.signature} /> : <b>{participant.nickname}</b>}
-        <small>{participant.role === "initiator" ? labels.initiator : labels.counterparty}<span> · {participant.signed ? labels.signedStatus : copy.promise.unsigned}</span></small>
+        <div className="agreement-card-signature">
+          {participant.signature?.length ? <SignatureMark value={participant.signature} /> : <span>{participant.nickname.slice(0, 1)}</span>}
+        </div>
+        <div className="agreement-card-person">
+          <b>{participant.nickname}</b>
+          <small>{participant.role === "initiator" ? labels.initiator : labels.counterparty}</small>
+        </div>
       </div>)}
     </div>)}
-    {(code || createdAt) && <footer className="agreement-card-footer"><span>{formatDate(createdAt)}</span>{code && <span>#{code.slice(-8).toUpperCase()}</span>}</footer>}
+    {createdAt && <footer className="agreement-card-footer"><span>{labels.datePrefix}{formatDate(createdAt)}</span><span>{labels.keepTogether}</span></footer>}
   </article>;
 }

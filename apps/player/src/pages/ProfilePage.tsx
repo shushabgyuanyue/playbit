@@ -72,7 +72,7 @@ export function ProfilePage() {
     </div>
     <span className="app-version">{copy.profile.version}</span>
 
-    <SceneDrawer open={sceneDrawerOpen} onClose={() => setSceneDrawerOpen(false)} onCreate={() => setCreateDeckOpen(true)} />
+    <SceneDrawer open={sceneDrawerOpen} onClose={() => setSceneDrawerOpen(false)} onCreate={() => setCreateDeckOpen(true)} onSceneChange={() => navigate("/")} />
     <CreateDeckSheet open={createDeckOpen} onClose={() => setCreateDeckOpen(false)} />
     {accountOpen && <ProfileInfoSheet panel="account" onClose={() => setAccountOpen(false)} onEdit={editProfile} />}
     <Sheet open={editing} onClose={() => setEditing(false)} title={copy.profile.editTitle}>

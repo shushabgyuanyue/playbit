@@ -6,6 +6,7 @@ const MOVE_CANCEL_PX = 8;
 const SWIPE_VELOCITY = 0.42;
 const HORIZONTAL_SWIPE_VELOCITY = 0.18;
 const SETTLE_FALLBACK_MS = 280;
+const EMPTY_EDGE_SETTLE_MS = 380;
 
 type GestureAxis = "x" | "y" | null;
 
@@ -168,12 +169,7 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
       window.removeEventListener("pointercancel", handleCancel, true);
     };
   }
-  function reset() {
-    const element = ref.current;
-    if (!element) return;
-    if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
-    settleTimer.current = null;
-    element.classList.remove("is-dragging", "is-settling");
+  function clearDragVisual(element: HTMLElement) {
     element.style.removeProperty("--feed-drag");
     element.style.removeProperty("--feed-drag-x");
     element.style.removeProperty("--feed-progress");
@@ -186,8 +182,17 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     element.style.removeProperty("--feed-story-depth-y");
     element.style.removeProperty("--feed-footer-depth-x");
     element.style.removeProperty("--feed-footer-depth-y");
+  }
+  function reset() {
+    const element = ref.current;
+    if (!element) return;
+    if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+    settleTimer.current = null;
+    element.classList.remove("is-dragging", "is-settling");
+    clearDragVisual(element);
     delete element.dataset.dragAxis;
     delete element.dataset.dragDirection;
+    delete element.dataset.emptyEdge;
   }
   function settle() {
     const element = ref.current;
@@ -196,6 +201,15 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     element.classList.add("is-settling");
     if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(reset, SETTLE_FALLBACK_MS);
+  }
+  function settleEmptyEdge() {
+    const element = ref.current;
+    if (!element) return;
+    element.classList.remove("is-dragging");
+    element.classList.add("is-settling");
+    clearDragVisual(element);
+    if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(reset, EMPTY_EDGE_SETTLE_MS);
   }
   function suppressSyntheticClick() {
     suppressClick.current = true;
@@ -224,6 +238,11 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
     const scale = 1;
     element.dataset.dragAxis = axis;
     element.dataset.dragDirection = distance < 0 ? "negative" : "positive";
+    const hasHorizontalDestination = distance < 0
+      ? Boolean(gesture.current.onSwipeLeft)
+      : Boolean(gesture.current.onSwipeRight ?? gesture.current.onExit);
+    if (axis === "x" && !hasHorizontalDestination) element.dataset.emptyEdge = distance < 0 ? "left" : "right";
+    else delete element.dataset.emptyEdge;
     element.style.setProperty("--feed-drag", `${axis === "y" ? visual : 0}px`);
     element.style.setProperty("--feed-drag-x", `${axis === "x" ? visual : 0}px`);
     element.style.setProperty("--feed-progress", `${progress}`);
@@ -276,7 +295,8 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
       } else if (start.moved) {
         suppressSyntheticClick();
       }
-      reset();
+      if (axis === "x" && element.dataset.emptyEdge) settleEmptyEdge();
+      else reset();
       return;
     }
     suppressSyntheticClick();
@@ -285,7 +305,7 @@ export function useFeedSwipe(slide: string, cardId: string, move: (direction: nu
       if (callback) {
         settle();
         callback();
-      } else reset();
+      } else settleEmptyEdge();
       return;
     }
     if (!moving.current(dy < 0 ? 1 : -1)) reset();

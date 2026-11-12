@@ -10,9 +10,9 @@ export function SigningStep({ draft, stamping, onSignature, onSeal }: { draft: P
     <div className="agreement-signing-artifact" aria-busy={stamping}>
       <AgreementCard text={draft.text} voice={draft.voice} status={ready ? copy.promise.shareCard.readyToSeal : copy.promise.shareCard.signing}
         signatureArea={<fieldset className="agreement-signatures" disabled={stamping}><legend className="sr-only">{copy.promise.signTitle}</legend><SignaturePad label={copy.promise.signA} value={draft.signatures.a} onChange={value => onSignature("a", value)} /><SignaturePad label={copy.promise.signB} value={draft.signatures.b} onChange={value => onSignature("b", value)} /></fieldset>} />
-      {stamping && <div className="contract-seal stamping" aria-hidden="true">PLAYBIT<br />{copy.promise.sealText}</div>}
+      {stamping && <div className="contract-seal stamping" aria-hidden="true">{copy.promise.shareCard.brand}<br />{copy.promise.sealText}</div>}
     </div>
-    <div className="agreement-signing-actions"><p>{ready ? copy.promise.signReady : copy.promise.signHint}</p>
+    <div className="agreement-signing-actions">
       <button className="contract-cta" type="button" disabled={!ready || stamping} onClick={onSeal}>{stamping ? copy.promise.stamping : copy.promise.seal}<Icon name="check" size={18} /></button>
     </div>
   </div>;

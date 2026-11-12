@@ -1,20 +1,21 @@
 /* Shared signing, record and link-preview artifact. */
-.agreement-card { width: 100%; max-width: 390px; margin: 0 auto; padding: 0 14px 16px; overflow: hidden; border-radius: 20px; color: var(--player-ink); background: var(--player-lime); box-shadow: 0 7px 0 rgba(24, 21, 29, .07); letter-spacing: 0; }
-.agreement-card-head { min-height: 59px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.agreement-card-head strong { font-size: 21px; font-weight: 900; }
-.agreement-card-head sup { margin-left: 1px; font-size: 9px; }
-.agreement-card-head > span { font-size: 10px; font-weight: 800; text-align: right; }
-.agreement-card-challenge { padding: 17px; border-radius: 12px; color: #fff; background: var(--player-ink); }
-.agreement-card-challenge > small { color: var(--player-lime); font-size: 11px; font-weight: 800; }
-.agreement-card-challenge h1 { margin: 12px 0; font-size: 30px; font-weight: 900; line-height: 1.35; overflow-wrap: anywhere; }
-.agreement-card-challenge p { margin: 0; color: rgba(255, 255, 255, .65); font-size: 10px; line-height: 1.6; }
-.agreement-audio-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; margin-top: 11px; }
-.agreement-audio { position: relative; min-width: 0; min-height: 134px; overflow: hidden; border: 1.5px solid var(--player-ink); border-radius: 12px; }
-.agreement-audio-label { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 900; line-height: 18px; }
-.challenge-audio { display: flex; flex-direction: column; justify-content: space-between; gap: 7px; padding: 12px; }
-.challenge-audio > .voice-wave { width: 80px; height: 30px; margin: 0 auto; opacity: .8; }
-.agreement-audio-play { display: flex; align-items: center; justify-content: space-between; gap: 5px; width: 100%; min-height: 44px; padding: 5px 0; color: inherit; background: transparent; text-align: left; font-size: 11px; }
-.agreement-audio-play > svg { flex: none; width: 28px; height: 28px; padding: 6px; border-radius: 50%; color: var(--player-lime); background: var(--player-ink); }
+.agreement-card { width: 100%; max-width: 390px; margin: 0 auto; padding: 0 16px 14px; overflow: hidden; border: 1px solid rgba(24, 21, 29, .08); border-radius: 12px; color: var(--player-ink); background: #fff; box-shadow: 0 10px 28px rgba(24, 21, 29, .07); letter-spacing: 0; }
+.agreement-card-head { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.agreement-card-head strong { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; }
+.agreement-card-head strong::before { content: ""; width: 7px; height: 7px; flex: none; border-radius: 2px; background: var(--player-violet); transform: rotate(45deg); }
+.agreement-card-head > span { padding: 4px 8px; border-radius: 999px; color: #6241c9; background: #f1edff; font-size: 9px; font-weight: 700; text-align: right; }
+.agreement-card-challenge { padding: 10px 0 13px; border-bottom: 1px solid rgba(24, 21, 29, .1); color: var(--player-ink); background: transparent; }
+.agreement-card-challenge > small { color: var(--player-violet); font-size: 10px; font-weight: 700; }
+.agreement-card-challenge h1 { margin: 7px 0 0; font-size: 25px; font-weight: 750; line-height: 1.3; overflow-wrap: anywhere; }
+.agreement-audio-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; margin-top: 9px; }
+.agreement-audio { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 0; border-radius: 8px; background: #f4f1fb; }
+.agreement-audio-label { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; line-height: 16px; }
+.challenge-audio { display: flex; flex-direction: column; justify-content: space-between; gap: 2px; padding: 7px 10px; }
+.agreement-audio-play { display: flex; align-items: center; justify-content: space-between; gap: 7px; width: 100%; min-height: 34px; padding: 3px 0; color: inherit; background: transparent; text-align: left; font-size: 10px; }
+.challenge-audio .agreement-audio-play > .voice-wave { width: 58px; height: 20px; flex: 1; opacity: .7; }
+.challenge-audio .agreement-audio-play > small { color: currentColor; opacity: .62; font-size: 9px; font-variant-numeric: tabular-nums; }
+.challenge-audio .agreement-audio-play > svg { width: 25px; height: 25px; padding: 6px; }
+.agreement-audio-play > svg { flex: none; width: 28px; height: 28px; padding: 6px; border-radius: 50%; color: #fff; background: var(--player-violet); }
 .agreement-audio-play:disabled { opacity: .5; cursor: default; }
 .agreement-audio-duration { position: absolute; right: 12px; top: 39px; color: currentColor; opacity: .5; font-size: 9px; pointer-events: none; }
 .reward-audio { border-color: transparent; background: #ece5ff; }
@@ -35,56 +36,90 @@
 .reward-audio.is-revealed .voice-tear-seal { transform: translateX(var(--tear-end, 115%)) rotate(var(--tear-rotation, 6deg)); opacity: 0; pointer-events: none; }
 .reward-audio-error, .agreement-audio-error { display: block; margin: 7px 0 0; color: #8a222c; font-size: 10px; line-height: 1.5; }
 .reward-audio-error { grid-column: 1 / -1; margin: 0; }
-.agreement-tear-hint { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 16px 0; color: rgba(24,21,29,.75); font-size: 10px; line-height: 1.5; }
-.agreement-tear-hint svg { flex: none; }
-.agreement-tear-hint svg:first-child { transform: rotate(180deg); }
-.agreement-card-participants { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 14px; border-top: 2px solid var(--player-ink); }
+.agreement-card-participants { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-top: 12px; }
 .agreement-card-participant { min-width: 0; }
-.agreement-card-participant > b { display: block; margin: 5px 0 18px; font-size: 24px; overflow-wrap: anywhere; }
-.agreement-card-participant .signature-mark { width: 100%; height: 72px; margin: 0 0 7px; }
-.agreement-card-participant > small { font-size: 10px; line-height: 1.6; }
-.agreement-card-footer { display: flex; justify-content: space-between; gap: 10px; padding-top: 18px; color: rgba(24,21,29,.6); font-size: 9px; }
+.agreement-card-signature { min-height: 53px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(24, 21, 29, .18); color: var(--player-ink); }
+.agreement-card-signature > span { color: rgba(125, 84, 255, .42); font-size: 24px; font-weight: 700; }
+.agreement-card-signature .signature-mark { width: 100%; height: 48px; }
+.agreement-card-person { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding-top: 6px; }
+.agreement-card-person > b { min-width: 0; overflow: hidden; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.agreement-card-person > small { flex: none; color: var(--player-muted); font-size: 9px; }
+.agreement-card-footer { display: flex; justify-content: space-between; gap: 10px; padding-top: 12px; color: var(--player-muted); font-size: 9px; }
+.agreement-card-footer > span:last-child { color: var(--player-violet); }
 .bet-module.is-signing { display: flex; flex-direction: column; padding: 14px 18px 18px; }
-.bet-module.is-signing .bet-progress { flex: none; margin-bottom: 16px; }
+.bet-module.is-signing .promise-progress { flex: none; margin-bottom: 10px; }
 .bet-module.is-signing > .page-transition { display: flex; flex: 1; min-height: 0; }
-.agreement-signing-flow { display: flex; flex-direction: column; gap: 16px; width: 100%; min-height: min-content; }
-.agreement-signing-artifact { position: relative; width: 100%; max-width: 390px; margin: 0 auto; }
-.agreement-signatures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; padding: 14px 0 0; margin: 0; border: 0; border-top: 2px solid var(--player-ink); }
+.agreement-signing-flow { display: flex; flex: 1; flex-direction: column; justify-content: center; gap: 18px; width: 100%; min-height: 0; }
+.agreement-signing-artifact { position: relative; display: flex; flex: none; min-height: 0; width: 100%; max-width: 390px; margin: 0 auto; }
+.agreement-card.is-signing { display: flex; flex: none; flex-direction: column; min-height: 0; padding: 0 16px 13px; }
+.agreement-card.is-signing .agreement-card-head { min-height: 40px; }
+.agreement-card.is-signing .agreement-card-challenge { flex: none; padding: 8px 0 12px; }
+.agreement-card.is-signing .agreement-card-challenge h1 { margin: 5px 0 0; font-size: 22px; line-height: 1.27; }
+.agreement-card.is-signing .agreement-audio-pair { flex: none; margin-top: 9px; }
+.agreement-card.is-signing .agreement-audio { min-height: 0; }
+.agreement-card.is-signing .challenge-audio { gap: 1px; padding: 5px 9px; }
+.agreement-card.is-signing .agreement-audio-label { font-size: 9px; line-height: 12px; }
+.agreement-card.is-signing .agreement-audio-play { min-height: 32px; font-size: 10px; }
+.agreement-signatures { display: grid; flex: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; padding: 11px 0 0; margin: 11px 0 0; border: 0; border-top: 1px solid rgba(24, 21, 29, .13); }
 .agreement-signatures:disabled { pointer-events: none; }
-.agreement-signatures .signature-pad { height: 142px; border: 0; border-radius: 0; background: transparent; }
-.agreement-signatures .signature-pad > div { padding: 0; font-size: 11px; line-height: 16px; }
-.agreement-signatures .signature-pad > div b { color: var(--player-ink); font-size: 9px; }
-.agreement-signatures .signature-pad canvas { width: 100%; height: 96px; margin-top: 5px; border-bottom: 1px solid rgba(24,21,29,.3); }
-.agreement-signatures .signature-pad > button { right: 0; bottom: 0; min-height: 22px; padding: 2px 0 2px 8px; color: rgba(24,21,29,.65); background: var(--player-lime); font-size: 9px; }
+.agreement-signatures .signature-pad { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; height: auto; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.agreement-signatures .signature-pad > div { padding: 0; font-size: 10px; line-height: 16px; }
+.agreement-signatures .signature-pad > div b { color: #4d7025; font-size: 9px; }
+.agreement-signatures .signature-pad canvas { flex: none; width: 100%; min-height: 0; height: 66px; margin-top: 2px; border-bottom: 1px solid rgba(24,21,29,.22); }
+.agreement-signatures .signature-pad > button { min-height: 24px; padding: 3px 0 0; color: var(--player-muted); background: transparent; font-size: 9px; }
 .agreement-signatures .signature-pad.signed::after { content: none; }
-.agreement-signing-actions { width: 100%; max-width: 390px; margin: auto auto 0; }
-.agreement-signing-actions > p { margin: 0 0 9px; color: var(--player-muted); text-align: center; font-size: 10px; line-height: 1.5; }
-.agreement-signing-actions .contract-cta { min-height: 48px; margin: 0; border-radius: var(--pb-radius-control); color: #fff; background: var(--player-ink); font-size: 14px; box-shadow: none; }
+.agreement-signing-actions { flex: none; width: 100%; max-width: 390px; margin: 0 auto; }
+.agreement-signing-actions .contract-cta { min-height: 44px; margin: 0; border-radius: var(--pb-radius-control); color: #fff; background: var(--player-ink); font-size: 13px; box-shadow: none; }
 .agreement-signing-actions .contract-cta:disabled { opacity: .35; }
 .agreement-audio-play:focus-visible, .voice-tear-seal:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }
+.bet-module .promise-progress { flex: none; margin: 0 0 12px; padding: 0 2px; }
+.promise-progress-heading { min-height: 32px; display: flex; align-items: center; gap: 7px; color: var(--player-ink); }
+.promise-progress-heading > span { color: var(--player-violet); font-size: 10px; font-variant-numeric: tabular-nums; }
+.promise-progress-heading > b { flex: 1; font-size: 12px; font-weight: 700; }
+.promise-progress-heading > button { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; color: var(--player-muted); background: transparent; }
+.promise-progress-heading > button:disabled { opacity: .4; }
+.promise-progress-track { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.promise-progress-track i { height: 3px; border-radius: 3px; background: rgba(24, 21, 29, .12); }
+.promise-progress-track i.active { background: var(--player-violet); }
+.promise-settlement { display: flex; flex-direction: column; gap: 10px; padding: 2px 0 max(12px, env(safe-area-inset-bottom)); }
+.promise-settlement .agreement-card { flex: none; }
+.promise-settlement-actions { display: grid; grid-template-columns: 1fr; gap: 6px; width: 100%; max-width: 390px; margin: 0 auto; }
+.promise-share-card { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; color: #fff; background: var(--player-violet); font-size: 13px; font-weight: 700; }
+.promise-settlement-actions .contract-cta { min-height: 46px; margin: 0; border: 1px solid rgba(24, 21, 29, .14); border-radius: 8px; color: var(--player-ink); background: #fff; box-shadow: none; font-size: 13px; }
+.promise-settlement-actions .promise-self-claim { justify-self: center; min-height: 34px; padding: 2px 12px; font-size: 11px; }
+.promise-settlement-actions .promise-self-claim:disabled { opacity: .5; }
+.promise-benefit-status { margin: 0; color: var(--player-muted); font-size: 11px; text-align: center; }
+.promise-benefit-settlement { align-items: stretch; }
+.promise-settlement-heading { width: 100%; max-width: 390px; margin: 0 auto 2px; }
+.promise-settlement-heading small { color: var(--player-violet); font-size: 9px; font-weight: 800; letter-spacing: .12em; }
+.promise-settlement-heading h1 { margin: 4px 0 2px; color: var(--player-ink); font-size: 22px; line-height: 1.2; }
+.promise-settlement-heading p { margin: 0; color: var(--player-muted); font-size: 10px; line-height: 1.5; }
+.promise-issue-loading { min-height: 114px; display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; max-width: 390px; margin: 0 auto; border: 1px dashed rgba(24, 21, 29, .14); border-radius: 12px; color: var(--player-muted); background: rgba(255, 255, 255, .56); font-size: 11px; }
+.promise-issue-loading > svg { color: var(--player-violet); animation: promiseIssuePulse 1.2s ease-in-out infinite; }
+@keyframes promiseIssuePulse { 0%, 100% { opacity: .42; transform: scale(.92); } 50% { opacity: 1; transform: scale(1); } }
 @media (max-width: 360px) {
   .bet-module.is-signing { padding-right: 12px; padding-left: 12px; }
-  .agreement-card { padding-right: 11px; padding-left: 11px; }
-  .agreement-card-challenge { padding: 16px 14px; }
-  .agreement-card-challenge h1 { font-size: 26px; }
+  .agreement-card { padding-right: 12px; padding-left: 12px; }
+  .agreement-card-challenge h1 { font-size: 23px; }
   .agreement-audio-label { gap: 4px; font-size: 11px; }
   .challenge-audio, .reward-audio-content { padding: 10px; }
   .voice-tear-seal { padding: 11px; }
 }
 @media (max-height: 740px) {
-  .bet-module.is-signing { padding-top: 9px; padding-bottom: 12px; }
-  .bet-module.is-signing .bet-progress { margin-bottom: 10px; }
+  .bet-module.is-signing { padding: 7px 14px 10px; }
+  .bet-module.is-signing .promise-progress { margin-bottom: 6px; }
   .agreement-signing-flow { gap: 12px; }
-  .agreement-card-head { min-height: 48px; }
-  .agreement-card-challenge { padding-top: 13px; padding-bottom: 13px; }
-  .agreement-card-challenge h1 { margin: 8px 0; font-size: 26px; }
-  .agreement-audio { min-height: 118px; }
-  .challenge-audio > .voice-wave { height: 20px; }
-  .agreement-tear-hint { margin: 11px 0; }
-  .agreement-signatures { padding-top: 10px; }
-  .agreement-signatures .signature-pad { height: 124px; }
-  .agreement-signatures .signature-pad canvas { height: 78px; }
+  .agreement-card.is-signing { padding-bottom: 10px; }
+  .agreement-card.is-signing .agreement-card-head { min-height: 36px; }
+  .agreement-card.is-signing .agreement-card-challenge { padding-bottom: 9px; }
+  .agreement-card.is-signing .agreement-card-challenge h1 { margin: 4px 0; font-size: 19px; line-height: 1.2; }
+  .agreement-card.is-signing .agreement-audio-pair { margin-top: 6px; }
+  .agreement-card.is-signing .challenge-audio { gap: 1px; padding: 4px 8px; }
+  .agreement-signatures { gap: 8px; padding-top: 8px; margin-top: 8px; }
+  .agreement-signatures .signature-pad canvas { height: 54px; margin-top: 1px; }
+  .agreement-signing-actions .contract-cta { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .voice-tear-seal, .reward-audio-content { transition: none; }
+  .promise-issue-loading > svg { animation: none; }
 }

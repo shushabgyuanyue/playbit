@@ -24,7 +24,7 @@ function Shell() {
   const isHome = location.pathname === "/" || location.pathname === "/promise";
   const isAgreement = location.pathname.startsWith("/agreements/");
   const rememberedHome = memory.homePath;
-  const playTarget = location.pathname === "/promise" ? "/" : location.pathname === "/benefits" && (location.state?.returnTo === "/" || location.state?.returnTo === "/promise")
+  const playTarget = location.pathname === "/benefits" && (location.state?.returnTo === "/" || location.state?.returnTo === "/promise")
     ? location.state.returnTo
     : rememberedHome;
   const mode = (location.pathname === "/promise" || (!isHome && rememberedHome === "/promise")) ? "promise" : "game";
@@ -55,7 +55,7 @@ function Shell() {
       </div>
       <nav className="bottom-nav" aria-label={copy.nav.label}>
         <Link className={`nav-item nav-benefits ${location.pathname === "/benefits" ? "active" : ""}`} to="/benefits" {...benefitsEntryProps}><Icon name="gift" /><span>{copy.nav.benefits}</span></Link>
-        {location.pathname === "/" ? <StakeNavControl /> : location.pathname === "/promise" && state.draft.step === 0 ? <PromiseNavControl /> : <Link className={`nav-item nav-play play ${isHome ? "active" : ""}`} to={playTarget}><span className="play-logo">P</span><span>{copy.nav.play}</span></Link>}
+        {location.pathname === "/" ? <StakeNavControl /> : location.pathname === "/promise" && state.draft.step === 0 ? <PromiseNavControl /> : location.pathname === "/promise" ? <span className="nav-item nav-play play active" aria-current="page"><span className="play-logo">P</span><span>{copy.nav.play}</span></span> : <Link className={`nav-item nav-play play ${isHome ? "active" : ""}`} to={playTarget}><span className="play-logo">P</span><span>{copy.nav.play}</span></Link>}
         <Link className={`nav-item nav-me ${location.pathname === "/me" || location.pathname === "/agreements" || location.pathname.startsWith("/agreements/") || location.pathname === "/notifications" || location.pathname === "/announcements" ? "active" : ""}`} to="/me"><Icon name="user" /><span>{copy.nav.me}</span></Link>
       </nav>
       {toast && <div className="toast" role="status"><Icon name="check" size={17} />{toast}</div>}

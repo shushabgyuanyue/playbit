@@ -10,8 +10,8 @@ let surface: HTMLElement;
 let now: number;
 const move = vi.fn<(direction: number) => boolean>();
 
-function Harness({ slide = "", cardId = "first" }) {
-  const swipe = useFeedSwipe(slide, cardId, move);
+function Harness({ slide = "", cardId = "first", options = {} }: { slide?: string; cardId?: string; options?: Parameters<typeof useFeedSwipe>[3] }) {
+  const swipe = useFeedSwipe(slide, cardId, move, options);
   return createElement("section", swipe,
     createElement("p", null, "Content"),
     createElement("button", null, "Flip"),
@@ -92,6 +92,34 @@ it("uses left swipe to enter same-type mode and right swipe to exit it", async (
   pointerAt(surface, "pointerup", 440, 300);
   expect(exit).toHaveBeenCalledOnce();
   expect(move).not.toHaveBeenCalled();
+});
+
+it("keeps the unavailable horizontal edge black while the card springs back", async () => {
+  await act(async () => root.render(createElement(Harness, {})));
+  surface = host.querySelector("section")!;
+  pointerAt(surface.querySelector("p")!, "pointerdown", 300, 300);
+  pointerAt(surface, "pointermove", 500, 300);
+  expect(surface.dataset.emptyEdge).toBe("right");
+  pointerAt(surface, "pointerup", 500, 300);
+  expect(move).not.toHaveBeenCalled();
+  expect(surface.dataset.emptyEdge).toBe("right");
+  expect(surface.classList.contains("is-settling")).toBe(true);
+  expect(surface.style.getPropertyValue("--feed-drag-x")).toBe("");
+  await act(async () => { vi.advanceTimersByTime(380); });
+  expect(surface.dataset.emptyEdge).toBeUndefined();
+
+  const exit = vi.fn();
+  await act(async () => root.render(createElement(Harness, { cardId: "same-type", options: { onSwipeRight: exit } })));
+  surface = host.querySelector("section")!;
+  pointerAt(surface.querySelector("p")!, "pointerdown", 500, 300);
+  pointerAt(surface, "pointermove", 300, 300);
+  expect(surface.dataset.emptyEdge).toBe("left");
+  pointerAt(surface, "pointerup", 300, 300);
+  expect(exit).not.toHaveBeenCalled();
+  expect(surface.dataset.emptyEdge).toBe("left");
+  expect(surface.classList.contains("is-settling")).toBe(true);
+  await act(async () => { vi.advanceTimersByTime(380); });
+  expect(surface.dataset.emptyEdge).toBeUndefined();
 });
 
 it("accepts a short horizontal flick that starts on a social control", async () => {

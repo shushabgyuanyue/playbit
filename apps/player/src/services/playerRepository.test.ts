@@ -10,6 +10,24 @@ describe("player repository migrations", () => {
     expect(decodeState(JSON.stringify(legacy)).stakeVoices).toEqual({});
   });
 
+  it("clears issued game audio from the card while retaining the coupon recording", () => {
+    const state = createInitialState();
+    const voice = { id: "stake-voice", assetId: "stake-audio", durationMs: 1800, storage: "indexeddb" as const };
+    const cardId = state.cardId;
+    const persisted = {
+      ...state,
+      stakes: { [cardId]: "输的人请喝一杯" },
+      stakeVoices: { [cardId]: voice },
+      stakeRecords: { [cardId]: { cardId, title: "输的人请喝一杯", createdAt: new Date().toISOString(), locked: true } },
+      issuedStakes: { [cardId]: { id: "issued", cardId, cardTitle: "一张卡", title: "请喝一杯", issuerName: "主持人", signature: [], voice, issuedAt: new Date().toISOString(), source: "game" as const, status: "pending_claim" as const } }
+    };
+
+    const decoded = decodeState(JSON.stringify(persisted));
+    expect(decoded.stakeVoices[cardId]).toBeUndefined();
+    expect(decoded.stakeRecords[cardId]).toBeUndefined();
+    expect(decoded.issuedStakes[cardId]?.voice).toEqual(voice);
+  });
+
   it("keeps an issued agreement in the benefit issuance stage", () => {
     const state = createInitialState();
     const agreement = {

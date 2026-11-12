@@ -24,14 +24,25 @@ describe("player transitions", () => {
   it("issues a signed game stake and creates one owned coupon when claimed", () => {
     const voice = { id: "stake-voice", assetId: "stake-voice-asset", durationMs: 1200, storage: "indexeddb" as const };
     const initial = createInitialState();
-    const issued = issueGameStake({ ...initial, stakes: { truth: "输的人请喝一杯" }, stakeRecords: { truth: { cardId: "truth", title: "输的人请喝一杯", createdAt: "2026-01-01T00:00:00.000Z" } } }, "truth", "暧昧升温", "输的人请喝一杯", "主持人", voice, "2026-01-01T00:00:00.000Z");
+    const issued = issueGameStake({ ...initial, stakes: { truth: "输的人请喝一杯" }, stakeVoices: { truth: voice }, stakeRecords: { truth: { cardId: "truth", title: "输的人请喝一杯", createdAt: "2026-01-01T00:00:00.000Z" } } }, "truth", "暧昧升温", "输的人请喝一杯", "主持人", voice, "2026-01-01T00:00:00.000Z");
     const issuance = issued.issuedStakes.truth;
     expect(issuance).toMatchObject({ status: "pending_claim", title: "输的人请喝一杯" });
     expect(issued.stakeRecords.truth).toBeUndefined();
+    expect(issued.stakeVoices.truth).toBeUndefined();
+    expect(issuance?.voice).toEqual(voice);
     const claimed = claimGameStake(issued, issuance!.id, "获胜方", "2026-01-01T00:01:00.000Z");
     expect(claimed.coupons[0]).toMatchObject({ source: "game", tone: "coral-coupon", holderName: "获胜方", status: "available", voice });
     expect(claimed.issuedStakes.truth?.status).toBe("claimed");
     expect(claimGameStake(claimed, issuance!.id, "另一个人")).toEqual(claimed);
+  });
+
+  it("keeps remote claim details on a game issuance while clearing the card audio", () => {
+    const voice = { id: "stake-voice", assetId: "stake-voice-asset", durationMs: 1200, storage: "indexeddb" as const };
+    const initial = createInitialState();
+    const issued = issueGameStake({ ...initial, stakes: { truth: "输的人请喝一杯" }, stakeVoices: { truth: voice } }, "truth", "暧昧升温", "输的人请喝一杯", "主持人", voice, "2026-01-01T00:00:00.000Z", "coupon-1", { remoteId: "coupon-1", claimToken: "claim-1" });
+    expect(issued.issuedStakes.truth).toMatchObject({ remoteId: "coupon-1", claimToken: "claim-1", status: "pending_claim", voice });
+    expect(issued.stakes.truth).toBe("输的人请喝一杯");
+    expect(issued.stakeVoices.truth).toBeUndefined();
   });
 
   it("keeps a direct benefit pending until the recipient claims it", () => {

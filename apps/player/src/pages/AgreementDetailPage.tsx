@@ -6,11 +6,10 @@ import { demoVoice } from "../data/demo";
 import { AgreementCard } from "../features/promise/AgreementCard";
 import { usePlayer } from "../features/player/PlayerProvider";
 import { usePageMemory } from "../services/pageMemory";
-import { useLinkSharing } from "../features/player/useLinkSharing";
+import { shareAgreementImage } from "../features/promise/agreementShareImage";
 
 export function AgreementDetailPage() {
-  const { state } = usePlayer();
-  const shareLink = useLinkSharing();
+  const { state, notify } = usePlayer();
   const { memory, remember } = usePageMemory();
   const { agreementId } = useParams();
   const navigate = useNavigate();
@@ -27,11 +26,19 @@ export function AgreementDetailPage() {
   }, [remember]);
   if (!agreement) return <section className="detail-page empty-detail"><Icon name="file" size={28} /><h1>{copy.promise.missing}</h1><button className="text-button" onClick={() => navigate("/me")}>{copy.promise.returnRecords}</button></section>;
   const record = agreement;
-  const shareUrl = `${window.location.origin}/share/${encodeURIComponent(record.shareCode ?? record.id)}`;
-
   async function share() {
-    const shareData = { title: copy.promise.documentTitle, text: `${record.text} · ${record.benefit}`, url: shareUrl };
-    await shareLink(shareData);
+    try {
+      const result = await shareAgreementImage({
+        text: record.text,
+        createdAt: record.createdAt,
+        signatures: record.signatures,
+        participantNames: { a: state.profileName, b: copy.promise.shareCard.anonymousCounterparty }
+      });
+      if (result === "cancelled") return;
+      notify(result === "shared" ? copy.promise.shareCard.shareOpened : copy.promise.shareCard.savedCard);
+    } catch {
+      notify(copy.promise.shareCard.shareImageFailed);
+    }
   }
 
   return <section className="contract-detail-page page-transition" ref={section}>
@@ -44,8 +51,7 @@ export function AgreementDetailPage() {
         text={record.text}
         voice={record.voice ?? demoVoice(record.text, "agreement")}
         status={copy.promise.shareCard.signed}
-        participants={[{ role: "initiator", nickname: state.profileName, signed: record.signatures.a.length > 0, signature: record.signatures.a }, { role: "counterparty", nickname: copy.promise.b, signed: record.signatures.b.length > 0, signature: record.signatures.b }]}
-        code={record.shareCode ?? record.id}
+        participants={[{ role: "initiator", nickname: state.profileName, signed: record.signatures.a.length > 0, signature: record.signatures.a }, { role: "counterparty", nickname: copy.promise.shareCard.anonymousCounterparty, signed: record.signatures.b.length > 0, signature: record.signatures.b }]}
         createdAt={record.createdAt}
       />
     </div>

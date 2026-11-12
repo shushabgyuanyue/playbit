@@ -8,7 +8,7 @@ import { VoiceRecordingOverlay } from "../promise/VoiceRecordingOverlay";
 import { saveStakeVoice } from "./stakeState";
 
 export const STAKE_NAV_ACTION = "playbit:stake-nav-action";
-type StakeNavAction = "issue" | "share" | "clear";
+type StakeNavAction = "issue" | "clear";
 const HOLD_TO_RECORD_MS = 220;
 
 export function StakeNavControl() {
@@ -19,6 +19,7 @@ export function StakeNavControl() {
   const issuance = state.issuedStakes[cardId] ?? null;
   const stakeRecord = state.stakeRecords[cardId];
   const flipped = Boolean(issuance || stakeRecord?.locked);
+  const settled = issuance?.status !== undefined && issuance.status !== "pending_claim";
   const canRecord = !flipped && !issuance && !stakeRecord?.locked;
   const recorder = useVoiceRecorder(nextVoice => {
     update(current => saveStakeVoice(current, cardId, nextVoice, copy.play.defaultStake));
@@ -90,7 +91,7 @@ export function StakeNavControl() {
       return;
     }
     if (flipped) {
-      if (stake) dispatchAction(issuance ? "share" : "issue");
+      if (issuance?.status === "pending_claim" || (!issuance && stake)) dispatchAction("issue");
       return;
     }
     if (canRecord) notify(copy.play.stakeNavHoldHint);
@@ -99,8 +100,11 @@ export function StakeNavControl() {
   const recording = recorder.status === "requesting" || recorder.status === "recording" || recorder.status === "saving";
   const showRecordingOverlay = holding || recording;
   const arming = holding && !recording;
-  const flippedLabel = copy.play.stakeNavSettlement;
+  const flippedLabel = settled
+    ? issuance?.status === "claimed" ? copy.play.issueStakeClaimed : copy.sharing.closed
+    : copy.play.stakeNavSettlement;
   const label = flipped ? flippedLabel : copy.play.stake;
+  const disabled = flipped && (issuance ? settled : !stake);
   const ariaLabel = flipped
     ? `${flippedLabel}${stake ? "" : " · 暂无彩头"}`
     : `${copy.play.stake} · ${copy.play.stakeNavHoldHint}`;
@@ -110,8 +114,8 @@ export function StakeNavControl() {
       className={`nav-item nav-play play nav-stake ${flipped ? "is-flipped" : ""} ${recording ? "is-recording" : ""}`}
       type="button"
       aria-label={ariaLabel}
-      aria-disabled={flipped && !stake}
-      disabled={flipped && !stake}
+      aria-disabled={disabled}
+      disabled={disabled}
       onPointerDown={handlePointerDown}
       onPointerUp={finishPointer}
       onPointerCancel={event => finishPointer(event, true)}

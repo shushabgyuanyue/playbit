@@ -118,13 +118,15 @@ export const playerApi = {
     return request<{ user: User | null }>("/auth/me");
   },
   transcribeVoice,
-  listCoupons(options: { cursor?: string | null; limit?: number; ownedOnly?: boolean } = {}) {
+  listCoupons(options: { cursor?: string | null; limit?: number; ownedOnly?: boolean; pendingIssuerOnly?: boolean } = {}) {
     const query = new URLSearchParams({ limit: String(Math.max(1, Math.min(50, options.limit ?? 10))) });
     if (options.cursor) query.set("cursor", options.cursor);
     if (options.ownedOnly) query.set("owned", "1");
+    if (options.pendingIssuerOnly) query.set("pending", "1");
     return request<CouponPage>(`/coupons?${query.toString()}`);
   },
   createIndependentCoupon(payload: {
+    requestId?: string;
     gameResultId?: string | null;
     certificateId?: string | null;
     name: string;

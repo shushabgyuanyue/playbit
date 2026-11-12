@@ -102,7 +102,7 @@ export function AgreementSharePage() {
   if (!agreement || failed) return <section className="agreement-share-page share-state"><Icon name="file" size={28} /><h1>{restricted ? copy.promise.shareCard.restricted : copy.promise.shareCard.unavailable}</h1>{restricted && !auth.user ? <button className="share-open-button" onClick={() => setAuthOpen(true)}>{copy.promise.shareCard.loginToView}<Icon name="arrow" size={16} /></button> : <button className="share-open-button" onClick={() => navigate("/")}>{copy.nav.play}<Icon name="arrow" size={16} /></button>}<AuthSheet open={authOpen} onClose={() => setAuthOpen(false)} /></section>;
 
   return <section className="agreement-share-page page-transition">
-    <AgreementCard text={agreement.text} voice={agreement.voice} status={agreement.participants.length >= 2 && agreement.participants.every(participant => participant.signed) ? copy.promise.shareCard.signed : copy.promise.shareCard.signing} participants={agreement.participants} code={agreement.shareCode ?? agreement.id} createdAt={agreement.createdAt} />
+    <AgreementCard text={agreement.text} voice={agreement.voice} status={agreement.participants.length >= 2 && agreement.participants.every(participant => participant.signed) ? copy.promise.shareCard.signed : copy.promise.shareCard.signing} participants={agreement.participants} createdAt={agreement.createdAt} />
     <button className="share-open-button" onClick={openPlaybit}>{localAgreement ? copy.promise.shareCard.openPlaybit : copy.promise.shareCard.enterPlaybit}<Icon name="arrow" size={17} /></button>
   </section>;
 }

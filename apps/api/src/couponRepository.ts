@@ -3,10 +3,11 @@ import type { Agreement, Coupon, Participant } from "@playbit/shared";
 import { getEffectiveStakeLabel, hasCouponEquity } from "@playbit/game-core";
 import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { agreementFromRow, agreementToRow, AgreementRevisionConflict, type AgreementRepository } from "./agreementRepository.js";
 
 export type IndependentCouponInput = {
+  requestId?: string;
   gameResultId?: string | null;
   certificateId?: string | null;
   name: string;
@@ -28,6 +29,7 @@ export type CouponListOptions = {
   limit?: number;
   cursor?: string | null;
   ownedOnly?: boolean;
+  pendingIssuerOnly?: boolean;
 };
 
 type CouponCursor = { createdAt: string; id: string };
@@ -88,6 +90,12 @@ type MemoryCouponClaim = {
 
 function makeId(prefix: string): string {
   return `${prefix}_${randomBytes(8).toString("hex")}`;
+}
+
+function independentCouponId(input: IndependentCouponInput): string {
+  if (!input.requestId || !input.issuerUserId) return makeId("coupon");
+  const digest = createHash("sha256").update(`${input.issuerUserId}:${input.requestId}`).digest("hex").slice(0, 32);
+  return `coupon_${digest}`;
 }
 
 function fromRow(row: CouponRow): Coupon {
@@ -257,9 +265,12 @@ class MemoryCouponRepository {
   }
 
   async createIndependent(input: IndependentCouponInput): Promise<Coupon> {
+    const id = independentCouponId(input);
+    const existing = this.coupons.get(id);
+    if (existing) return existing;
     const claimLimit = Math.max(1, input.claimLimit ?? 1);
     const coupon: Coupon = {
-      id: makeId("coupon"),
+      id,
       claimId: null,
       parentCouponId: null,
       agreementId: null,
@@ -304,7 +315,10 @@ class MemoryCouponRepository {
 
   async listPageByUser(userId: string, options: CouponListOptions = {}): Promise<CouponListPage> {
     const items = await this.listByUser(userId);
-    return pageFromItems(options.ownedOnly ? items.filter(item => item.holderUserId === userId) : items, options);
+    const filtered = options.pendingIssuerOnly
+      ? items.filter(item => item.issuerUserId === userId && item.holderUserId === null && item.status === "available" && item.remainingClaims > 0)
+      : options.ownedOnly ? items.filter(item => item.holderUserId === userId) : items;
+    return pageFromItems(filtered, options);
   }
 
   async findById(id: string): Promise<Coupon | null> {
@@ -320,7 +334,7 @@ class MemoryCouponRepository {
   }
 
   async claimByToken(token: string, holderUserId: string, holderNickname: string): Promise<Coupon | null> {
-    const coupon = await this.findByClaimToken(token);
+    const coupon = Array.from(this.coupons.values()).find((item) => item.claimToken === token) ?? null;
     if (!coupon || coupon.status !== "available" || coupon.claimedCount >= coupon.claimLimit) return null;
     if (Array.from(this.claims.values()).some((claim) => claim.couponId === coupon.id && claim.holderUserId === holderUserId)) return null;
     const claim: MemoryCouponClaim = {
@@ -504,9 +518,10 @@ class PostgresCouponRepository {
   }
 
   async createIndependent(input: IndependentCouponInput): Promise<Coupon> {
+    const id = independentCouponId(input);
     const claimLimit = Math.max(1, input.claimLimit ?? 1);
     const coupon: Coupon = {
-      id: makeId("coupon"),
+      id,
       claimId: null,
       parentCouponId: null,
       agreementId: null,
@@ -531,8 +546,11 @@ class PostgresCouponRepository {
       usedAt: null,
       waivedAt: null
     };
-    const [row] = await this.db.insert(coupons).values(toRow(coupon)).returning();
-    return fromRow(row);
+    const [row] = await this.db.insert(coupons).values(toRow(coupon)).onConflictDoNothing({ target: coupons.id }).returning();
+    if (row) return fromRow(row);
+    const existing = await this.findById(id);
+    if (!existing) throw new Error("Coupon idempotency conflict could not be resolved");
+    return existing;
   }
 
   async listByUser(userId: string): Promise<Coupon[]> {
@@ -570,16 +588,28 @@ class PostgresCouponRepository {
       this.db
         .select()
         .from(coupons)
-        .where(and(options.ownedOnly ? eq(coupons.holderUserId, userId) : or(eq(coupons.holderUserId, userId), eq(coupons.issuerUserId, userId)), parentCursor))
+        .where(and(
+          options.pendingIssuerOnly
+            ? and(
+              eq(coupons.issuerUserId, userId),
+              isNull(coupons.holderUserId),
+              eq(coupons.status, "available"),
+              sql`${coupons.claimedCount} < ${coupons.claimLimit}`
+            )
+            : options.ownedOnly ? eq(coupons.holderUserId, userId) : or(eq(coupons.holderUserId, userId), eq(coupons.issuerUserId, userId)),
+          parentCursor
+        ))
         .orderBy(desc(coupons.createdAt), desc(coupons.id))
         .limit(limit + 1),
-      this.db
-        .select({ coupon: coupons, claim: couponClaims })
-        .from(couponClaims)
-        .innerJoin(coupons, eq(couponClaims.couponId, coupons.id))
-        .where(and(eq(couponClaims.holderUserId, userId), claimCursor))
-        .orderBy(desc(couponClaims.createdAt), desc(couponClaims.id))
-        .limit(limit + 1)
+      options.pendingIssuerOnly
+        ? Promise.resolve([] as Array<{ coupon: CouponRow; claim: CouponClaimRow }>)
+        : this.db
+          .select({ coupon: coupons, claim: couponClaims })
+          .from(couponClaims)
+          .innerJoin(coupons, eq(couponClaims.couponId, coupons.id))
+          .where(and(eq(couponClaims.holderUserId, userId), claimCursor))
+          .orderBy(desc(couponClaims.createdAt), desc(couponClaims.id))
+          .limit(limit + 1)
     ]);
 
     const items = [...rows.map(fromRow), ...claims.map(({ coupon, claim }) => fromClaimRow(coupon, claim))]

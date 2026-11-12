@@ -28,22 +28,28 @@ export function issueGameStake(
   issuerName: string,
   voice: VoiceNote,
   issuedAt = new Date().toISOString(),
-  issuanceId = createId("stake")
+  issuanceId = createId("stake"),
+  remote: { remoteId?: string; claimToken?: string; title?: string; issuerName?: string } = {}
 ): PlayerState {
   if (!title.trim() || !voice.assetId || state.issuedStakes[cardId]) return state;
   const stakeRecords = { ...state.stakeRecords };
+  const stakeVoices = { ...state.stakeVoices };
   delete stakeRecords[cardId];
+  delete stakeVoices[cardId];
   return {
     ...state,
     stakeRecords,
+    stakeVoices,
     issuedStakes: {
       ...state.issuedStakes,
       [cardId]: {
         id: issuanceId,
+        remoteId: remote.remoteId,
+        claimToken: remote.claimToken,
         cardId,
         cardTitle,
-        title: title.trim(),
-        issuerName,
+        title: remote.title?.trim() || title.trim(),
+        issuerName: remote.issuerName?.trim() || issuerName,
         signature: [],
         voice,
         issuedAt,

@@ -28,6 +28,10 @@ it("keeps voice issuance shareable, guards busy actions and removes claim action
     const findShare = () => Array.from(host.querySelectorAll("button")).find(button => button.textContent?.includes("分享给获胜方"));
     expect(host.querySelector("canvas")).toBeNull();
     expect(host.querySelector("input")?.value).toContain("/claim/token");
+    const selfClaim = Array.from(host.querySelectorAll("button")).find(button => button.textContent?.includes("我来领取"));
+    expect(selfClaim).toBeDefined();
+    await act(async () => selfClaim!.click());
+    expect(props.onSelfClaim).toHaveBeenCalledOnce();
     await act(async () => findShare()!.click());
     expect(props.onShare).toHaveBeenCalledOnce();
     await act(async () => root.render(createElement(IssueStakeSheet, { ...props, claiming: true })));

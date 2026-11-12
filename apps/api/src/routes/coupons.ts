@@ -10,6 +10,7 @@ import { couponSchema, inputLimits } from "@playbit/shared";
 import type { Hono } from "hono";
 
 const independentCouponSchema = z.object({
+  requestId: z.string().trim().min(1).max(160).optional(),
   gameResultId: z.string().nullable().optional(),
   certificateId: z.string().nullable().optional(),
   name: z.string().trim().min(1).max(80),
@@ -51,7 +52,9 @@ export function registerCouponRoutes(
 
     const rawLimitValue = context.req.query("limit");
     const cursor = context.req.query("cursor");
-    if (rawLimitValue === undefined && cursor === undefined) {
+    const ownedOnly = context.req.query("owned") === "1";
+    const pendingIssuerOnly = context.req.query("pending") === "1";
+    if (rawLimitValue === undefined && cursor === undefined && !ownedOnly && !pendingIssuerOnly) {
       const items = await coupons.listByUser(currentUser.id);
       return context.json({ coupons: items.map((coupon) => couponSchema.parse(coupon)) });
     }
@@ -61,7 +64,8 @@ export function registerCouponRoutes(
     const page = await coupons.listPageByUser(currentUser.id, {
       limit,
       cursor,
-      ownedOnly: context.req.query("owned") === "1"
+      ownedOnly,
+      pendingIssuerOnly
     });
     return context.json({
       coupons: page.items.map((coupon) => couponSchema.parse(coupon)),

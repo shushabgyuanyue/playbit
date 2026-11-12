@@ -2,12 +2,17 @@ import { playerCopy as copy } from "@playbit/content/player";
 import { Icon } from "../../components/ui/Icon";
 
 export function PromiseProgress({ activeStep, onRestart, disabled = false }: { activeStep: number; onRestart: () => void; disabled?: boolean }) {
-  return <div className="bet-progress has-restart" aria-label={copy.promise.steps[activeStep]}>
-    <button className="restart-step" type="button" disabled={disabled} onClick={onRestart} title={copy.promise.restart}>
-      <i><Icon name="restart" size={13} /></i>{copy.promise.restart}
-    </button>
-    {copy.promise.steps.map((step, index) => <span className={index <= activeStep ? "active" : ""} key={step} aria-current={index === activeStep ? "step" : undefined}>
-      <i>{index < activeStep ? <Icon name="check" size={10} /> : index + 1}</i>{step}
-    </span>)}
+  const currentStep = Math.min(activeStep, copy.promise.steps.length - 1);
+  return <div className="promise-progress" aria-label={copy.promise.progressLabel}>
+    <div className="promise-progress-heading">
+      <span>{copy.promise.stepCount(currentStep + 1, copy.promise.steps.length)}</span>
+      <b>{copy.promise.steps[currentStep]}</b>
+      <button type="button" disabled={disabled} onClick={onRestart} aria-label={copy.promise.restart} title={copy.promise.restart}>
+        <Icon name="restart" size={16} />
+      </button>
+    </div>
+    <div className="promise-progress-track" aria-hidden="true">
+      {copy.promise.steps.map((step, index) => <i className={index <= currentStep ? "active" : ""} key={step} />)}
+    </div>
   </div>;
 }

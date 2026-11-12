@@ -9,9 +9,9 @@ import { benefitShareData } from "../services/linkSharing";
 import { AuthSheet } from "../features/player/AuthSheet";
 import { CouponCard } from "../features/benefits/CouponCard";
 import { IssueBenefitSheet } from "../features/benefits/IssueBenefitSheet";
-import { claimDirectBenefit, createId, issueDirectBenefit, redeemCoupon } from "../features/player/transitions";
-import { toPlayerCoupon } from "../features/benefits/couponPresentation";
-import type { VoiceNote } from "../data/types";
+import { claimDirectBenefit, claimGameStake, createId, issueDirectBenefit, redeemCoupon } from "../features/player/transitions";
+import { toPendingBenefitIssuance, toPlayerCoupon } from "../features/benefits/couponPresentation";
+import type { BenefitIssuance, VoiceNote } from "../data/types";
 import { isPlayerApiConfigured, normalizeCouponDescription, normalizeCouponName, PlayerApiError, playerApi } from "../services/playerApi";
 import { usePageMemory } from "../services/pageMemory";
 
@@ -29,6 +29,7 @@ export function BenefitsPage() {
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [issuanceId, setIssuanceId] = useState<string | null>(null);
+  const [selectedPendingIssuance, setSelectedPendingIssuance] = useState<BenefitIssuance | null>(null);
   const [manualVoice, setManualVoice] = useState<VoiceNote>(emptyVoice);
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingSelfClaim, setPendingSelfClaim] = useState(false);
@@ -37,8 +38,11 @@ export function BenefitsPage() {
   const issuingRef = useRef(false);
   const claimingRef = useRef(false);
   const [remote, setRemote] = useState<RemotePage>({ items: [], nextCursor: null, hasMore: false });
+  const [remotePending, setRemotePending] = useState<RemotePage>({ items: [], nextCursor: null, hasMore: false });
   const [remoteMode, setRemoteMode] = useState(false);
   const [remoteLoading, setRemoteLoading] = useState(false);
+  const [remotePendingLoading, setRemotePendingLoading] = useState(false);
+  const [remotePendingLoaded, setRemotePendingLoaded] = useState(false);
   const [remoteError, setRemoteError] = useState(false);
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [pendingVisibleCount, setPendingVisibleCount] = useState(3);
@@ -46,6 +50,7 @@ export function BenefitsPage() {
   const initialScrollTop = useRef(memory.scrollTop.benefits ?? 0);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const remoteLoadingRef = useRef(false);
+  const remotePendingLoadingRef = useRef(false);
 
   useEffect(() => {
     const element = section.current;
@@ -62,7 +67,7 @@ export function BenefitsPage() {
     setRemoteLoading(true);
     setRemoteError(false);
     try {
-      const page = await playerApi.listCoupons({ cursor, limit: 10 });
+      const page = await playerApi.listCoupons({ cursor, limit: 10, ownedOnly: true });
       setRemote(current => ({
         items: cursor ? [...current.items, ...page.coupons] : page.coupons,
         nextCursor: page.nextCursor,
@@ -79,14 +84,58 @@ export function BenefitsPage() {
     }
   }, [auth.user, notify]);
 
+  const loadPending = useCallback(async (cursor: string | null = null) => {
+    if (!auth.user || remotePendingLoadingRef.current) return;
+    remotePendingLoadingRef.current = true;
+    setRemotePendingLoading(true);
+    try {
+      const page = await playerApi.listCoupons({ cursor, limit: 50, pendingIssuerOnly: true });
+      setRemotePending(current => ({
+        items: cursor ? [...current.items, ...page.coupons] : page.coupons,
+        nextCursor: page.nextCursor,
+        hasMore: page.hasMore
+      }));
+      setRemotePendingLoaded(true);
+    } catch (error) {
+      setRemoteError(true);
+      if (isApiActionError(error)) notify(copy.auth.network);
+    } finally {
+      remotePendingLoadingRef.current = false;
+      setRemotePendingLoading(false);
+    }
+  }, [auth.user, notify]);
+
   useEffect(() => {
     if (!auth.user || !isPlayerApiConfigured()) {
       setRemote({ items: [], nextCursor: null, hasMore: false });
+      setRemotePending({ items: [], nextCursor: null, hasMore: false });
       setRemoteMode(false);
+      setRemotePendingLoaded(false);
       return;
     }
+    setRemote({ items: [], nextCursor: null, hasMore: false });
+    setRemotePending({ items: [], nextCursor: null, hasMore: false });
+    setRemoteMode(false);
+    setRemotePendingLoaded(false);
     void loadMore();
-  }, [auth.user, loadMore]);
+    void loadPending();
+  }, [auth.user, loadMore, loadPending]);
+
+  useEffect(() => {
+    if (!auth.user || !isPlayerApiConfigured()) return;
+    const refresh = () => {
+      if (document.visibilityState !== "hidden") {
+        void loadMore();
+        void loadPending();
+      }
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [auth.user, loadMore, loadPending]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -99,15 +148,34 @@ export function BenefitsPage() {
     return () => observer.disconnect();
   }, [loadMore, remote.hasMore, remote.nextCursor, remoteLoading, remoteMode]);
 
-  const issuance = issuanceId ? state.issuedBenefits[issuanceId] ?? null : null;
+  const localSelectedIssuance = issuanceId
+    ? state.issuedBenefits[issuanceId]
+      ?? Object.values(state.issuedStakes).find(item => item.id === issuanceId || item.remoteId === issuanceId)
+      ?? null
+    : null;
+  const issuance = selectedPendingIssuance ?? localSelectedIssuance;
   const hasRemoteSession = Boolean(auth.user && isPlayerApiConfigured());
   const displayedCoupons = auth.user
     ? (remoteMode || hasRemoteSession ? remote.items.map(item => toPlayerCoupon(item, state)) : state.coupons)
     : [];
   const remoteById = new Map(remote.items.map(item => [item.id, item]));
-  const pendingIssuances = Object.entries(state.issuedBenefits).filter(([, item]) => item.status === "pending_claim").sort((a, b) => Date.parse(b[1].issuedAt) - Date.parse(a[1].issuedAt));
+  const pendingById = new Map<string, BenefitIssuance>();
+  const localPending = [
+    ...Object.values(state.issuedBenefits),
+    ...Object.values(state.issuedStakes)
+  ].filter(item => item.status === "pending_claim");
+  for (const item of localPending) {
+    const remoteId = item.remoteId ?? item.id;
+    const hasRemoteRecord = remotePending.items.some(coupon => coupon.id === remoteId);
+    if (hasRemoteSession && item.claimToken && remotePendingLoaded && !hasRemoteRecord) continue;
+    pendingById.set(remoteId, item);
+  }
+  for (const coupon of remotePending.items) pendingById.set(coupon.id, toPendingBenefitIssuance(coupon, state));
+  const pendingIssuances = [...pendingById.entries()]
+    .sort((a, b) => Date.parse(b[1].issuedAt) - Date.parse(a[1].issuedAt))
+    .map(([key, item]) => ({ key, issuance: item }));
   const visiblePendingIssuances = pendingIssuances.slice(0, pendingVisibleCount);
-  const hasMorePending = visiblePendingIssuances.length < pendingIssuances.length;
+  const hasMorePending = visiblePendingIssuances.length < pendingIssuances.length || remotePending.hasMore;
 
   useEffect(() => {
     setPendingVisibleCount(current => Math.max(3, Math.min(current, Math.max(3, pendingIssuances.length))));
@@ -150,8 +218,9 @@ export function BenefitsPage() {
             }
           }
         }));
-        setRemote(current => ({ ...current, items: [remoteIssuance, ...current.items.filter(item => item.id !== remoteIssuance.id)], hasMore: current.hasMore }));
-        setRemoteMode(true);
+        setRemotePending(current => ({ ...current, items: [remoteIssuance, ...current.items.filter(item => item.id !== remoteIssuance.id)], hasMore: current.hasMore }));
+        setRemotePendingLoaded(true);
+        setSelectedPendingIssuance(null);
         setIssuanceId(remoteIssuance.id);
         return;
       } catch (error) {
@@ -164,6 +233,7 @@ export function BenefitsPage() {
     }
     const id = createId("benefit");
     update(current => issueDirectBenefit(current, title, current.profileName, [], sourceNote, new Date().toISOString(), id, source, voice));
+    setSelectedPendingIssuance(null);
     setIssuanceId(id);
   }
 
@@ -173,7 +243,7 @@ export function BenefitsPage() {
 
   async function selfClaimIssuance(authReady = false) {
     if (!issuance || issuance.status !== "pending_claim" || claimingRef.current) return;
-    if (!auth.user && !authReady) { setPendingSelfClaim(true); setAuthOpen(true); return; }
+    if (issuance.claimToken && isPlayerApiConfigured() && !auth.user && !authReady) { setPendingSelfClaim(true); setAuthOpen(true); return; }
     if (issuance.claimToken && isPlayerApiConfigured()) {
       claimingRef.current = true;
       setClaimLoading(true);
@@ -181,6 +251,7 @@ export function BenefitsPage() {
         const result = await playerApi.claimOwnCoupon(issuance.remoteId ?? issuance.id);
         const parentId = result.coupon.parentCouponId ?? issuance.remoteId ?? issuance.id;
         setRemote(current => ({ ...current, items: [result.coupon, ...current.items.filter(item => item.id !== result.coupon.id && item.id !== parentId)] }));
+        setRemotePending(current => ({ ...current, items: current.items.filter(item => item.id !== parentId) }));
         setRemoteMode(true);
       } catch (error) {
         notify(error instanceof PlayerApiError && error.status === 410 ? copy.wallet.claimUnavailable : copy.wallet.claimError);
@@ -190,11 +261,14 @@ export function BenefitsPage() {
         setClaimLoading(false);
       }
     }
-    update(current => claimDirectBenefit(current, issuance.id, current.profileName));
+    update(current => issuance.source === "game"
+      ? claimGameStake(current, issuance.id, current.profileName)
+      : claimDirectBenefit(current, issuance.id, current.profileName));
     setIssuing(false);
     setIssuanceId(null);
+    setSelectedPendingIssuance(null);
     setManualVoice(emptyVoice);
-    notify(copy.wallet.issueClaimed);
+    notify(issuance.source === "game" ? copy.play.issueStakeClaimed : copy.wallet.issueClaimed);
   }
 
   async function redeem() {
@@ -219,12 +293,18 @@ export function BenefitsPage() {
     notify(copy.wallet.redeemedToast);
   }
 
+  function showMorePending() {
+    const nextCount = pendingVisibleCount + 3;
+    setPendingVisibleCount(nextCount);
+    if (nextCount >= pendingIssuances.length && remotePending.hasMore) void loadPending(remotePending.nextCursor);
+  }
+
   return <section className="benefits" ref={section}>
     <div className="module-tag">{copy.wallet.eyebrow}</div><div className="benefit-title"><h1>{copy.wallet.title[0]}<br />{copy.wallet.title[1]}</h1></div>
     {remoteError && <p className="remote-list-note" role="status">{copy.auth.network}</p>}
-    <IssueBenefitSheet open={issuing} onClose={() => { if (!issueLoading && !claimLoading) { setIssuing(false); setIssuanceId(null); } }} issuerName={state.profileName} issuance={issuance} voice={manualVoice} onVoiceChange={setManualVoice} submitting={issueLoading} claiming={claimLoading} onIssue={voice => void issue(voice)} onShare={() => void shareIssuance()} onSelfClaim={() => void selfClaimIssuance()} />
-    {!issuing && <button className="benefit-issue-fab" type="button" aria-label={copy.wallet.issueTitle} title={copy.wallet.issueTitle} onClick={() => { setIssuanceId(null); setManualVoice(emptyVoice); setIssuing(true); }}><Icon name="share" size={17} /></button>}
-    {pendingIssuances.length > 0 && <section className="pending-benefits"><h2>{copy.sharing.pendingTitle}</h2>{visiblePendingIssuances.map(([key, item]) => <button className="pending-benefit-item" type="button" key={key} onClick={() => { setIssuanceId(key); setIssuing(true); }}><Icon name="send" size={16} /><strong>{item.title}</strong><span>{copy.sharing.resume}<Icon name="arrow" size={13} /></span></button>)}{hasMorePending && <button className="pending-benefits-more" type="button" onClick={() => setPendingVisibleCount(current => current + 3)}>{copy.wallet.pendingMore}<Icon name="chevronDown" size={13} /></button>}</section>}
+    <IssueBenefitSheet open={issuing} onClose={() => { if (!issueLoading && !claimLoading) { setIssuing(false); setIssuanceId(null); setSelectedPendingIssuance(null); } }} issuerName={state.profileName} issuance={issuance} voice={manualVoice} onVoiceChange={setManualVoice} submitting={issueLoading} claiming={claimLoading} onIssue={voice => void issue(voice)} onShare={() => void shareIssuance()} onSelfClaim={() => void selfClaimIssuance()} />
+    {!issuing && <button className="benefit-issue-fab" type="button" aria-label={copy.wallet.issueTitle} title={copy.wallet.issueTitle} onClick={() => { setIssuanceId(null); setSelectedPendingIssuance(null); setManualVoice(emptyVoice); setIssuing(true); }}><Icon name="share" size={17} /></button>}
+    {pendingIssuances.length > 0 && <section className="pending-benefits"><h2>{copy.sharing.pendingTitle}</h2>{visiblePendingIssuances.map(({ key, issuance: item }) => <button className="pending-benefit-item" type="button" key={key} onClick={() => { setIssuanceId(null); setSelectedPendingIssuance(item); setIssuing(true); }}><Icon name="send" size={16} /><strong>{item.title}</strong><span>{copy.sharing.resume}<Icon name="arrow" size={13} /></span></button>)}{hasMorePending && <button className="pending-benefits-more" type="button" disabled={remotePendingLoading && visiblePendingIssuances.length >= pendingIssuances.length} onClick={showMorePending}>{remotePendingLoading ? copy.wallet.loading : copy.wallet.pendingMore}<Icon name="chevronDown" size={13} /></button>}</section>}
     {auth.user && <div className="ticket-list ticket-list-won">
       {displayedCoupons.map((coupon, i) => <CouponCard coupon={coupon} index={i} signatureDataUrl={remoteById.get(coupon.id)?.signatureDataUrl} onRedeem={() => { setRedeeming(coupon.id); }} key={coupon.id} />)}
       {remoteLoading && !displayedCoupons.length && <div className="benefits-list-loading" role="status" aria-label={copy.wallet.loading}><span className="list-loading-dot" /></div>}

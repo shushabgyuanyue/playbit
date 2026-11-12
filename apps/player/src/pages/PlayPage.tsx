@@ -50,6 +50,9 @@ export function PlayPage() {
   const [pendingIssueCardId, setPendingIssueCardId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingStakeVoice, setPendingStakeVoice] = useState<VoiceNote | null>(null);
+  const [pendingStakeClaimId, setPendingStakeClaimId] = useState<string | null>(null);
+  const [claimingStake, setClaimingStake] = useState(false);
+  const claimingStakeRef = useRef(false);
   const [modeTransition, setModeTransition] = useState<ModeTransition>("");
   const modeTimer = useRef<number | null>(null);
   const scene = typeMode
@@ -246,7 +249,7 @@ export function PlayPage() {
     await shareLink(data);
   }
   function openIssue() {
-    if (!stake) return;
+    if (!stake && !issuance) return;
     setPanel("issue");
   }
   function openStakeRecord(record: StakeRecord) {
@@ -294,20 +297,17 @@ export function PlayPage() {
           source: "game" as const,
           status: "pending_claim" as const
         };
-        update(current => {
-          const stakeRecords = { ...(current.stakeRecords ?? {}) };
-          delete stakeRecords[card.id];
-          return {
-            ...current,
-            stakeRecords,
-            stakeVoices: { ...current.stakeVoices, [card.id]: voice },
-            issuedStakes: {
-              ...current.issuedStakes,
-              [card.id]: created
-            }
-          };
-        });
-        setPanel(null);
+        update(current => issueGameStake(
+          current,
+          card.id,
+          card.label,
+          displayStake,
+          remoteIssuance.issuerNickname,
+          voice,
+          remoteIssuance.createdAt,
+          remoteIssuance.id,
+          { remoteId: remoteIssuance.id, claimToken: remoteIssuance.claimToken ?? undefined, title: remoteIssuance.name }
+        ));
         await shareLink(benefitShareData(created, card.label));
         return;
       } catch (error) {
@@ -326,7 +326,6 @@ export function PlayPage() {
     const next = issueGameStake({ ...state, stakeVoices: { ...state.stakeVoices, [card.id]: voice } }, card.id, card.label, displayStake, state.profileName, voice, issuedAt, issuanceId);
     const created = next.issuedStakes[card.id];
     update(current => issueGameStake({ ...current, stakeVoices: { ...current.stakeVoices, [card.id]: voice } }, card.id, card.label, displayStake, current.profileName, voice, issuedAt, issuanceId));
-    setPanel(null);
     await shareLink(benefitShareData(created ?? null, card.label));
   }
 
@@ -349,19 +348,53 @@ export function PlayPage() {
   }
   useEffect(() => {
     const handleStakeNavAction = (event: Event) => {
-      const action = (event as CustomEvent<{ action?: "issue" | "share" }>).detail?.action;
+      const action = (event as CustomEvent<{ action?: "issue" }>).detail?.action;
       if (action === "issue") openIssue();
-      if (action === "share") void shareStake();
     };
     window.addEventListener(STAKE_NAV_ACTION, handleStakeNavAction);
     return () => window.removeEventListener(STAKE_NAV_ACTION, handleStakeNavAction);
   }, [card.id, issuance, stake]);
-  function selfClaimStake() {
-    if (!issuance) return;
-    update(current => claimGameStake(current, issuance.id, current.profileName));
-    setPanel(null);
-    navigate("/benefits", { replace: true });
-    notify(copy.play.issueStakeClaimed);
+  async function selfClaimStake(targetId = issuance?.id, authReady = false) {
+    if (!targetId || claimingStakeRef.current) return;
+    const target = Object.values(state.issuedStakes).find(item => item.id === targetId)
+      ?? (issuance?.id === targetId ? issuance : null);
+    if (!target || target.status !== "pending_claim") return;
+    if (target.remoteId && isPlayerApiConfigured() && !auth.user && !authReady) {
+      setPendingStakeClaimId(target.id);
+      setAuthOpen(true);
+      return;
+    }
+    claimingStakeRef.current = true;
+    setClaimingStake(true);
+    try {
+      if (target.remoteId && isPlayerApiConfigured()) await playerApi.claimOwnCoupon(target.remoteId);
+      update(current => claimGameStake(current, target.id, current.profileName));
+      setPanel(null);
+      setPendingStakeClaimId(null);
+      navigate("/benefits", { replace: true });
+      notify(copy.play.issueStakeClaimed);
+    } catch (error) {
+      if (error instanceof PlayerApiError && error.status === 401) {
+        auth.logout();
+        setPendingStakeClaimId(target.id);
+        setAuthOpen(true);
+      } else {
+        notify(error instanceof PlayerApiError && error.status === 410 ? copy.wallet.claimUnavailable : copy.wallet.claimError);
+      }
+    } finally {
+      claimingStakeRef.current = false;
+      setClaimingStake(false);
+    }
+  }
+  function handleAuthSuccess() {
+    setAuthOpen(false);
+    if (pendingStakeClaimId) {
+      const targetId = pendingStakeClaimId;
+      setPendingStakeClaimId(null);
+      void selfClaimStake(targetId, true);
+      return;
+    }
+    continuePendingStake();
   }
   return <>
     <div className="feed-toolbar" style={{ "--feed-dark": feedDark } as CSSProperties}>
@@ -382,7 +415,7 @@ export function PlayPage() {
     <StakeRecordsSheet open={panel === "records"} onClose={close} onIssue={openStakeRecord} onDelete={handleStakeDelete} />
     <CollectionSheet open={panel === "save"} onClose={close} cardId={card.id} onCreate={() => setPanel("new-and-save")} />
     <CreateDeckSheet open={panel === "new" || panel === "new-and-save"} onClose={close} cardId={panel === "new-and-save" ? card.id : undefined} />
-    <IssueStakeSheet open={panel === "issue"} onClose={close} cardTitle={card.label} stake={stake ?? copy.play.defaultStake} issuerName={state.profileName} issuance={issuance} voice={stakeVoice} onIssue={signStake} onShare={() => void shareStake()} onSelfClaim={selfClaimStake} canSelfClaim={!issuance?.claimToken} />
-    <AuthSheet open={authOpen} onClose={() => setAuthOpen(false)} onSuccess={continuePendingStake} />
+    <IssueStakeSheet open={panel === "issue"} onClose={close} cardTitle={card.label} stake={stake ?? copy.play.defaultStake} issuerName={state.profileName} issuance={issuance} voice={stakeVoice} onIssue={signStake} onShare={() => void shareStake()} onSelfClaim={() => void selfClaimStake()} claiming={claimingStake} />
+    <AuthSheet open={authOpen} onClose={() => { setAuthOpen(false); setPendingStakeClaimId(null); }} onSuccess={handleAuthSuccess} />
   </>;
 }

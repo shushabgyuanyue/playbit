@@ -1,11 +1,31 @@
 import type { Coupon as ApiCoupon } from "@playbit/shared";
-import type { Coupon, CouponSource, PlayerState } from "../../data/types";
+import type { BenefitIssuance, Coupon, CouponSource, PlayerState } from "../../data/types";
 import { couponTone } from "../player/transitions";
 
-function sourceFor(label: string): CouponSource {
+export function sourceFor(label: string): CouponSource {
   if (label.includes("游戏")) return "game";
   if (label.includes("赌约") || label.includes("签约")) return "promise";
   return "direct";
+}
+
+export function toPendingBenefitIssuance(coupon: ApiCoupon, state: Pick<PlayerState, "issuedBenefits" | "issuedStakes">): BenefitIssuance {
+  const local = [
+    ...Object.values(state.issuedBenefits),
+    ...Object.values(state.issuedStakes)
+  ].find(item => (item.remoteId ?? item.id) === coupon.id);
+  return {
+    id: local?.id ?? coupon.id,
+    remoteId: coupon.id,
+    claimToken: coupon.claimToken ?? local?.claimToken,
+    title: coupon.name,
+    issuerName: coupon.issuerNickname,
+    signature: local?.signature ?? [],
+    voice: local?.voice,
+    issuedAt: coupon.createdAt,
+    source: sourceFor(coupon.sourceLabel),
+    sourceNote: coupon.sourceLabel,
+    status: "pending_claim"
+  };
 }
 
 export function toPlayerCoupon(coupon: ApiCoupon, state: Pick<PlayerState, "coupons" | "issuedBenefits" | "issuedStakes" | "agreements">): Coupon {

@@ -26,7 +26,7 @@ const playerCopyBase = {
   ai: { eyebrow: "PLAYBIT AI", title: "说说现在的气氛", hint: "先从现有卡片里，找一个更适合此刻的场景。", placeholder: "例如：还要等车五分钟，两个人，想找点乐子…", suggestions: ["等车5分钟", "谁来洗碗", "店里整点活动"], send: "选择适合的场景" },
   collection: { eyebrow: "SAVE TO SCENE", title: "收藏到场景卡组", create: "新建场景卡组 ＋", newHint: "自定义名称与场景", saved: (name: string) => `已收藏到「${name}」`, removed: (name: string) => `已从「${name}」取消收藏`, already: "已经在这个卡组里了" },
   promise: {
-    steps: ["合约创建", "合约签订", "权益发放"], eyebrow: "AGREEMENT CREATION", title: "建立一份", titleEnd: "双方认可的合约。",
+    steps: ["合约创建", "合约签订", "权益结算"], eyebrow: "AGREEMENT CREATION", title: "建立一份", titleEnd: "双方认可的合约。",
     hint: "明确约定事项与权益内容，确认后将生成协议。", label: "我们赌——", placeholder: "例如：这周谁先熬夜超过 12 点…", benefit: "约定权益", options: ["周末早餐", "请喝一杯", "一次无条件答应"], custom: "自定义一份权益…", create: "生成协议并进入签署", edit: "修改约定", signStep: "第二步 · 合约签订", signTitle: "请双方核对条款并亲笔签署", lab: "PLAYBIT · RELATIONSHIP LAB", document: "社交赌约协议", intro: "双方本着自愿、有趣且愿赌服输的原则，郑重约定：", terms: (benefit: string) => `本协议唯一权益为：${benefit}。结果由双方现场确认，再交给实际获得方。`, a: "甲方", b: "乙方", signA: "甲方签字", signB: "乙方签字", signed: "已签署", unsigned: "待签署", signArea: "手写签名区域", resign: "重签", signHere: "请在这里签名", signHint: "需要甲乙双方亲笔签署，才算正式立约。", signReady: "双方签字完成，可以落印生效。", seal: "签字完成，盖章生效", stamping: "正在落印…", sealed: "印章已落，合约正式生效", sealText: "见证", resultStep: "第三步 · 权益发放", resultTitle: "把约定交给对方", settlementHint: "协议已经生效，签发后交给实际获得方。", settlementActionHint: "留下签发原声后，分享给实际获得方登录领取，也可以由自己领取。", settlementIssuedHint: "签发原声已留存，接下来可以分享或由自己领取。", active: "协议有效", resultLabel: "BENEFIT ISSUANCE", winnerTitle: "确认权益获得方", winnerHint: "请根据实际结果选择一方。确认后，权益将自动签发。", or: "或", selected: "已选择为权益获得方", select: (party: string) => `选择${party}`, confirmWinner: (party: string) => `确认${party}获胜`, awaiting: "等待选择获胜方", issueBenefit: "签发这份权益", issueBenefitTitle: "把约定权益交给对方", issueBenefitHint: "留下这段原声，分享给实际获得方登录领取。", issueBenefitSigned: "权益已签发", issueBenefitPending: "等待对方登录领取", issueBenefitShare: "分享给对方领取", issueBenefitSelfClaim: "我来领取", issueBenefitShared: "已打开系统分享；跨设备领取将在接入账户后生效", issueBenefitClaimed: "已领取到本机权益", issuedToast: "权益已签发", issuedEyebrow: "BENEFIT ISSUED", issuedTitle: "权益已签发", issuedTitleEnd: "现在可以领取。", issuedClaimedTitle: "权益已领取", issuedClaimedTitleEnd: "已经放进权益中心。", issuedHint: (party: string) => `这份约定权益已经交给${party}。`, issuedType: "赌约权益 · 已发放", viewWallet: "查看权益中心", issued: "权益已发放", proof: "权益已安全送达", proofHint: "可在「权益」中查看与核销", viewDocument: "查看正式合约", detailHint: "合约详情可用于社交分享", another: "再发起一份赌约", records: "签约的协约", noRecords: "还没有约定记录", recordEmpty: "有想认真记下的约定，再来这里。", newPromise: "发起约定", documentTitle: "社交赌约协议书", authority: "CONTRACT RECORD", number: "合约编号：", initiator: "甲方（发起方）", counterparty: "乙方（参与方）", documentIntro: "甲乙双方基于真实意愿，就以下事项达成一致，并自愿记录本次约定。", clause1: "第一条　赌约事项", clause2: "第二条　约定权益", clause3: "第三条　履约约定", fulfillment: "双方以真诚、有趣、尊重彼此为原则完成履约。Playbit 记录双方约定，不核实现场结果。", result: (party: string) => `登记的获胜方为${party}。`, date: "签订日期：", sealName: "约定记录专用章", share: "分享", shareDocument: "分享这份约定", download: "保存约定图片", sharing: "正在生成…", shared: "已打开系统分享", downloaded: "约定图片已下载", shareFailed: "暂时无法生成图片，请重试", missing: "这份约定暂时找不到了", returnRecords: "返回约定记录"
   },
   auth: {
@@ -159,13 +159,46 @@ export const playerCopy = {
     ...playerCopyBase.promise,
     ...promiseVoiceCopy,
     issueBenefitClaimed: "权益已领取",
-    steps: ["合约创建", "合约签订", "合约结算", "权益发放"], restart: "重新签约", restartTitle: "重新签约？", restartHint: "将清空本次草稿并回到创建页，已保存的合约和权益仍会保留。", restartConfirm: "确认重新签约",
+    steps: ["说清约定", "两人签名", "权益结算"], progressLabel: "约定进度", stepCount: (current: number, total: number) => `${current} / ${total}`, restart: "重新开始", restartTitle: "重新开始？", restartHint: "将清空本次草稿并回到创建页，已保存的约定和权益仍会保留。", restartConfirm: "确认重新开始",
+    signA: "发起人签名", signB: "一起签的人", signHint: "每个人都留下一笔，约定才完整。", signReady: "两个人都签好了。", seal: "确认并生成约定卡", sealed: "这份约定已经记下",
+    shareDocument: "分享你们的约定",
+    afterSignTitle: "你们说好了。",
+    goToSettlement: "去结算",
+    settlementIssueFailed: "权益签发失败，请重试。",
+    settlementRetry: "重新签发",
     resultStep: "第三步 · 合约结算",
     resultTitle: "确认本次结果",
     settlementHint: "合约已经生效，请确认本次结果。",
     settlementActionHint: "确认后进入权益发放。",
     goToIssuance: "进入权益发放",
-    issueBenefitTitleEnd: "现在发放。"
+    issueBenefitTitleEnd: "现在发放。",
+    shareCard: {
+      ...promiseVoiceCopy.shareCard,
+      eyebrow: "你们的约定",
+      brand: "说好不许赖",
+      signed: "双方签好了",
+      signing: "等两个人签名",
+      readyToSeal: "两个人都签好了",
+      promiseEyebrow: "我们刚刚说好",
+      promiseTitle: "刚刚说好的那件事",
+      voiceAgreement: "这是你们亲口说下的约定",
+      initiator: "发起人",
+      counterparty: "一起签的人",
+      anonymousCounterparty: "TA",
+      signedStatus: "已签名",
+      datePrefix: "记于 ",
+      keepTogether: "两个人，亲笔签下",
+      shareImageTitle: "我们说好了",
+      shareImageText: "这份约定，我们亲口说过，也亲手签过。",
+      shareImageFooter: "亲口说好 · 亲笔签下 · Playbit 记录",
+      shareImageEyebrow: "亲口说好 · 亲笔签下",
+      shareAction: "分享你们的约定卡",
+      shareOpened: "已打开系统分享",
+      savedCard: "约定卡已保存，可以继续分享",
+      shareImageFailed: "约定卡暂时无法生成，请重试",
+      listenChallenge: "播放你们的原声"
+    },
+    sealText: "记下"
   }
 } as const;
 
